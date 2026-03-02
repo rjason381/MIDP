@@ -1,0 +1,306 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MIDP Web</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button class="icon-button" type="button" aria-label="menu">|||</button>
+        <strong class="brand-title">MIDP VESR Beta</strong>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button type="button" class="tab-button nav-item active" data-tab="deliverables">MIDP</button>
+        <button type="button" class="tab-button nav-item" data-tab="fields">Listas</button>
+        <button type="button" class="tab-button nav-item" data-tab="packages">Control de Avance por Paquetes</button>
+        <button type="button" class="nav-item" disabled>Fase</button>
+        <button type="button" class="nav-item" disabled>Escala</button>
+        <button type="button" class="nav-item" disabled>Formato Archivo</button>
+        <button type="button" class="nav-item" disabled>Tipo</button>
+        <button type="button" class="nav-item" disabled>Paquete</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button type="button" class="nav-item" disabled>About</button>
+        <button type="button" class="nav-item" disabled>Feedback</button>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div class="search-wrap">
+          <input id="globalSearchInput" type="text" placeholder="Buscar en la vista actual">
+        </div>
+        <div class="topbar-actions">
+          <span id="syncIndicator" class="sync-pill">Sin cambios pendientes</span>
+          <button id="exportBackupButton" type="button" class="secondary">Exportar</button>
+          <button id="importBackupButton" type="button" class="secondary">Importar</button>
+          <button id="syncButton" type="button">Guardar</button>
+          <button id="currentUserBadge" class="avatar">J</button>
+        </div>
+      </header>
+
+      <main class="workspace-main">
+        <div class="context-bar">
+          <div>
+            <p id="currentViewLabel" class="view-label">MIDP</p>
+            <h1 id="projectTitle">MIDP</h1>
+            <p id="projectSubtitle" class="muted">Selecciona un proyecto para empezar.</p>
+          </div>
+          <div class="context-actions">
+            <button id="switchProjectButton" class="secondary" type="button">Cambiar proyecto</button>
+          </div>
+        </div>
+
+        <section id="tab-fields" class="tab-panel hidden">
+          <div class="panel-header">
+            <h2>Vista de listas</h2>
+            <p class="muted">Matriz de listas por campo, con columna de nombre y codigo.</p>
+          </div>
+
+          <div class="config-grid">
+            <label>
+              Titulo visible
+              <input id="projectTitleInput" type="text" maxlength="100" placeholder="Ejemplo: MIDP - Proyecto Norte">
+            </label>
+            <label>
+              Separador de nomenclatura
+              <input id="fieldSeparatorInput" type="text" maxlength="2" value="-" placeholder="-">
+            </label>
+            <label>
+              Control de avance
+              <select id="progressControlModeSelect">
+                <option value="deliverable">Por entregable</option>
+                <option value="package">Por paquete</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <div class="table-tools">
+              <p id="fieldCounter" class="muted">0 / 11 campos</p>
+              <div class="inline-actions">
+                <button id="addFieldRowButton" type="button" class="secondary">Agregar fila</button>
+                <button id="addFieldButton" type="button" class="secondary">Agregar campo</button>
+              </div>
+            </div>
+            <table class="matrix-table">
+              <thead id="fieldMatrixHead"></thead>
+              <tbody id="fieldMatrixBody"></tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap compact-table">
+            <div class="table-tools">
+              <p class="muted">Configuracion de nomenclatura</p>
+              <span id="nomenclatureOrderHint" class="muted"></span>
+            </div>
+            <div id="nomenclatureDragArea" class="nomenclature-drag-area"></div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Campo</th>
+                  <th>Incluir en nomenclatura</th>
+                  <th>Orden</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody id="fieldsTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="nomenclature-preview">
+            <strong>Vista previa de nomenclatura:</strong>
+            <span id="nomenclaturePreviewText">(sin configuracion)</span>
+          </div>
+        </section>
+
+        <section id="tab-deliverables" class="tab-panel">
+          <div class="panel-header">
+            <div class="panel-header-main">
+              <h2>Entregables</h2>
+              <p class="muted">Usa "Anadir" para abrir el formulario lateral y crear entregables con nomenclatura.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="toggleMidpEditButton" type="button" class="secondary">Editar</button>
+              <button id="recomputeCodesButton" type="button" class="secondary">Recalcular codigos</button>
+              <button id="addBlankDeliverableButton" type="button" class="secondary">Anadir en blanco</button>
+              <button id="openAddDeliverableButton" type="button">Anadir</button>
+            </div>
+          </div>
+
+          <div class="deliverables-meta">
+            <span id="deliverablesMetaText" class="muted"></span>
+          </div>
+
+          <div class="table-wrap grow-table">
+            <table>
+              <thead id="deliverablesHeader"></thead>
+              <tbody id="deliverablesBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tab-packages" class="tab-panel hidden">
+          <div class="panel-header">
+            <div class="panel-header-main">
+              <h2>Control de Avance por Paquetes</h2>
+              <p class="muted">Sincroniza combinaciones unicas Proyecto + Disciplina + Sistema + Paquete desde MIDP.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="togglePackageEditButton" type="button" class="secondary">Editar</button>
+              <button id="syncPackagesButton" type="button">Sincronizar paquetes</button>
+            </div>
+          </div>
+
+          <div class="deliverables-meta">
+            <span id="packageControlsMetaText" class="muted"></span>
+          </div>
+
+          <div class="table-wrap grow-table">
+            <table>
+              <thead id="packageControlsHeader"></thead>
+              <tbody id="packageControlsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <footer class="status-bar">
+        <p id="statusMessage" class="muted">Listo.</p>
+      </footer>
+    </section>
+  </div>
+
+  <input id="importBackupInput" type="file" accept="application/json,.json" class="hidden-input">
+
+  <div id="deliverableDrawerOverlay" class="drawer-overlay hidden">
+    <aside id="deliverableDrawer" class="drawer-panel" aria-modal="true" role="dialog">
+      <div class="drawer-header">
+        <div>
+          <h3>Anadir entregable</h3>
+          <p class="muted">Selecciona los apartados para formar la nomenclatura.</p>
+        </div>
+        <button id="closeDeliverableDrawerButton" type="button" class="secondary">Cerrar</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <div id="deliverableInputs" class="deliverable-grid"></div>
+        </div>
+        <div class="drawer-section">
+          <p class="drawer-section-title">Control de avance</p>
+          <div class="deliverable-progress-grid">
+            <label>
+              Fecha de inicio
+              <input id="drawerStartDateInput" type="date">
+            </label>
+            <label>
+              Fecha de fin
+              <input id="drawerEndDateInput" type="date">
+            </label>
+            <label>
+              Unidades productivas base
+              <input id="drawerBaseUnitsInput" type="number" min="0" step="0.01" placeholder="0">
+            </label>
+            <label>
+              Avance real
+              <input id="drawerRealProgressInput" type="number" min="0" max="100" step="0.01" placeholder="0">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-actions">
+        <button id="saveDeliverableButton" type="button">Guardar</button>
+      </div>
+    </aside>
+  </div>
+
+  <div id="trackingPanelOverlay" class="drawer-overlay drawer-overlay-left hidden">
+    <aside id="trackingPanel" class="drawer-panel drawer-panel-left" aria-modal="true" role="dialog">
+      <div class="drawer-header">
+        <div>
+          <h3 id="trackingPanelTitle">Detalle de fila</h3>
+          <p id="trackingPanelSubtitle" class="muted"></p>
+        </div>
+        <button id="closeTrackingPanelButton" type="button" class="secondary">Cerrar</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <div class="table-tools">
+            <p class="muted">Avances Reales</p>
+            <button id="addRealAdvanceRowButton" type="button" class="secondary">Agregar fila</button>
+          </div>
+          <div class="table-wrap compact-table tracking-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>% agregado</th>
+                  <th>Avance Real (%)</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody id="realAdvancesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="table-tools">
+            <p class="muted">Horas Consumidas</p>
+            <button id="addConsumedHourRowButton" type="button" class="secondary">Agregar fila</button>
+          </div>
+          <div class="table-wrap compact-table tracking-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Fecha</th>
+                  <th>Horas</th>
+                  <th>Nota</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody id="consumedHoursBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="projectChooserOverlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h3>Selecciona proyecto</h3>
+      <p class="muted">Si el usuario tiene mÃºltiples proyectos, aquÃ­ define en cuÃ¡l trabajar.</p>
+
+      <div id="projectChooserList" class="project-list"></div>
+
+      <div class="new-project">
+        <label for="newProjectNameInput">Nuevo proyecto</label>
+        <div class="new-project-row">
+          <input id="newProjectNameInput" type="text" maxlength="80" placeholder="Nombre del proyecto">
+          <button id="addProjectButton" type="button">Agregar</button>
+        </div>
+      </div>
+
+      <div class="chooser-actions">
+        <button id="closeChooserButton" type="button" class="secondary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

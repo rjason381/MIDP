@@ -1,0 +1,10 @@
+{
+  "name": "midp-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MIDP web fija",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check app.js && node --check server.js"
+  }
+}

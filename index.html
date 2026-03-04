@@ -18,9 +18,9 @@
         <button type="button" class="tab-button nav-item active" data-tab="deliverables">MIDP</button>
         <button type="button" class="tab-button nav-item" data-tab="fields">Listas</button>
         <button type="button" class="tab-button nav-item" data-tab="packages">Control de Avance por Paquetes</button>
-        <button type="button" class="nav-item" disabled>Fase</button>
-        <button type="button" class="nav-item" disabled>Escala</button>
-        <button type="button" class="nav-item" disabled>Formato Archivo</button>
+        <button type="button" class="tab-button nav-item" data-tab="review-flow">Hitos de Flujo de Revisión</button>
+        <button type="button" class="tab-button nav-item" data-tab="review-controls">Control de Flujos de Revisión</button>
+        <button type="button" class="tab-button nav-item" data-tab="bi">Dechini BI</button>
         <button type="button" class="nav-item" disabled>Tipo</button>
         <button type="button" class="nav-item" disabled>Paquete</button>
       </nav>
@@ -128,6 +128,7 @@
             </div>
             <div class="panel-header-actions">
               <button id="toggleMidpEditButton" type="button" class="secondary">Editar</button>
+              <button id="toggleMidpAdvanceDetailsButton" type="button" class="secondary">Ocultar avances</button>
               <button id="recomputeCodesButton" type="button" class="secondary">Recalcular codigos</button>
               <button id="addBlankDeliverableButton" type="button" class="secondary">Anadir en blanco</button>
               <button id="openAddDeliverableButton" type="button">Anadir</button>
@@ -169,6 +170,644 @@
             </table>
           </div>
         </section>
+
+        <section id="tab-review-flow" class="tab-panel hidden">
+          <div class="panel-header">
+            <div class="panel-header-main">
+              <h2>Hitos de Flujo de Revisión</h2>
+              <p class="muted">Registra hitos del flujo de revision y su peso en Unidades Productivas.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="addBlankReviewMilestoneButton" type="button" class="secondary">Añadir en blanco</button>
+              <button id="openAddReviewMilestoneButton" type="button">Agregar</button>
+            </div>
+          </div>
+
+          <div class="table-wrap compact-table">
+            <div class="table-tools">
+              <p class="muted">Usa "Agregar" para abrir el formulario lateral o "Añadir en blanco" para crear una fila vacia.</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Hito</th>
+                  <th>Unidad Productiva</th>
+                  <th>Creado</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody id="reviewMilestonesBody"></tbody>
+            </table>
+          </div>
+
+          <div class="deliverables-meta">
+            <span id="reviewMilestonesMetaText" class="muted"></span>
+          </div>
+        </section>
+
+        <section id="tab-review-controls" class="tab-panel hidden">
+          <div class="panel-header">
+            <div class="panel-header-main">
+              <h2>Control de Flujos de Revisión</h2>
+              <p class="muted">Sincroniza combinaciones Proyecto + Disciplina + Sistema + Hito desde MIDP/Paquetes. Fechas, UP y avances se ingresan manualmente aqui.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="toggleReviewControlsEditButton" type="button" class="secondary">Editar</button>
+              <button id="syncReviewControlsButton" type="button">Sincronizar flujo de revisión</button>
+            </div>
+          </div>
+
+          <div class="deliverables-meta">
+            <span id="reviewControlsMetaText" class="muted"></span>
+          </div>
+
+          <div class="table-wrap grow-table">
+            <table>
+              <thead id="reviewControlsHeader"></thead>
+              <tbody id="reviewControlsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tab-bi" class="tab-panel hidden">
+          <div class="panel-header">
+            <div class="panel-header-main">
+              <h2>Dechini BI</h2>
+              <p class="muted">Crea tus propios dashboards con data MIDP (incluye columnas personalizadas), filtros, KPIs, gráficos y exportación.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="biOpenCommandPaletteButton" type="button" class="secondary">Comandos</button>
+              <button id="biExportBoardPngButton" type="button" class="secondary">Exportar pizarra PNG</button>
+              <button id="biAddTextWidgetButton" type="button" class="secondary">Añadir texto</button>
+              <button id="biAddImageWidgetButton" type="button" class="secondary">Añadir imagen</button>
+              <button id="biAutoLayoutButton" type="button" class="secondary">Auto organizar</button>
+              <button id="biGenerateDashboardButton" type="button" class="secondary">Generar dashboard base</button>
+              <button id="biExportRowsButton" type="button" class="secondary">Exportar detalle CSV</button>
+              <button id="biRefreshButton" type="button">Actualizar dashboard</button>
+            </div>
+            <input id="biImageUploadInput" type="file" accept="image/*" class="hidden-input">
+          </div>
+
+          <div id="biStudioShell" class="bi-studio-shell">
+            <aside id="biStudioLeft" class="bi-studio-left">
+              <div class="bi-studio-head">
+                <h3 id="biStudioTitle">Propiedades del grafico</h3>
+              </div>
+              <div class="bi-studio-chart-types">
+                <span>Chart types</span>
+                <span class="bi-count-pill">49</span>
+                <span class="bi-chevron">v</span>
+              </div>
+              <div class="bi-studio-tabs">
+                <button type="button" class="active">Setup</button>
+                <button type="button" disabled>Style</button>
+              </div>
+
+              <div class="bi-studio-body">
+                <div id="biSourceSection" class="bi-props-section">
+                  <label>
+                    Data source
+                    <select id="biWidgetSourceSelect">
+                      <option value="all">Todas</option>
+                      <option value="deliverable">MIDP Entregables</option>
+                      <option value="package">Control Paquetes</option>
+                      <option value="review-control">Control Flujos Revisión</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="biDimensionSection" class="bi-props-section">
+                  <h4>Dimension - Y axis</h4>
+                  <span id="biSelectedDimensionChip" class="bi-selected-chip"></span>
+                  <select id="biWidgetGroupBySelect"></select>
+                </div>
+
+                <div id="biMetricSection" class="bi-props-section">
+                  <h4>Metric - X axis</h4>
+                  <span id="biSelectedMetricChip" class="bi-selected-chip metric"></span>
+                  <select id="biWidgetMetricSelect">
+                    <option value="count">Cantidad de filas</option>
+                    <option value="baseunits">UP Base total</option>
+                    <option value="baseavg">UP Base promedio</option>
+                    <option value="basemax">UP Base max</option>
+                    <option value="basemin">UP Base min</option>
+                    <option value="realavg">Avance real promedio (%)</option>
+                    <option value="realmax">Avance real max (%)</option>
+                    <option value="realmin">Avance real min (%)</option>
+                    <option value="programmedavg">Avance programado promedio (%)</option>
+                    <option value="programmedmax">Avance programado max (%)</option>
+                    <option value="programmedmin">Avance programado min (%)</option>
+                    <option value="weightedreal">Avance real proyecto (%)</option>
+                    <option value="weightedprogrammed">Avance programado proyecto (%)</option>
+                    <option value="weightedgap">Brecha real - programado (%)</option>
+                    <option value="invaliddates">Fechas invertidas</option>
+                  </select>
+                </div>
+
+                <div id="biChartSection" class="bi-props-section">
+                  <h4>Chart</h4>
+                  <div id="biChartTypeButtons" class="bi-chart-type-buttons">
+                    <button type="button" class="secondary" data-bi-chart-type="bar">Bar</button>
+                    <button type="button" class="secondary" data-bi-chart-type="line">Line</button>
+                    <button type="button" class="secondary" data-bi-chart-type="donut">Donut</button>
+                    <button type="button" class="secondary" data-bi-chart-type="area">Area</button>
+                    <button type="button" class="secondary" data-bi-chart-type="combo">Combo</button>
+                    <button type="button" class="secondary" data-bi-chart-type="pie">Pie</button>
+                    <button type="button" class="secondary" data-bi-chart-type="treemap">Treemap</button>
+                    <button type="button" class="secondary" data-bi-chart-type="funnel">Funnel</button>
+                    <button type="button" class="secondary" data-bi-chart-type="gauge">Gauge</button>
+                    <button type="button" class="secondary" data-bi-chart-type="table">Table</button>
+                    <button type="button" class="secondary" data-bi-chart-type="scorecard">KPI</button>
+                    <button type="button" class="secondary" data-bi-chart-type="waterfall">Waterfall</button>
+                    <button type="button" class="secondary" data-bi-chart-type="radar">Radar</button>
+                    <button type="button" class="secondary" data-bi-chart-type="pareto">Pareto</button>
+                  </div>
+                  <select id="biWidgetChartTypeSelect" class="bi-hidden-control">
+                    <option value="bar">Barras</option>
+                    <option value="line">Líneas</option>
+                    <option value="donut">Dona</option>
+                    <option value="area">Área</option>
+                    <option value="combo">Combinado</option>
+                    <option value="pie">Circular</option>
+                    <option value="treemap">Treemap</option>
+                    <option value="funnel">Embudo</option>
+                    <option value="gauge">Indicador</option>
+                    <option value="table">Tabla</option>
+                    <option value="scorecard">Cuadro de evaluación</option>
+                    <option value="waterfall">Cascada</option>
+                    <option value="radar">Radar</option>
+                    <option value="pareto">Pareto</option>
+                  </select>
+                </div>
+
+                <div id="biSettingsSection" class="bi-props-section">
+                  <h4>Configuración</h4>
+                  <label>
+                    Modo de interfaz
+                    <select id="biUiModeSelect">
+                      <option value="basic">Básico (guiado)</option>
+                      <option value="advanced">Avanzado (pro)</option>
+                    </select>
+                  </label>
+                  <label>
+                    Aplicar cambios a
+                    <select id="biVisualScopeSelect">
+                      <option value="global">Todo el proyecto</option>
+                      <option value="widget">Solo widget seleccionado</option>
+                    </select>
+                  </label>
+                  <span id="biVisualScopeMeta" class="muted">Sin widget seleccionado.</span>
+                  <div class="bi-props-section bi-widget-chrome-section">
+                    <h4>Widget seleccionado</h4>
+                    <label class="bi-check-line">
+                      <input id="biWidgetShowTitleCheckbox" type="checkbox" checked>
+                      <span>Mostrar titulo</span>
+                    </label>
+                    <label class="bi-check-line">
+                      <input id="biWidgetShowBorderCheckbox" type="checkbox" checked>
+                      <span>Mostrar borde</span>
+                    </label>
+                    <label class="bi-check-line">
+                      <input id="biWidgetShowBackgroundCheckbox" type="checkbox" checked>
+                      <span>Mostrar fondo</span>
+                    </label>
+                    <span id="biWidgetChromeMeta" class="muted">Selecciona un widget para configurar fondo, borde y titulo.</span>
+                  </div>
+                  <div id="biChartVisualSettingsSection">
+                    <label>
+                      Preset visual
+                      <select id="biVisualPresetSelect">
+                        <option value="corporativo">Corporativo</option>
+                        <option value="minimal">Minimal</option>
+                        <option value="contraste">Contraste</option>
+                        <option value="presentacion">Presentación</option>
+                      </select>
+                    </label>
+                    <div class="bi-inline-actions">
+                      <button id="biApplyVisualPresetButton" type="button" class="secondary">Aplicar preset</button>
+                      <input id="biSavePresetNameInput" type="text" maxlength="30" placeholder="Nombre preset">
+                      <button id="biSaveVisualPresetButton" type="button" class="secondary">Guardar preset</button>
+                    </div>
+                    <label class="bi-check-line">
+                      <input id="biShowLegendCheckbox" type="checkbox">
+                      <span>Mostrar leyenda</span>
+                    </label>
+                    <label class="bi-check-line">
+                      <input id="biShowGridCheckbox" type="checkbox">
+                      <span>Mostrar rejilla</span>
+                    </label>
+                    <label class="bi-check-line">
+                      <input id="biShowAxisLabelsCheckbox" type="checkbox">
+                      <span>Mostrar etiquetas de ejes</span>
+                    </label>
+                    <label class="bi-check-line">
+                      <input id="biShowDataLabelsCheckbox" type="checkbox">
+                      <span>Mostrar labels de datos</span>
+                    </label>
+                    <div class="bi-settings-grid">
+                      <label>
+                        Eje X (titulo)
+                        <input id="biAxisXLabelInput" type="text" maxlength="40" placeholder="Ej: Especialidad">
+                      </label>
+                      <label>
+                        Eje Y (titulo)
+                        <input id="biAxisYLabelInput" type="text" maxlength="40" placeholder="Ej: Cantidad / %">
+                      </label>
+                      <label>
+                        Max caracteres label
+                        <input id="biLabelMaxCharsInput" type="number" min="4" max="40" step="1" value="12">
+                      </label>
+                      <label>
+                        Decimales
+                        <input id="biValueDecimalsInput" type="number" min="0" max="4" step="1" value="1">
+                      </label>
+                      <label>
+                        Formato numérico
+                        <select id="biNumberFormatSelect">
+                          <option value="auto">Automático</option>
+                          <option value="number">Número</option>
+                          <option value="percent">Porcentaje</option>
+                          <option value="currency_pen">Moneda S/</option>
+                          <option value="hours">Horas</option>
+                        </select>
+                      </label>
+                      <label>
+                        Prefijo
+                        <input id="biValuePrefixInput" type="text" maxlength="8" placeholder="Ej: S/">
+                      </label>
+                      <label>
+                        Sufijo
+                        <input id="biValueSuffixInput" type="text" maxlength="8" placeholder="Ej: %">
+                      </label>
+                      <label>
+                        Tamano de fuente
+                        <input id="biFontSizeInput" type="number" min="9" max="18" step="1" value="10">
+                      </label>
+                      <label>
+                        Fuente titulo
+                        <select id="biFontFamilyTitleSelect">
+                          <option value="Segoe UI">Segoe UI</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                        </select>
+                      </label>
+                      <label>
+                        Fuente ejes
+                        <select id="biFontFamilyAxisSelect">
+                          <option value="Segoe UI">Segoe UI</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                        </select>
+                      </label>
+                      <label>
+                        Fuente labels
+                        <select id="biFontFamilyLabelSelect">
+                          <option value="Segoe UI">Segoe UI</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                        </select>
+                      </label>
+                      <label>
+                        Fuente tooltip
+                        <select id="biFontFamilyTooltipSelect">
+                          <option value="Segoe UI">Segoe UI</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Trebuchet MS">Trebuchet MS</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                        </select>
+                      </label>
+                      <label>
+                        Tamano titulo
+                        <input id="biFontSizeTitleInput" type="number" min="10" max="32" step="1" value="16">
+                      </label>
+                      <label>
+                        Tamano ejes
+                        <input id="biFontSizeAxisInput" type="number" min="8" max="20" step="1" value="10">
+                      </label>
+                      <label>
+                        Tamano labels
+                        <input id="biFontSizeLabelsInput" type="number" min="8" max="22" step="1" value="10">
+                      </label>
+                      <label>
+                        Tamano tooltip
+                        <input id="biFontSizeTooltipInput" type="number" min="8" max="20" step="1" value="11">
+                      </label>
+                      <label>
+                        Modo color labels
+                        <select id="biLabelColorModeSelect">
+                          <option value="auto">Auto contraste</option>
+                          <option value="manual">Manual</option>
+                        </select>
+                      </label>
+                      <label>
+                        Color labels (manual)
+                        <input id="biLabelColorInput" type="color" value="#1f2f44">
+                      </label>
+                      <label>
+                        Grosor de linea
+                        <input id="biLineWidthInput" type="number" min="1" max="6" step="1" value="2">
+                      </label>
+                      <label>
+                        Estilo linea
+                        <select id="biSeriesLineStyleSelect">
+                          <option value="solid">Continua</option>
+                          <option value="dashed">Punteada</option>
+                          <option value="dotted">Puntos</option>
+                        </select>
+                      </label>
+                      <label>
+                        Marcador
+                        <select id="biSeriesMarkerStyleSelect">
+                          <option value="circle">Circulo</option>
+                          <option value="square">Cuadrado</option>
+                          <option value="diamond">Diamante</option>
+                          <option value="triangle">Triangulo</option>
+                          <option value="none">Sin marcador</option>
+                        </select>
+                      </label>
+                      <label>
+                        Tamano marcador
+                        <input id="biSeriesMarkerSizeInput" type="number" min="0" max="16" step="1" value="4">
+                      </label>
+                      <label>
+                        Opacidad de area (0.05-0.8)
+                        <input id="biAreaOpacityInput" type="number" min="0.05" max="0.8" step="0.05" value="0.2">
+                      </label>
+                      <label>
+                        Stacking
+                        <select id="biStackModeSelect">
+                          <option value="none">Sin stacking</option>
+                          <option value="normal">Stacking normal</option>
+                          <option value="percent">Stacking 100%</option>
+                        </select>
+                      </label>
+                      <label>
+                        Posición leyenda
+                        <select id="biLegendPositionSelect">
+                          <option value="right">Derecha</option>
+                          <option value="bottom">Abajo</option>
+                          <option value="top">Arriba</option>
+                          <option value="left">Izquierda</option>
+                        </select>
+                      </label>
+                      <label>
+                        Max items leyenda
+                        <input id="biLegendMaxItemsInput" type="number" min="3" max="20" step="1" value="8">
+                      </label>
+                      <label>
+                        Escala de eje
+                        <select id="biAxisScaleSelect">
+                          <option value="linear">Lineal</option>
+                          <option value="log">Logarítmica</option>
+                        </select>
+                      </label>
+                      <label>
+                        Min eje Y (vacío=auto)
+                        <input id="biAxisMinInput" type="number" step="0.01" placeholder="">
+                      </label>
+                      <label>
+                        Max eje Y (vacío=auto)
+                        <input id="biAxisMaxInput" type="number" step="0.01" placeholder="">
+                      </label>
+                      <label class="bi-check-line">
+                        <input id="biShowTargetLineCheckbox" type="checkbox">
+                        <span>Mostrar linea objetivo</span>
+                      </label>
+                      <label>
+                        Valor objetivo
+                        <input id="biTargetLineValueInput" type="number" step="0.01" placeholder="Ej: 85">
+                      </label>
+                      <label>
+                        Etiqueta objetivo
+                        <input id="biTargetLineLabelInput" type="text" maxlength="24" placeholder="Meta">
+                      </label>
+                      <label>
+                        Color objetivo
+                        <input id="biTargetLineColorInput" type="color" value="#b03831">
+                      </label>
+                      <label>
+                        Ancho barra (0.2-0.9)
+                        <input id="biBarWidthRatioInput" type="number" min="0.2" max="0.9" step="0.05" value="0.64">
+                      </label>
+                      <label>
+                        Opacidad rejilla (0.1-1)
+                        <input id="biGridOpacityInput" type="number" min="0.1" max="1" step="0.05" value="0.35">
+                      </label>
+                      <label>
+                        Guiones rejilla
+                        <input id="biGridDashInput" type="number" min="0" max="12" step="1" value="4">
+                      </label>
+                      <label>
+                        Tooltip
+                        <select id="biTooltipModeSelect">
+                          <option value="full">Completo</option>
+                          <option value="compact">Compacto</option>
+                        </select>
+                      </label>
+                      <label class="bi-check-line">
+                        <input id="biSmoothLinesCheckbox" type="checkbox">
+                        <span>Suavizar lineas</span>
+                      </label>
+                    </div>
+                    <div class="bi-board-actions">
+                      <button id="biApplyVisualScopeButton" type="button">Aplicar al alcance</button>
+                      <button id="biResetVisualScopeButton" type="button" class="secondary">Limpiar alcance</button>
+                      <button id="biResetVisualSettingsButton" type="button" class="secondary">Restablecer estilo</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="biBoardSection" class="bi-props-section">
+                  <h4>Pizarra</h4>
+                  <label>
+                    Preset de tamaño
+                    <select id="biCanvasPresetSelect">
+                      <option value="">Personalizado</option>
+                      <option value="1200x780">Dashboard estandar (1200x780)</option>
+                      <option value="1366x768">HD Laptop (1366x768)</option>
+                      <option value="1600x900">HD+ (1600x900)</option>
+                      <option value="1920x1080">Full HD (1920x1080)</option>
+                      <option value="2560x1440">QHD (2560x1440)</option>
+                    </select>
+                  </label>
+                  <div class="bi-canvas-size-grid">
+                    <label>
+                      Ancho (px)
+                      <input id="biCanvasWidthInput" type="number" min="760" max="6000" step="10" placeholder="1200">
+                    </label>
+                    <label>
+                      Alto (px)
+                      <input id="biCanvasHeightInput" type="number" min="420" max="4000" step="10" placeholder="780">
+                    </label>
+                  </div>
+                  <div class="bi-board-actions">
+                    <button id="biApplyCanvasSizeButton" type="button">Aplicar tamaño</button>
+                    <button id="biResetCanvasSizeButton" type="button" class="secondary">Restablecer</button>
+                  </div>
+                  <label class="bi-check-line">
+                    <input id="biShowCanvasGridCheckbox" type="checkbox">
+                    <span>Mostrar rejilla de pizarra</span>
+                  </label>
+                  <label class="bi-check-line">
+                    <input id="biSnapToGridCheckbox" type="checkbox">
+                    <span>Ajustar widgets a rejilla</span>
+                  </label>
+                  <label>
+                    Paso de rejilla (px)
+                    <input id="biGridSnapSizeInput" type="number" min="4" max="120" step="1" value="12">
+                  </label>
+                </div>
+
+                <div id="biColorSection" class="bi-props-section">
+                  <h4>Colorimetria</h4>
+                  <label>
+                    Fuente
+                    <select id="biColorSourceSelect">
+                      <option value="all">Todas</option>
+                      <option value="deliverable">MIDP Entregables</option>
+                      <option value="package">Control Paquetes</option>
+                      <option value="review-control">Control Flujos Revisión</option>
+                    </select>
+                  </label>
+                  <label>
+                    Dimensión
+                    <select id="biColorGroupBySelect"></select>
+                  </label>
+                  <div class="bi-board-actions">
+                    <button id="biAutoColorButton" type="button" class="secondary">Auto</button>
+                    <button id="biClearColorButton" type="button" class="secondary">Limpiar</button>
+                  </div>
+                  <div id="biColorLegendList" class="bi-color-list"></div>
+                  <span id="biColorSummaryText" class="muted"></span>
+                </div>
+
+                <div id="biFilterSection" class="bi-props-section">
+                  <h4>Filter</h4>
+                  <label>
+                    Search
+                    <input id="biTextFilterInput" type="text" maxlength="120" placeholder="Disciplina, sistema, paquete...">
+                  </label>
+                  <label>
+                    Fuente global
+                    <select id="biGlobalSourceSelect">
+                      <option value="all">Todas</option>
+                      <option value="deliverable">MIDP Entregables</option>
+                      <option value="package">Control Paquetes</option>
+                      <option value="review-control">Control Flujos Revisión</option>
+                    </select>
+                  </label>
+                  <label>
+                    Desde
+                    <input id="biStartDateInput" type="date">
+                  </label>
+                  <label>
+                    Hasta
+                    <input id="biEndDateInput" type="date">
+                  </label>
+                  <label>
+                    Alcance filtro cruzado
+                    <select id="biCrossFilterScopeSelect">
+                      <option value="all">Todos los widgets</option>
+                      <option value="same_source">Solo misma fuente</option>
+                    </select>
+                  </label>
+                  <label class="bi-checkbox-label">
+                    <input id="biInvalidOnlyCheckbox" type="checkbox">
+                    <span>Solo fechas invertidas</span>
+                  </label>
+                </div>
+
+                <div id="biBuilderSection" class="bi-props-section">
+                  <label>
+                    Nombre del widget
+                    <input id="biWidgetNameInput" type="text" maxlength="60" placeholder="Ejemplo: Avance por Disciplina">
+                  </label>
+                  <label>
+                    Top N
+                    <input id="biWidgetTopNInput" type="number" min="1" max="30" step="1" value="10">
+                  </label>
+                  <label>
+                    Orden de ranking
+                    <select id="biWidgetSortModeSelect">
+                      <option value="value_desc">Valor: mayor a menor</option>
+                      <option value="value_asc">Valor: menor a mayor</option>
+                      <option value="label_asc">Etiqueta: A-Z</option>
+                      <option value="label_desc">Etiqueta: Z-A</option>
+                    </select>
+                  </label>
+                  <div class="bi-builder-actions">
+                    <span id="biWidgetsMetaText" class="muted"></span>
+                    <button id="biUpdateWidgetButton" type="button" class="secondary">Actualizar seleccionado</button>
+                    <button id="biAddWidgetButton" type="button">Agregar widget</button>
+                  </div>
+                </div>
+              </div>
+            </aside>
+
+            <section id="biStudioRight" class="bi-studio-right">
+              <div class="bi-data-head">
+                <h3>Data</h3>
+              </div>
+              <div class="bi-data-search">
+                <input id="biCatalogSearchInput" type="text" maxlength="80" placeholder="Search">
+              </div>
+              <div class="bi-data-source">
+                <select id="biCatalogSourceSelect">
+                  <option value="deliverable">MIFA/VISTA_MIDP</option>
+                  <option value="package">MIFA/VISTA_PAQUETES</option>
+                  <option value="review-control">MIFA/VISTA_FLUJOS</option>
+                  <option value="all">MIFA/TODAS_LAS_VISTAS</option>
+                </select>
+              </div>
+              <div id="biCatalogFieldsList" class="bi-fields-list"></div>
+              <div class="bi-data-footer">
+                <span id="biCatalogSummaryText" class="muted"></span>
+              </div>
+            </section>
+
+            <aside class="bi-studio-rail">
+              <button id="biRailDataButton" type="button" class="active" data-bi-rail-mode="data">Data</button>
+              <button id="biRailPropertiesButton" type="button" data-bi-rail-mode="properties">Propiedades</button>
+              <button id="biRailSettingsButton" type="button" data-bi-rail-mode="settings">Configuración</button>
+              <button id="biRailBoardButton" type="button" data-bi-rail-mode="board">Pizarra</button>
+              <button id="biRailColorButton" type="button" data-bi-rail-mode="colorimetry">Colorimetria</button>
+              <button id="biRailFilterButton" type="button" data-bi-rail-mode="filter">Filtro</button>
+            </aside>
+          </div>
+
+          <div class="bi-cross-filter-row">
+            <span id="biCrossFilterText" class="muted">Sin filtro cruzado activo.</span>
+            <span class="muted bi-cross-filter-hint">Tip: Ctrl + click en un grafico para multi-seleccionar filtros.</span>
+            <button id="biClearCrossFilterButton" type="button" class="secondary">Limpiar filtro de grafico</button>
+          </div>
+
+          <div id="biInsightsGrid" class="bi-insights-grid"></div>
+
+          <div id="biKpiGrid" class="bi-kpi-grid"></div>
+
+          <div id="biWidgetsGrid" class="bi-widgets-grid"></div>
+
+        </section>
       </main>
 
       <footer class="status-bar">
@@ -178,6 +817,23 @@
   </div>
 
   <input id="importBackupInput" type="file" accept="application/json,.json" class="hidden-input">
+
+  <div id="biCommandPaletteOverlay" class="overlay hidden">
+    <div class="overlay-card bi-command-palette">
+      <div class="bi-command-header">
+        <div>
+          <h3>Comandos BI</h3>
+          <p class="muted">Ctrl + K para abrir/cerrar. Enter para ejecutar.</p>
+        </div>
+        <button id="biCloseCommandPaletteButton" type="button" class="secondary">Cerrar</button>
+      </div>
+      <label>
+        Buscar comando
+        <input id="biCommandPaletteInput" type="text" maxlength="80" placeholder="Ej: agregar grafico, auto organizar, abrir propiedades...">
+      </label>
+      <div id="biCommandPaletteList" class="bi-command-list"></div>
+    </div>
+  </div>
 
   <div id="deliverableDrawerOverlay" class="drawer-overlay hidden">
     <aside id="deliverableDrawer" class="drawer-panel" aria-modal="true" role="dialog">
@@ -218,6 +874,35 @@
 
       <div class="drawer-actions">
         <button id="saveDeliverableButton" type="button">Guardar</button>
+      </div>
+    </aside>
+  </div>
+
+  <div id="reviewMilestoneDrawerOverlay" class="drawer-overlay hidden">
+    <aside id="reviewMilestoneDrawer" class="drawer-panel" aria-modal="true" role="dialog">
+      <div class="drawer-header">
+        <div>
+          <h3>Añadir hito</h3>
+          <p class="muted">Completa el hito y su unidad productiva para el flujo de revisión.</p>
+        </div>
+        <button id="closeReviewMilestoneDrawerButton" type="button" class="secondary">Cerrar</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <label>
+            Nombre del hito
+            <input id="reviewMilestoneNameInput" type="text" maxlength="120" placeholder="Ejemplo: Revisión interna">
+          </label>
+          <label>
+            Unidad productiva
+            <input id="reviewMilestoneWeightInput" type="number" min="0" step="0.01" placeholder="0">
+          </label>
+        </div>
+      </div>
+
+      <div class="drawer-actions">
+        <button id="saveReviewMilestoneButton" type="button">Guardar</button>
       </div>
     </aside>
   </div>
@@ -282,7 +967,7 @@
   <div id="projectChooserOverlay" class="overlay hidden">
     <div class="overlay-card">
       <h3>Selecciona proyecto</h3>
-      <p class="muted">Si el usuario tiene mÃºltiples proyectos, aquÃ­ define en cuÃ¡l trabajar.</p>
+      <p class="muted">Si el usuario tiene multiples proyectos, aqui define en cual trabajar.</p>
 
       <div id="projectChooserList" class="project-list"></div>
 

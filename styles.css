@@ -348,6 +348,10 @@ h3 {
   gap: 2px;
 }
 
+.bi-zoom-menu.hidden {
+  display: none;
+}
+
 .bi-zoom-menu button {
   width: 100%;
   display: flex;

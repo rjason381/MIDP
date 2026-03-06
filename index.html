@@ -10,7 +10,7 @@
   <div class="app-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <button class="icon-button" type="button" aria-label="menu">|||</button>
+        <button id="sidebarToggleButton" class="icon-button" type="button" aria-label="menu" title="Ocultar/mostrar panel izquierdo">|||</button>
         <strong class="brand-title">MIDP VESR Beta</strong>
       </div>
 
@@ -28,6 +28,7 @@
       <div class="sidebar-footer">
         <button type="button" class="nav-item" disabled>About</button>
         <button type="button" class="nav-item" disabled>Feedback</button>
+        <button id="switchProjectButton" class="nav-item switch-project-nav" type="button">Cambiar proyecto</button>
       </div>
     </aside>
 
@@ -52,15 +53,17 @@
             <h1 id="projectTitle">MIDP</h1>
             <p id="projectSubtitle" class="muted">Selecciona un proyecto para empezar.</p>
           </div>
-          <div class="context-actions">
-            <button id="switchProjectButton" class="secondary" type="button">Cambiar proyecto</button>
-          </div>
         </div>
 
         <section id="tab-fields" class="tab-panel hidden">
           <div class="panel-header">
-            <h2>Vista de listas</h2>
-            <p class="muted">Matriz de listas por campo, con columna de nombre y codigo.</p>
+            <div class="panel-header-main">
+              <h2>Vista de listas</h2>
+              <p class="muted">Matriz de listas por campo, con columna de nombre y codigo.</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="toggleFieldsEditButton" type="button" class="secondary">Editar</button>
+            </div>
           </div>
 
           <div class="config-grid">
@@ -178,6 +181,7 @@
               <p class="muted">Registra hitos del flujo de revision y su peso en Unidades Productivas.</p>
             </div>
             <div class="panel-header-actions">
+              <button id="toggleReviewFlowEditButton" type="button" class="secondary">Editar</button>
               <button id="addBlankReviewMilestoneButton" type="button" class="secondary">Añadir en blanco</button>
               <button id="openAddReviewMilestoneButton" type="button">Agregar</button>
             </div>
@@ -239,6 +243,23 @@
             <div class="panel-header-actions">
               <button id="biOpenCommandPaletteButton" type="button" class="secondary">Comandos</button>
               <button id="biExportBoardPngButton" type="button" class="secondary">Exportar pizarra PNG</button>
+              <div id="biZoomMenuWrap" class="bi-zoom-controls">
+                <button id="biCanvasZoomMenuButton" type="button" class="secondary" title="Zoom de pizarra">Zoom (100%) v</button>
+                <div id="biCanvasZoomMenu" class="bi-zoom-menu hidden">
+                  <button id="biZoomFitAllButton" type="button" data-bi-zoom-action="fit-all"><span id="biZoomFitAllLabel">Ajustar todo (100%)</span><span class="bi-zoom-shortcut">Ctrl+Alt+[</span></button>
+                  <button id="biZoomFitWidthButton" type="button" data-bi-zoom-action="fit-width"><span id="biZoomFitWidthLabel">Ajustar ancho (100%)</span><span class="bi-zoom-shortcut">Ctrl+Alt+]</span></button>
+                  <button id="biZoomDefaultButton" type="button" data-bi-zoom-value="100"><span>Predeterminado (100%)</span><span class="bi-zoom-shortcut">Ctrl+Alt+1</span></button>
+                  <div class="bi-zoom-menu-sep"></div>
+                  <button type="button" data-bi-zoom-value="25"><span>25%</span></button>
+                  <button type="button" data-bi-zoom-value="50"><span>50%</span></button>
+                  <button type="button" data-bi-zoom-value="75"><span>75%</span></button>
+                  <button type="button" data-bi-zoom-value="100"><span>100%</span></button>
+                  <button type="button" data-bi-zoom-value="200"><span>200%</span></button>
+                  <div class="bi-zoom-menu-sep"></div>
+                  <button type="button" data-bi-zoom-action="in"><span>Zoom in</span><span class="bi-zoom-shortcut">Ctrl+Alt++</span></button>
+                  <button type="button" data-bi-zoom-action="out"><span>Zoom out</span><span class="bi-zoom-shortcut">Ctrl+Alt+-</span></button>
+                </div>
+              </div>
               <button id="biAddTextWidgetButton" type="button" class="secondary">Añadir texto</button>
               <button id="biAddImageWidgetButton" type="button" class="secondary">Añadir imagen</button>
               <button id="biAutoLayoutButton" type="button" class="secondary">Auto organizar</button>
@@ -250,9 +271,15 @@
           </div>
 
           <div id="biStudioShell" class="bi-studio-shell">
+            <div
+              id="biStudioLeftResizeHandle"
+              class="bi-studio-resizer bi-studio-resizer-left"
+              data-bi-panel-resizer="left"
+              title="Arrastra para ajustar el panel de propiedades"></div>
             <aside id="biStudioLeft" class="bi-studio-left">
               <div class="bi-studio-head">
                 <h3 id="biStudioTitle">Propiedades del grafico</h3>
+                <button id="biHideLeftPanelButton" type="button" class="secondary bi-panel-close-button">Ocultar</button>
               </div>
               <div class="bi-studio-chart-types">
                 <span>Chart types</span>
@@ -305,37 +332,95 @@
                   </select>
                 </div>
 
+                <div id="biDataRolesSection" class="bi-props-section">
+                  <h4>Roles de datos</h4>
+                  <label>
+                    Breakdown dimension
+                    <select id="biWidgetBreakdownSelect">
+                      <option value="">(sin breakdown)</option>
+                    </select>
+                  </label>
+                  <label>
+                    Métrica opcional
+                    <select id="biWidgetOptionalMetricSelect">
+                      <option value="">(sin métrica opcional)</option>
+                      <option value="count">Cantidad de filas</option>
+                      <option value="baseunits">UP Base total</option>
+                      <option value="baseavg">UP Base promedio</option>
+                      <option value="basemax">UP Base max</option>
+                      <option value="basemin">UP Base min</option>
+                      <option value="realavg">Avance real promedio (%)</option>
+                      <option value="realmax">Avance real max (%)</option>
+                      <option value="realmin">Avance real min (%)</option>
+                      <option value="programmedavg">Avance programado promedio (%)</option>
+                      <option value="programmedmax">Avance programado max (%)</option>
+                      <option value="programmedmin">Avance programado min (%)</option>
+                      <option value="weightedreal">Avance real proyecto (%)</option>
+                      <option value="weightedprogrammed">Avance programado proyecto (%)</option>
+                      <option value="weightedgap">Brecha real - programado (%)</option>
+                      <option value="invaliddates">Fechas invertidas</option>
+                    </select>
+                  </label>
+                  <label>
+                    Dimensión de fecha
+                    <select id="biWidgetDateDimensionSelect">
+                      <option value="">(sin dimensión de fecha)</option>
+                      <option value="startDate">Fecha inicio</option>
+                      <option value="endDate">Fecha fin</option>
+                      <option value="createdAt">Fecha creación</option>
+                    </select>
+                  </label>
+                </div>
+
                 <div id="biChartSection" class="bi-props-section">
                   <h4>Chart</h4>
                   <div id="biChartTypeButtons" class="bi-chart-type-buttons">
                     <button type="button" class="secondary" data-bi-chart-type="bar">Bar</button>
                     <button type="button" class="secondary" data-bi-chart-type="line">Line</button>
+                    <button type="button" class="secondary" data-bi-chart-type="timeseries">Time series</button>
                     <button type="button" class="secondary" data-bi-chart-type="donut">Donut</button>
                     <button type="button" class="secondary" data-bi-chart-type="area">Area</button>
                     <button type="button" class="secondary" data-bi-chart-type="combo">Combo</button>
                     <button type="button" class="secondary" data-bi-chart-type="pie">Pie</button>
+                    <button type="button" class="secondary" data-bi-chart-type="scatter">Scatter</button>
+                    <button type="button" class="secondary" data-bi-chart-type="bubble">Bubble</button>
+                    <button type="button" class="secondary" data-bi-chart-type="bullet">Bullet</button>
+                    <button type="button" class="secondary" data-bi-chart-type="boxplot">Boxplot</button>
+                    <button type="button" class="secondary" data-bi-chart-type="candlestick">Candlestick</button>
                     <button type="button" class="secondary" data-bi-chart-type="treemap">Treemap</button>
                     <button type="button" class="secondary" data-bi-chart-type="funnel">Funnel</button>
                     <button type="button" class="secondary" data-bi-chart-type="gauge">Gauge</button>
                     <button type="button" class="secondary" data-bi-chart-type="table">Table</button>
+                    <button type="button" class="secondary" data-bi-chart-type="pivot">Pivot</button>
                     <button type="button" class="secondary" data-bi-chart-type="scorecard">KPI</button>
                     <button type="button" class="secondary" data-bi-chart-type="waterfall">Waterfall</button>
+                    <button type="button" class="secondary" data-bi-chart-type="sankey">Sankey</button>
+                    <button type="button" class="secondary" data-bi-chart-type="timeline">Timeline</button>
                     <button type="button" class="secondary" data-bi-chart-type="radar">Radar</button>
                     <button type="button" class="secondary" data-bi-chart-type="pareto">Pareto</button>
                   </div>
                   <select id="biWidgetChartTypeSelect" class="bi-hidden-control">
                     <option value="bar">Barras</option>
                     <option value="line">Líneas</option>
+                    <option value="timeseries">Serie temporal</option>
                     <option value="donut">Dona</option>
                     <option value="area">Área</option>
                     <option value="combo">Combinado</option>
                     <option value="pie">Circular</option>
+                    <option value="scatter">Dispersión</option>
+                    <option value="bubble">Burbujas</option>
+                    <option value="bullet">Viñeta</option>
+                    <option value="boxplot">Diagrama de caja</option>
+                    <option value="candlestick">Vela</option>
                     <option value="treemap">Treemap</option>
                     <option value="funnel">Embudo</option>
                     <option value="gauge">Indicador</option>
                     <option value="table">Tabla</option>
+                    <option value="pivot">Tabla dinámica</option>
                     <option value="scorecard">Cuadro de evaluación</option>
                     <option value="waterfall">Cascada</option>
+                    <option value="sankey">Sankey</option>
+                    <option value="timeline">Cronograma</option>
                     <option value="radar">Radar</option>
                     <option value="pareto">Pareto</option>
                   </select>
@@ -354,7 +439,7 @@
                     Aplicar cambios a
                     <select id="biVisualScopeSelect">
                       <option value="global">Todo el proyecto</option>
-                      <option value="widget">Solo widget seleccionado</option>
+                      <option value="widget" selected>Solo widget seleccionado</option>
                     </select>
                   </label>
                   <span id="biVisualScopeMeta" class="muted">Sin widget seleccionado.</span>
@@ -374,7 +459,14 @@
                     </label>
                     <span id="biWidgetChromeMeta" class="muted">Selecciona un widget para configurar fondo, borde y titulo.</span>
                   </div>
+                  <div id="biElementConfigSection" class="bi-props-section">
+                    <h4 id="biElementConfigTitle">Configuración específica</h4>
+                    <div id="biElementConfigBody" class="bi-settings-grid bi-element-config-grid"></div>
+                    <span id="biElementConfigHint" class="muted">Selecciona un widget para editar su configuración específica.</span>
+                  </div>
                   <div id="biChartVisualSettingsSection">
+                    <div id="biChartConfigIntro" class="bi-chart-config-intro muted"></div>
+                    <div id="biChartConfigGroups" class="bi-config-groups"></div>
                     <label>
                       Preset visual
                       <select id="biVisualPresetSelect">
@@ -664,6 +756,16 @@
                     <button id="biApplyCanvasSizeButton" type="button">Aplicar tamaño</button>
                     <button id="biResetCanvasSizeButton" type="button" class="secondary">Restablecer</button>
                   </div>
+                  <label>
+                    Zoom de pizarra
+                    <select id="biCanvasZoomSelect">
+                      <option value="25">25%</option>
+                      <option value="50">50%</option>
+                      <option value="75">75%</option>
+                      <option value="100" selected>100%</option>
+                      <option value="200">200%</option>
+                    </select>
+                  </label>
                   <label class="bi-check-line">
                     <input id="biShowCanvasGridCheckbox" type="checkbox">
                     <span>Mostrar rejilla de pizarra</span>
@@ -737,6 +839,49 @@
                   </label>
                 </div>
 
+                <div id="biPerformanceSection" class="bi-props-section">
+                  <h4>Rendimiento</h4>
+                  <label>
+                    Perfil de rendimiento
+                    <select id="biPerformanceModeSelect">
+                      <option value="quality">Calidad máxima</option>
+                      <option value="balanced" selected>Balanceado (recomendado)</option>
+                      <option value="turbo">Turbo (datasets grandes)</option>
+                    </select>
+                  </label>
+                  <div class="bi-board-actions">
+                    <button id="biOptimizeNowButton" type="button">Optimizar ahora</button>
+                    <button id="biResetPerformanceButton" type="button" class="secondary">Restablecer calidad</button>
+                  </div>
+                  <div class="bi-performance-cards">
+                    <div class="bi-performance-card">
+                      <span>Último render</span>
+                      <strong id="biPerfRenderMsText">-</strong>
+                    </div>
+                    <div class="bi-performance-card">
+                      <span>Widgets</span>
+                      <strong id="biPerfWidgetsText">-</strong>
+                    </div>
+                    <div class="bi-performance-card">
+                      <span>Puntos gráficos</span>
+                      <strong id="biPerfPointsText">-</strong>
+                    </div>
+                    <div class="bi-performance-card">
+                      <span>Filas activas</span>
+                      <strong id="biPerfRowsText">-</strong>
+                    </div>
+                  </div>
+                  <span id="biPerfSummaryText" class="muted">Sin métricas de rendimiento aún.</span>
+                  <div class="bi-shortcut-list">
+                    <span>Atajos pro:</span>
+                    <span><kbd>Ctrl + D</kbd> clona</span>
+                    <span><kbd>L</kbd> bloquea/desbloquea</span>
+                    <span><kbd>Supr</kbd> elimina</span>
+                    <span><kbd>Flechas</kbd> mueven</span>
+                    <span><kbd>Alt + Flechas</kbd> redimensiona</span>
+                  </div>
+                </div>
+
                 <div id="biBuilderSection" class="bi-props-section">
                   <label>
                     Nombre del widget
@@ -764,9 +909,16 @@
               </div>
             </aside>
 
+            <div
+              id="biStudioMiddleResizeHandle"
+              class="bi-studio-resizer bi-studio-resizer-middle"
+              data-bi-panel-resizer="middle"
+              title="Arrastra para ajustar el panel de data"></div>
+
             <section id="biStudioRight" class="bi-studio-right">
               <div class="bi-data-head">
                 <h3>Data</h3>
+                <button id="biHideDataPanelButton" type="button" class="secondary bi-panel-close-button">Ocultar</button>
               </div>
               <div class="bi-data-search">
                 <input id="biCatalogSearchInput" type="text" maxlength="80" placeholder="Search">
@@ -792,18 +944,26 @@
               <button id="biRailBoardButton" type="button" data-bi-rail-mode="board">Pizarra</button>
               <button id="biRailColorButton" type="button" data-bi-rail-mode="colorimetry">Colorimetria</button>
               <button id="biRailFilterButton" type="button" data-bi-rail-mode="filter">Filtro</button>
+              <button id="biRailPerformanceButton" type="button" data-bi-rail-mode="performance">Rendimiento</button>
+              <button id="biRailOthersButton" type="button" class="bi-rail-others-button" data-bi-rail-mode="others">Otros</button>
             </aside>
           </div>
 
-          <div class="bi-cross-filter-row">
-            <span id="biCrossFilterText" class="muted">Sin filtro cruzado activo.</span>
-            <span class="muted bi-cross-filter-hint">Tip: Ctrl + click en un grafico para multi-seleccionar filtros.</span>
-            <button id="biClearCrossFilterButton" type="button" class="secondary">Limpiar filtro de grafico</button>
-          </div>
-
-          <div id="biInsightsGrid" class="bi-insights-grid"></div>
-
-          <div id="biKpiGrid" class="bi-kpi-grid"></div>
+          <section id="biStudioOtherPanel" class="bi-studio-other-panel hidden">
+            <div class="bi-studio-other-head">
+              <h3>Otros</h3>
+              <p class="muted">Resumen operativo, filtros cruzados y KPIs.</p>
+            </div>
+            <div class="bi-studio-other-body">
+              <div class="bi-cross-filter-row">
+                <span id="biCrossFilterText" class="muted">Sin filtro cruzado activo.</span>
+                <span class="muted bi-cross-filter-hint">Tip: Ctrl + click en un grafico para multi-seleccionar filtros.</span>
+                <button id="biClearCrossFilterButton" type="button" class="secondary">Limpiar filtro de grafico</button>
+              </div>
+              <div id="biInsightsGrid" class="bi-insights-grid"></div>
+              <div id="biKpiGrid" class="bi-kpi-grid"></div>
+            </div>
+          </section>
 
           <div id="biWidgetsGrid" class="bi-widgets-grid"></div>
 

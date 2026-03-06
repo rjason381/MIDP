@@ -54,6 +54,16 @@
 - [ ] Biblioteca de plantillas (PMO, Produccion, Calidad, Control semanal).
 - [ ] Colaboracion avanzada: bloqueo optimista por widget y auditoria de cambios por usuario.
 
+## Plan Looker Parity (avance actual)
+- [x] Tipos agregados: Time series, Scatter, Bubble, Bullet, Boxplot, Candlestick, Pivot, Sankey, Timeline.
+- [x] Contrato `dataRoles` por widget (dimension, metrica, optional metric, breakdown y fecha).
+- [x] Contrato `chartConfig` por widget con normalizacion segura.
+- [x] Persistencia `labelLayoutV2` por `rowKey` (compatible con offsets legacy).
+- [x] Hover/cross-filter para tipos nuevos (canvas y vistas custom).
+- [x] Panel de propiedades contextual por tipo (controles ocultos cuando no aplican).
+- [ ] Persistencia de labels movibles v2 en todos los tipos (completado en line/time series/scatter/bubble; faltan tipos restantes).
+- [ ] Render parcial por widget (dirty render) para performance en pizarras grandes.
+
 ## Notas tecnicas
 - Persistencia en `project.biConfig.visual`, `project.biConfig.visualPresets` y `widget.visualOverride`.
 - Seleccion activa de widget en memoria: `selectedBiWidgetId`.

@@ -21,7 +21,14 @@ const BI_CANVAS_SURFACE_MIN_EDIT_WIDTH = 760;
 const BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT = 420;
 const BI_CANVAS_SURFACE_MAX_EDIT_WIDTH = 6000;
 const BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT = 4000;
+const BI_CANVAS_ZOOM_DEFAULT = 100;
+const BI_CANVAS_ZOOM_MIN = 25;
+const BI_CANVAS_ZOOM_MAX = 300;
+const BI_CANVAS_ZOOM_STEP = 10;
+const BI_CANVAS_ZOOM_PRESETS = [25, 50, 75, 100, 200];
 const BI_COLOR_ROWS_LIMIT = 40;
+const BI_EXPORT_WIDGET_SCALE = 2;
+const BI_EXPORT_BOARD_SCALE = 2;
 const BI_CUSTOM_CONTENT_TYPES = new Set(["table", "scorecard", "pivot", "sankey", "timeline"]);
 const BI_CHART_TYPES = new Set([
   "bar",
@@ -184,8 +191,10 @@ const DEFAULT_FIELD_TEMPLATES = [
 
 let state = loadState();
 let activeTab = "fields";
+let fieldsEditMode = false;
 let midpEditMode = false;
 let packageEditMode = false;
+let reviewFlowEditMode = false;
 let reviewControlsEditMode = false;
 let chooserLocked = false;
 let drawerCloseTimer = null;
@@ -204,26 +213,44 @@ let deliverableSelectionRange = null;
 let biRailMode = "data";
 let biDataPanelOpen = false;
 let biInspectorPanelOpen = false;
+let biOtherPanelOpen = false;
+const BI_STUDIO_PANEL_MIN_WIDTH = 290;
+const BI_STUDIO_PANEL_MAX_WIDTH = 620;
+const BI_STUDIO_PANEL_DEFAULT_WIDTH = 360;
+let biStudioLeftWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
+let biStudioRightWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
+let biStudioPanelResize = null;
 let biFilterFocusTimer = null;
-let biVisualScopeMode = "global";
+let biVisualScopeMode = "widget";
 let selectedBiWidgetId = "";
 let biPendingImageWidgetId = "";
 let biCommandPaletteOpen = false;
 let biCommandPaletteSelection = 0;
 let biCommandVisibleIds = [];
+let biPendingRenderRafId = 0;
 const biWidgetSnapshotsByProject = {};
 let biCanvasInteraction = null;
 const pendingRealAdvanceLogs = [];
 const pendingPackageRealAdvanceLogs = [];
 const pendingReviewControlRealAdvanceLogs = [];
 const draftValuesByProject = {};
+const biRuntimeStatsByProject = {};
+const BI_STUDIO_UI_PREFS_KEY = "midp_bi_studio_ui_v1";
+const SIDEBAR_COLLAPSED_PREF_KEY = "midp_sidebar_collapsed_v1";
+let sidebarCollapsed = false;
 const els = {};
 
 document.addEventListener("DOMContentLoaded", () => {
   bindElements();
+  restoreSidebarCollapsedPreference();
   applyBiControlHints();
   wireEvents();
-  applyBiRailMode("data", { announce: false, forceOpen: true });
+  restoreBiStudioUiPreferences();
+  if (!biDataPanelOpen && !biInspectorPanelOpen && !biOtherPanelOpen) {
+    applyBiRailMode("data", { announce: false, forceOpen: true });
+  } else {
+    refreshBiStudioPanelsUi();
+  }
   ensureActiveProject();
   renderAll();
 
@@ -233,13 +260,182 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", () => {
     updateBiStudioOverlayOffset();
   });
+  document.addEventListener("pointerup", () => {
+    if (activeTab === "bi") {
+      updateBiWorkspaceInsets();
+    }
+  });
+  document.addEventListener("scroll", () => {
+    if (activeTab === "bi") {
+      updateBiStudioOverlayOffset();
+    }
+  }, true);
+  document.addEventListener("pointermove", (event) => {
+    handleBiStudioPanelResizeMove(event);
+  });
+  document.addEventListener("pointerup", (event) => {
+    if (biStudioPanelResize && event.pointerId === biStudioPanelResize.pointerId) {
+      stopBiStudioPanelResize();
+    }
+  });
+  document.addEventListener("pointercancel", (event) => {
+    if (biStudioPanelResize && event.pointerId === biStudioPanelResize.pointerId) {
+      stopBiStudioPanelResize();
+    }
+  });
 
   if (state.projects.length > 1) {
     openProjectChooser(true);
   }
 });
 
+function normalizeBiStudioPanelWidth(value, fallback = BI_STUDIO_PANEL_DEFAULT_WIDTH) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.min(BI_STUDIO_PANEL_MAX_WIDTH, Math.max(BI_STUDIO_PANEL_MIN_WIDTH, Math.round(numeric)));
+}
+
+function applyBiStudioPanelWidths() {
+  if (!(els.biStudioShell instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedLeft = normalizeBiStudioPanelWidth(biStudioLeftWidth);
+  const normalizedRight = normalizeBiStudioPanelWidth(biStudioRightWidth);
+  biStudioLeftWidth = normalizedLeft;
+  biStudioRightWidth = normalizedRight;
+  els.biStudioShell.style.setProperty("--bi-left-panel-width", `${normalizedLeft}px`);
+  els.biStudioShell.style.setProperty("--bi-right-panel-width", `${normalizedRight}px`);
+}
+
+function stopBiStudioPanelResize() {
+  if (!biStudioPanelResize) {
+    return;
+  }
+  biStudioPanelResize = null;
+  document.body.classList.remove("bi-resizing-panels");
+  saveBiStudioUiPreferences();
+  updateBiStudioOverlayOffset();
+}
+
+function startBiStudioPanelResize(mode, event) {
+  if (window.innerWidth <= 1180) {
+    return;
+  }
+  if (!(event instanceof PointerEvent)) {
+    return;
+  }
+  const normalizedMode = mode === "left" ? "left" : "middle";
+  biStudioPanelResize = {
+    mode: normalizedMode,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
+    rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
+  };
+  document.body.classList.add("bi-resizing-panels");
+  event.preventDefault();
+}
+
+function handleBiStudioPanelResizeMove(event) {
+  if (!biStudioPanelResize) {
+    return;
+  }
+  if (!(event instanceof PointerEvent)) {
+    return;
+  }
+  if (event.pointerId !== biStudioPanelResize.pointerId) {
+    return;
+  }
+  const deltaX = event.clientX - biStudioPanelResize.startX;
+  if (biStudioPanelResize.mode === "left") {
+    biStudioLeftWidth = normalizeBiStudioPanelWidth(biStudioPanelResize.leftWidth - deltaX);
+  } else {
+    biStudioRightWidth = normalizeBiStudioPanelWidth(biStudioPanelResize.rightWidth - deltaX);
+  }
+  applyBiStudioPanelWidths();
+  updateBiWorkspaceInsets();
+}
+
+function restoreBiStudioUiPreferences() {
+  if (typeof localStorage === "undefined") {
+    applyBiStudioPanelWidths();
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(BI_STUDIO_UI_PREFS_KEY);
+    if (!raw) {
+      applyBiStudioPanelWidths();
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    biRailMode = normalizeBiRailMode(parsed?.mode || "data");
+    biDataPanelOpen = !!parsed?.dataOpen;
+    biInspectorPanelOpen = !!parsed?.inspectorOpen;
+    biOtherPanelOpen = !!parsed?.otherOpen;
+    biStudioLeftWidth = normalizeBiStudioPanelWidth(parsed?.leftWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
+    biStudioRightWidth = normalizeBiStudioPanelWidth(parsed?.rightWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
+  } catch (error) {
+    // Ignorar preferencias corruptas.
+    biStudioLeftWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
+    biStudioRightWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
+  }
+  applyBiStudioPanelWidths();
+}
+
+function saveBiStudioUiPreferences() {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  try {
+    localStorage.setItem(BI_STUDIO_UI_PREFS_KEY, JSON.stringify({
+      mode: normalizeBiRailMode(biRailMode),
+      dataOpen: !!biDataPanelOpen,
+      inspectorOpen: !!biInspectorPanelOpen,
+      otherOpen: !!biOtherPanelOpen,
+      leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
+      rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
+    }));
+  } catch (error) {
+    // Ignorar errores de almacenamiento local.
+  }
+}
+
+function applySidebarCollapsedState(collapsed, persist = true) {
+  sidebarCollapsed = !!collapsed;
+  if (els.appLayout instanceof HTMLElement) {
+    els.appLayout.classList.toggle("sidebar-collapsed", sidebarCollapsed);
+  }
+  if (els.sidebarToggleButton instanceof HTMLElement) {
+    els.sidebarToggleButton.setAttribute("title", sidebarCollapsed ? "Mostrar panel izquierdo" : "Ocultar panel izquierdo");
+    els.sidebarToggleButton.setAttribute("aria-label", sidebarCollapsed ? "mostrar sidebar" : "ocultar sidebar");
+  }
+  if (persist && typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_PREF_KEY, sidebarCollapsed ? "1" : "0");
+    } catch (error) {
+      // Ignorar errores de almacenamiento local.
+    }
+  }
+}
+
+function restoreSidebarCollapsedPreference() {
+  if (typeof localStorage === "undefined") {
+    applySidebarCollapsedState(false, false);
+    return;
+  }
+  try {
+    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_PREF_KEY);
+    applySidebarCollapsedState(saved === "1", false);
+  } catch (error) {
+    applySidebarCollapsedState(false, false);
+  }
+}
+
 function bindElements() {
+  els.appLayout = document.querySelector(".app-layout");
+  els.sidebarToggleButton = document.getElementById("sidebarToggleButton");
   els.projectTitle = document.getElementById("projectTitle");
   els.projectSubtitle = document.getElementById("projectSubtitle");
   els.currentViewLabel = document.getElementById("currentViewLabel");
@@ -253,6 +449,7 @@ function bindElements() {
   els.projectTitleInput = document.getElementById("projectTitleInput");
   els.fieldSeparatorInput = document.getElementById("fieldSeparatorInput");
   els.progressControlModeSelect = document.getElementById("progressControlModeSelect");
+  els.toggleFieldsEditButton = document.getElementById("toggleFieldsEditButton");
   els.fieldCounter = document.getElementById("fieldCounter");
   els.addFieldButton = document.getElementById("addFieldButton");
   els.addFieldRowButton = document.getElementById("addFieldRowButton");
@@ -309,6 +506,10 @@ function bindElements() {
   els.biWidgetSourceSelect = document.getElementById("biWidgetSourceSelect");
   els.biWidgetGroupBySelect = document.getElementById("biWidgetGroupBySelect");
   els.biWidgetMetricSelect = document.getElementById("biWidgetMetricSelect");
+  els.biDataRolesSection = document.getElementById("biDataRolesSection");
+  els.biWidgetBreakdownSelect = document.getElementById("biWidgetBreakdownSelect");
+  els.biWidgetOptionalMetricSelect = document.getElementById("biWidgetOptionalMetricSelect");
+  els.biWidgetDateDimensionSelect = document.getElementById("biWidgetDateDimensionSelect");
   els.biWidgetChartTypeSelect = document.getElementById("biWidgetChartTypeSelect");
   els.biChartTypeButtons = document.getElementById("biChartTypeButtons");
   els.biSelectedDimensionChip = document.getElementById("biSelectedDimensionChip");
@@ -329,27 +530,56 @@ function bindElements() {
   els.biCommandPaletteInput = document.getElementById("biCommandPaletteInput");
   els.biCommandPaletteList = document.getElementById("biCommandPaletteList");
   els.biStudioShell = document.getElementById("biStudioShell");
+  els.biStudioLeftResizeHandle = document.getElementById("biStudioLeftResizeHandle");
+  els.biStudioMiddleResizeHandle = document.getElementById("biStudioMiddleResizeHandle");
   els.biStudioLeft = document.getElementById("biStudioLeft");
   els.biStudioRight = document.getElementById("biStudioRight");
+  els.biStudioOtherPanel = document.getElementById("biStudioOtherPanel");
   els.biStudioTitle = document.getElementById("biStudioTitle");
+  els.biHideLeftPanelButton = document.getElementById("biHideLeftPanelButton");
+  els.biHideDataPanelButton = document.getElementById("biHideDataPanelButton");
   els.biSourceSection = document.getElementById("biSourceSection");
   els.biDimensionSection = document.getElementById("biDimensionSection");
   els.biMetricSection = document.getElementById("biMetricSection");
   els.biChartSection = document.getElementById("biChartSection");
   els.biChartVisualSettingsSection = document.getElementById("biChartVisualSettingsSection");
+  els.biChartConfigIntro = document.getElementById("biChartConfigIntro");
+  els.biChartConfigGroups = document.getElementById("biChartConfigGroups");
+  els.biElementConfigSection = document.getElementById("biElementConfigSection");
+  els.biElementConfigTitle = document.getElementById("biElementConfigTitle");
+  els.biElementConfigBody = document.getElementById("biElementConfigBody");
+  els.biElementConfigHint = document.getElementById("biElementConfigHint");
   els.biBoardSection = document.getElementById("biBoardSection");
   els.biColorSection = document.getElementById("biColorSection");
   els.biFilterSection = document.getElementById("biFilterSection");
+  els.biPerformanceSection = document.getElementById("biPerformanceSection");
   els.biSettingsSection = document.getElementById("biSettingsSection");
   els.biBuilderSection = document.getElementById("biBuilderSection");
   els.biCanvasPresetSelect = document.getElementById("biCanvasPresetSelect");
   els.biCanvasWidthInput = document.getElementById("biCanvasWidthInput");
   els.biCanvasHeightInput = document.getElementById("biCanvasHeightInput");
+  els.biCanvasZoomSelect = document.getElementById("biCanvasZoomSelect");
+  els.biZoomMenuWrap = document.getElementById("biZoomMenuWrap");
+  els.biCanvasZoomMenuButton = document.getElementById("biCanvasZoomMenuButton");
+  els.biCanvasZoomMenu = document.getElementById("biCanvasZoomMenu");
+  els.biZoomFitAllButton = document.getElementById("biZoomFitAllButton");
+  els.biZoomFitWidthButton = document.getElementById("biZoomFitWidthButton");
+  els.biZoomDefaultButton = document.getElementById("biZoomDefaultButton");
+  els.biZoomFitAllLabel = document.getElementById("biZoomFitAllLabel");
+  els.biZoomFitWidthLabel = document.getElementById("biZoomFitWidthLabel");
   els.biApplyCanvasSizeButton = document.getElementById("biApplyCanvasSizeButton");
   els.biResetCanvasSizeButton = document.getElementById("biResetCanvasSizeButton");
   els.biShowCanvasGridCheckbox = document.getElementById("biShowCanvasGridCheckbox");
   els.biSnapToGridCheckbox = document.getElementById("biSnapToGridCheckbox");
   els.biGridSnapSizeInput = document.getElementById("biGridSnapSizeInput");
+  els.biPerformanceModeSelect = document.getElementById("biPerformanceModeSelect");
+  els.biOptimizeNowButton = document.getElementById("biOptimizeNowButton");
+  els.biResetPerformanceButton = document.getElementById("biResetPerformanceButton");
+  els.biPerfRenderMsText = document.getElementById("biPerfRenderMsText");
+  els.biPerfWidgetsText = document.getElementById("biPerfWidgetsText");
+  els.biPerfPointsText = document.getElementById("biPerfPointsText");
+  els.biPerfRowsText = document.getElementById("biPerfRowsText");
+  els.biPerfSummaryText = document.getElementById("biPerfSummaryText");
   els.biColorSourceSelect = document.getElementById("biColorSourceSelect");
   els.biColorGroupBySelect = document.getElementById("biColorGroupBySelect");
   els.biColorLegendList = document.getElementById("biColorLegendList");
@@ -418,6 +648,7 @@ function bindElements() {
   els.biRowsHeader = document.getElementById("biRowsHeader");
   els.biRowsBody = document.getElementById("biRowsBody");
   els.openAddReviewMilestoneButton = document.getElementById("openAddReviewMilestoneButton");
+  els.toggleReviewFlowEditButton = document.getElementById("toggleReviewFlowEditButton");
   els.addBlankReviewMilestoneButton = document.getElementById("addBlankReviewMilestoneButton");
   els.reviewMilestoneNameInput = document.getElementById("reviewMilestoneNameInput");
   els.reviewMilestoneWeightInput = document.getElementById("reviewMilestoneWeightInput");
@@ -471,19 +702,33 @@ function applyBiControlHints() {
     biTargetLineValueInput: "Valor numerico de la meta para la linea objetivo.",
     biTargetLineLabelInput: "Etiqueta corta mostrada junto a la linea objetivo.",
     biTargetLineColorInput: "Color de la linea objetivo.",
+    biWidgetBreakdownSelect: "Dimension secundaria usada en tipos como Pivot, Sankey, Scatter o Bubble.",
+    biWidgetOptionalMetricSelect: "Metrica auxiliar para tipos avanzados (ej: eje secundario o burbuja).",
+    biWidgetDateDimensionSelect: "Campo de fecha para Time series, Timeline o Candlestick.",
     biWidgetSortModeSelect: "Ordena las categorias del widget por valor o por etiqueta.",
     biUpdateWidgetButton: "Aplica propiedades al widget seleccionado (sin crear uno nuevo).",
     biTooltipModeSelect: "Full muestra detalle completo; Compact solo etiqueta y valor.",
     biCanvasPresetSelect: "Tamanos sugeridos de pizarra para dashboard.",
     biApplyCanvasSizeButton: "Aplica dimensiones personalizadas de la pizarra.",
+    biCanvasZoomSelect: "Escala visual de la pizarra (25%, 50%, 75%, 100%, 200%).",
+    biCanvasZoomMenuButton: "Abre el menu de zoom (ajustar todo, ancho y porcentajes).",
+    biZoomFitAllButton: "Ajusta toda la pizarra a la vista visible.",
+    biZoomFitWidthButton: "Ajusta el ancho de la pizarra al area visible.",
+    biZoomDefaultButton: "Vuelve al zoom predeterminado 100%.",
     biShowCanvasGridCheckbox: "Muestra u oculta la rejilla de la pizarra.",
     biSnapToGridCheckbox: "Ajusta posicion y tamano de widgets al paso de rejilla.",
     biGridSnapSizeInput: "Define el tamano de celda de la rejilla en pixeles.",
+    biPerformanceModeSelect: "Quality prioriza fidelidad, Balanced equilibra, Turbo acelera dashboards grandes.",
+    biOptimizeNowButton: "Aplica optimizacion automatica (top N y limites) segun perfil de rendimiento.",
+    biResetPerformanceButton: "Restaura el perfil a calidad maxima.",
     biUiModeSelect: "Basico simplifica controles; Avanzado muestra configuracion completa.",
     biOpenCommandPaletteButton: "Abre buscador de comandos rapidos (Ctrl+K).",
     biCrossFilterScopeSelect: "Define si los filtros de grafico aplican a todos o solo misma fuente.",
     biAutoLayoutButton: "Ordena automaticamente widgets en una malla limpia.",
-    biGenerateDashboardButton: "Crea un dashboard base con widgets recomendados."
+    biGenerateDashboardButton: "Crea un dashboard base con widgets recomendados.",
+    biHideLeftPanelButton: "Oculta el panel izquierdo de propiedades.",
+    biHideDataPanelButton: "Oculta el panel derecho de datos.",
+    sidebarToggleButton: "Oculta o muestra el panel lateral izquierdo de toda la aplicacion."
   };
   Object.entries(hints).forEach(([id, text]) => {
     const node = document.getElementById(id);
@@ -495,7 +740,28 @@ function applyBiControlHints() {
   });
 }
 
+function requireFieldsEditMode(message = "Activa Editar para modificar Listas.") {
+  if (fieldsEditMode) {
+    return true;
+  }
+  setStatus(message);
+  return false;
+}
+
+function requireReviewFlowEditMode(message = "Activa Editar para modificar Hitos de Flujo de Revisión.") {
+  if (reviewFlowEditMode) {
+    return true;
+  }
+  setStatus(message);
+  return false;
+}
+
 function wireEvents() {
+  els.sidebarToggleButton?.addEventListener("click", () => {
+    applySidebarCollapsedState(!sidebarCollapsed, true);
+    setStatus(sidebarCollapsed ? "Panel izquierdo oculto." : "Panel izquierdo mostrado.");
+  });
+
   els.syncButton.addEventListener("click", () => {
     flushPendingSave();
     saveState(true);
@@ -710,8 +976,28 @@ function wireEvents() {
     node.addEventListener("change", applyBiWidgetChromeFromControls);
   });
 
+  [els.biElementConfigBody].forEach((container) => {
+    if (!(container instanceof HTMLElement)) {
+      return;
+    }
+    const handler = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      if (!target.dataset.biSpecificKey) {
+        return;
+      }
+      applyBiSpecificConfigChange(target, {
+        refreshInspector: event.type === "change"
+      });
+    };
+    container.addEventListener("input", handler);
+    container.addEventListener("change", handler);
+  });
+
   els.biVisualScopeSelect?.addEventListener("change", () => {
-    biVisualScopeMode = normalizeBiVisualScopeMode(els.biVisualScopeSelect?.value || "global");
+    biVisualScopeMode = normalizeBiVisualScopeMode(els.biVisualScopeSelect?.value || biVisualScopeMode || "widget");
     const project = getActiveProject();
     if (!project) {
       return;
@@ -853,6 +1139,24 @@ function wireEvents() {
     });
   }
 
+  els.biHideLeftPanelButton?.addEventListener("click", () => {
+    applyBiRailMode(biRailMode, { forceClose: true });
+  });
+
+  els.biHideDataPanelButton?.addEventListener("click", () => {
+    applyBiRailMode("data", { forceClose: true });
+  });
+
+  [els.biStudioLeftResizeHandle, els.biStudioMiddleResizeHandle].forEach((handle) => {
+    if (!(handle instanceof HTMLElement)) {
+      return;
+    }
+    handle.addEventListener("pointerdown", (event) => {
+      const mode = trimOrFallback(handle.dataset.biPanelResizer, "middle");
+      startBiStudioPanelResize(mode, event);
+    });
+  });
+
   els.biOpenCommandPaletteButton?.addEventListener("click", () => {
     toggleBiCommandPalette();
   });
@@ -985,6 +1289,139 @@ function wireEvents() {
     applyBiCanvasSize(true);
   });
 
+  const applyBiCanvasZoom = (rawZoomValue, statusPrefix = "Zoom de pizarra") => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureBiState(project);
+    project.biConfig.canvasZoom = sanitizeBiCanvasZoom(
+      rawZoomValue,
+      project.biConfig.canvasZoom
+    );
+    if (els.biCanvasZoomSelect) {
+      syncBiZoomSelectControl(els.biCanvasZoomSelect, project.biConfig.canvasZoom);
+    }
+    updateBiZoomMenuUi(project);
+    saveState();
+    renderBiPanel(project);
+    setStatus(`${statusPrefix}: ${project.biConfig.canvasZoom}%.`);
+  };
+
+  [els.biCanvasZoomSelect].forEach((node) => {
+    if (!(node instanceof HTMLSelectElement)) {
+      return;
+    }
+    node.addEventListener("input", () => {
+      applyBiCanvasZoom(node.value, "Zoom de pizarra");
+    });
+    node.addEventListener("change", () => {
+      applyBiCanvasZoom(node.value, "Zoom de pizarra");
+    });
+  });
+
+  const closeBiZoomMenu = () => {
+    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+      return;
+    }
+    els.biCanvasZoomMenu.classList.add("hidden");
+    if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
+      els.biCanvasZoomMenuButton.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  const openBiZoomMenu = () => {
+    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+      return;
+    }
+    els.biCanvasZoomMenu.classList.remove("hidden");
+    if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
+      els.biCanvasZoomMenuButton.setAttribute("aria-expanded", "true");
+    }
+  };
+
+  const toggleBiZoomMenu = () => {
+    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+      return;
+    }
+    if (els.biCanvasZoomMenu.classList.contains("hidden")) {
+      openBiZoomMenu();
+    } else {
+      closeBiZoomMenu();
+    }
+  };
+
+  if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
+    els.biCanvasZoomMenuButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleBiZoomMenu();
+    });
+  }
+
+  if (els.biCanvasZoomMenu instanceof HTMLElement) {
+    els.biCanvasZoomMenu.addEventListener("click", (event) => {
+      const target = event.target instanceof HTMLElement
+        ? event.target.closest("[data-bi-zoom-value], [data-bi-zoom-action]")
+        : null;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const project = getActiveProject();
+      if (!project) {
+        closeBiZoomMenu();
+        return;
+      }
+      ensureBiState(project);
+      const zoomValue = target.dataset.biZoomValue;
+      const action = trimOrFallback(target.dataset.biZoomAction, "");
+      if (zoomValue) {
+        applyBiCanvasZoom(zoomValue, "Zoom de pizarra");
+        closeBiZoomMenu();
+        return;
+      }
+      if (action === "fit-all" || action === "fit-width") {
+        const fitMode = action === "fit-width" ? "width" : "all";
+        const fitZoom = getBiCanvasFitZoom(project, fitMode);
+        const statusLabel = action === "fit-width" ? "Zoom ajustado al ancho" : "Zoom ajustado a vista";
+        applyBiCanvasZoom(fitZoom, statusLabel);
+        closeBiZoomMenu();
+        return;
+      }
+      if (action === "in" || action === "out") {
+        const step = action === "in" ? 1 : -1;
+        const nextZoom = getBiSteppedCanvasZoom(project.biConfig.canvasZoom, step);
+        applyBiCanvasZoom(nextZoom, "Zoom de pizarra");
+        closeBiZoomMenu();
+        return;
+      }
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!(els.biCanvasZoomMenu instanceof HTMLElement) || els.biCanvasZoomMenu.classList.contains("hidden")) {
+      return;
+    }
+    const targetNode = event.target instanceof Node ? event.target : null;
+    if (!targetNode) {
+      closeBiZoomMenu();
+      return;
+    }
+    if (els.biZoomMenuWrap instanceof HTMLElement && els.biZoomMenuWrap.contains(targetNode)) {
+      return;
+    }
+    closeBiZoomMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    closeBiZoomMenu();
+  });
+
   const handleBiBoardGridSettingsChange = () => {
     const project = getActiveProject();
     if (!project) {
@@ -1008,6 +1445,58 @@ function wireEvents() {
     }
     node.addEventListener("input", handleBiBoardGridSettingsChange);
     node.addEventListener("change", handleBiBoardGridSettingsChange);
+  });
+
+  const handleBiPerformanceModeChange = () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureBiState(project);
+    project.biConfig.performanceMode = normalizeBiPerformanceMode(els.biPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
+    saveState();
+    renderBiPanel(project);
+    const label = project.biConfig.performanceMode === "turbo"
+      ? "Turbo"
+      : (project.biConfig.performanceMode === "quality" ? "Calidad máxima" : "Balanceado");
+    setStatus(`Perfil de rendimiento aplicado: ${label}.`);
+  };
+
+  [els.biPerformanceModeSelect].forEach((node) => {
+    if (!node) {
+      return;
+    }
+    node.addEventListener("input", handleBiPerformanceModeChange);
+    node.addEventListener("change", handleBiPerformanceModeChange);
+  });
+
+  els.biOptimizeNowButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureBiState(project);
+    const mode = normalizeBiPerformanceMode(els.biPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
+    project.biConfig.performanceMode = mode;
+    const result = runBiAutoOptimize(project, mode);
+    saveState();
+    renderBiPanel(project);
+    setStatus(
+      `Optimización aplicada (${mode}): ${result.updatedWidgets} widgets ajustados, `
+      + `${result.topNChanges} topN, ${result.tableChanges} límites de tabla.`
+    );
+  });
+
+  els.biResetPerformanceButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureBiState(project);
+    project.biConfig.performanceMode = "quality";
+    saveState();
+    renderBiPanel(project);
+    setStatus("Perfil de rendimiento restablecido a Calidad máxima.");
   });
 
   const handleBiColorScopeChange = () => {
@@ -1104,15 +1593,26 @@ function wireEvents() {
       : `No habia colores personalizados para ${getBiGroupLabel(groupBy, project)}.`);
   });
 
-  [els.biWidgetGroupBySelect, els.biWidgetMetricSelect, els.biWidgetChartTypeSelect, els.biWidgetSortModeSelect].forEach((node) => {
+  [
+    els.biWidgetGroupBySelect,
+    els.biWidgetMetricSelect,
+    els.biWidgetBreakdownSelect,
+    els.biWidgetOptionalMetricSelect,
+    els.biWidgetDateDimensionSelect,
+    els.biWidgetChartTypeSelect,
+    els.biWidgetSortModeSelect
+  ].forEach((node) => {
     if (!node) {
       return;
     }
     node.addEventListener("input", () => {
-      syncBiBuilderSelectionUi(getActiveProject());
+      const project = getActiveProject();
+      syncBiBuilderSelectionUi(project);
     });
     node.addEventListener("change", () => {
-      syncBiBuilderSelectionUi(getActiveProject());
+      const project = getActiveProject();
+      syncBiBuilderSelectionUi(project);
+      applyBiBuilderToSelectedWidget({ announce: false });
     });
   });
 
@@ -1125,6 +1625,7 @@ function wireEvents() {
     }
     renderBiFieldCatalog(getActiveProject());
     syncBiBuilderSelectionUi(getActiveProject());
+    applyBiBuilderToSelectedWidget({ announce: false });
   });
 
   els.biChartTypeButtons?.addEventListener("click", (event) => {
@@ -1141,6 +1642,7 @@ function wireEvents() {
       els.biWidgetChartTypeSelect.value = chartType;
     }
     syncBiBuilderSelectionUi(getActiveProject());
+    applyBiBuilderToSelectedWidget({ announce: false });
   });
 
   els.biCatalogFieldsList?.addEventListener("click", (event) => {
@@ -1168,7 +1670,17 @@ function wireEvents() {
     if (changed) {
       syncBiBuilderSelectionUi(getActiveProject());
       renderBiFieldCatalog(getActiveProject());
+      applyBiBuilderToSelectedWidget({ announce: false });
     }
+  });
+
+  [els.biWidgetTopNInput, els.biWidgetNameInput].forEach((node) => {
+    if (!node) {
+      return;
+    }
+    node.addEventListener("change", () => {
+      applyBiBuilderToSelectedWidget({ announce: false });
+    });
   });
 
   els.biRefreshButton?.addEventListener("click", () => {
@@ -1260,9 +1772,15 @@ function wireEvents() {
       showBorder: false,
       showBackground: false,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
+      chartConfig: createDefaultBiChartConfig("table"),
+      chartTypeConfig: {},
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
-      layout: getDefaultBiWidgetLayout(project.biWidgets.length),
+      layout: getDefaultBiWidgetLayout(project.biWidgets.length, "text"),
       visualOverride: null
     };
     project.biWidgets.push(widget);
@@ -1303,9 +1821,15 @@ function wireEvents() {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
+      chartConfig: createDefaultBiChartConfig("table"),
+      chartTypeConfig: {},
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
-      layout: getDefaultBiWidgetLayout(project.biWidgets.length),
+      layout: getDefaultBiWidgetLayout(project.biWidgets.length, "image"),
       visualOverride: null
     };
     project.biWidgets.push(widget);
@@ -1358,6 +1882,88 @@ function wireEvents() {
     reader.readAsDataURL(file);
   });
 
+  const applyBiBuilderToSelectedWidget = (options = {}) => {
+    const announce = options.announce === true;
+    const project = getActiveProject();
+    if (!project) {
+      return { ok: false, reason: "no_project" };
+    }
+    ensureBiState(project);
+    const selected = getBiSelectedWidget(project);
+    if (!selected) {
+      if (announce) {
+        setStatus("Selecciona un widget para actualizar.");
+      }
+      return { ok: false, reason: "no_selected" };
+    }
+    if (normalizeBiWidgetKind(selected.kind || "chart") !== "chart") {
+      if (announce) {
+        setStatus("Solo se puede actualizar la configuracion de widgets de grafico.");
+      }
+      return { ok: false, reason: "not_chart" };
+    }
+    if (selected.locked) {
+      if (announce) {
+        setStatus("Widget bloqueado. Desbloquea para actualizar propiedades.");
+      }
+      return { ok: false, reason: "locked" };
+    }
+
+    const source = normalizeBiSource(els.biWidgetSourceSelect?.value || selected.source || "all");
+    const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || selected.groupBy || "disciplina");
+    const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || selected.metric || "baseunits");
+    const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || selected.chartType || "bar");
+    const dataRoles = buildBiDataRolesFromBuilderInput(project, selected);
+    const finalGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupBy);
+    const finalMetric = normalizeBiMetric(dataRoles.metrics?.[0] || metric);
+    const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect?.value || selected.sortMode || "value_desc");
+    const topN = sanitizeBiTopN(els.biWidgetTopNInput?.value ?? selected.topN ?? 10);
+    const typedName = trimOrFallback(els.biWidgetNameInput?.value, "");
+    const fallbackName = `${getBiMetricLabel(finalMetric)} por ${getBiGroupLabel(finalGroupBy, project)}`;
+    const previousSignature = JSON.stringify({
+      name: selected.name,
+      source: selected.source,
+      groupBy: selected.groupBy,
+      metric: selected.metric,
+      chartType: selected.chartType,
+      sortMode: selected.sortMode,
+      topN: selected.topN,
+      dataRoles: selected.dataRoles
+    });
+
+    selected.name = (typedName || selected.name || fallbackName).slice(0, 60);
+    selected.source = source;
+    selected.groupBy = finalGroupBy;
+    selected.metric = finalMetric;
+    selected.dataRoles = dataRoles;
+    selected.chartType = chartType;
+    selected.chartConfig = normalizeBiChartConfig(selected.chartConfig, chartType);
+    setBiSpecificChartConfigForWidget(selected, chartType, getBiSpecificChartConfigForWidget(selected, chartType));
+    selected.sortMode = sortMode;
+    selected.topN = topN;
+
+    const nextSignature = JSON.stringify({
+      name: selected.name,
+      source: selected.source,
+      groupBy: selected.groupBy,
+      metric: selected.metric,
+      chartType: selected.chartType,
+      sortMode: selected.sortMode,
+      topN: selected.topN,
+      dataRoles: selected.dataRoles
+    });
+    if (previousSignature === nextSignature) {
+      return { ok: true, changed: false };
+    }
+
+    saveState();
+    renderBiPanel(project);
+    if (announce) {
+      setStatus(`Widget "${selected.name}" actualizado.`);
+    }
+    return { ok: true, changed: true, name: selected.name };
+  };
+
   els.biAddWidgetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
@@ -1375,9 +1981,12 @@ function wireEvents() {
     const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || "disciplina");
     const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || "baseUnits");
     const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || "bar");
+    const dataRoles = buildBiDataRolesFromBuilderInput(project);
+    const finalGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupBy);
+    const finalMetric = normalizeBiMetric(dataRoles.metrics?.[0] || metric);
     const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect?.value || "value_desc");
     const baseName = trimOrFallback(els.biWidgetNameInput?.value, "");
-    const defaultName = `${getBiMetricLabel(metric)} por ${getBiGroupLabel(groupBy, project)}`;
+    const defaultName = `${getBiMetricLabel(finalMetric)} por ${getBiGroupLabel(finalGroupBy, project)}`;
     const name = (baseName || defaultName).slice(0, 60);
 
     const newWidget = {
@@ -1385,8 +1994,8 @@ function wireEvents() {
       kind: "chart",
       name,
       source,
-      groupBy,
-      metric,
+      groupBy: finalGroupBy,
+      metric: finalMetric,
       chartType,
       sortMode,
       topN,
@@ -1397,7 +2006,15 @@ function wireEvents() {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles,
+      chartConfig: createDefaultBiChartConfig(chartType),
+      chartTypeConfig: {
+        [chartType]: normalizeBiChartTypeSpecificConfig({}, chartType)
+      },
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length),
       visualOverride: null
@@ -1413,42 +2030,7 @@ function wireEvents() {
   });
 
   els.biUpdateWidgetButton?.addEventListener("click", () => {
-    const project = getActiveProject();
-    if (!project) {
-      return;
-    }
-    ensureBiState(project);
-    const selected = getBiSelectedWidget(project);
-    if (!selected) {
-      setStatus("Selecciona un widget para actualizar.");
-      return;
-    }
-    if (normalizeBiWidgetKind(selected.kind || "chart") !== "chart") {
-      setStatus("Solo se puede actualizar la configuracion de widgets de grafico.");
-      return;
-    }
-    if (selected.locked) {
-      setStatus("Widget bloqueado. Desbloquea para actualizar propiedades.");
-      return;
-    }
-    const source = normalizeBiSource(els.biWidgetSourceSelect?.value || selected.source || "all");
-    const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || selected.groupBy || "disciplina");
-    const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || selected.metric || "baseunits");
-    const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || selected.chartType || "bar");
-    const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect?.value || selected.sortMode || "value_desc");
-    const topN = sanitizeBiTopN(els.biWidgetTopNInput?.value ?? selected.topN ?? 10);
-    const typedName = trimOrFallback(els.biWidgetNameInput?.value, "");
-    const fallbackName = `${getBiMetricLabel(metric)} por ${getBiGroupLabel(groupBy, project)}`;
-    selected.name = (typedName || selected.name || fallbackName).slice(0, 60);
-    selected.source = source;
-    selected.groupBy = groupBy;
-    selected.metric = metric;
-    selected.chartType = chartType;
-    selected.sortMode = sortMode;
-    selected.topN = topN;
-    saveState();
-    renderBiPanel(project);
-    setStatus(`Widget "${selected.name}" actualizado.`);
+    applyBiBuilderToSelectedWidget({ announce: true });
   });
 
   els.biWidgetsGrid?.addEventListener("click", (event) => {
@@ -1911,10 +2493,28 @@ function wireEvents() {
   });
 
   els.openAddReviewMilestoneButton.addEventListener("click", () => {
+    if (!requireReviewFlowEditMode()) {
+      return;
+    }
     openReviewMilestoneDrawer();
   });
 
+  els.toggleReviewFlowEditButton?.addEventListener("click", () => {
+    reviewFlowEditMode = !reviewFlowEditMode;
+    if (!reviewFlowEditMode) {
+      closeReviewMilestoneDrawer();
+    }
+    updateReviewFlowEditUi();
+    renderReviewFlowPanel(getActiveProject());
+    setStatus(reviewFlowEditMode
+      ? "Modo edicion activado en Hitos de Flujo de Revisión."
+      : "Modo lectura activado en Hitos de Flujo de Revisión.");
+  });
+
   els.addBlankReviewMilestoneButton.addEventListener("click", () => {
+    if (!requireReviewFlowEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -1927,6 +2527,9 @@ function wireEvents() {
   });
 
   els.saveReviewMilestoneButton.addEventListener("click", () => {
+    if (!requireReviewFlowEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -1972,6 +2575,9 @@ function wireEvents() {
   });
 
   els.reviewMilestonesBody.addEventListener("click", (event) => {
+    if (!reviewFlowEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -1996,6 +2602,9 @@ function wireEvents() {
   });
 
   els.reviewMilestonesBody.addEventListener("change", (event) => {
+    if (!reviewFlowEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -2050,6 +2659,9 @@ function wireEvents() {
   });
 
   els.projectTitleInput.addEventListener("input", () => {
+    if (!requireFieldsEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2060,6 +2672,9 @@ function wireEvents() {
   });
 
   els.fieldSeparatorInput.addEventListener("input", () => {
+    if (!requireFieldsEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2074,6 +2689,9 @@ function wireEvents() {
   });
 
   els.progressControlModeSelect.addEventListener("change", () => {
+    if (!requireFieldsEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2094,6 +2712,9 @@ function wireEvents() {
   });
 
   els.addFieldButton.addEventListener("click", () => {
+    if (!requireFieldsEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2114,6 +2735,9 @@ function wireEvents() {
   });
 
   els.addFieldRowButton.addEventListener("click", () => {
+    if (!requireFieldsEditMode()) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2128,6 +2752,9 @@ function wireEvents() {
   });
 
   els.fieldMatrixHead.addEventListener("input", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -2155,6 +2782,9 @@ function wireEvents() {
   });
 
   els.fieldMatrixHead.addEventListener("change", () => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2223,6 +2853,9 @@ function wireEvents() {
   });
 
   els.fieldMatrixBody.addEventListener("paste", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2261,6 +2894,9 @@ function wireEvents() {
   });
 
   els.fieldMatrixBody.addEventListener("input", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -2289,6 +2925,9 @@ function wireEvents() {
   });
 
   els.fieldMatrixBody.addEventListener("change", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const project = getActiveProject();
     if (!project) {
       return;
@@ -2320,6 +2959,9 @@ function wireEvents() {
   });
 
   els.fieldsTableBody.addEventListener("change", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -2356,6 +2998,9 @@ function wireEvents() {
   });
 
   els.fieldsTableBody.addEventListener("click", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -2390,6 +3035,9 @@ function wireEvents() {
   });
 
   els.nomenclatureDragArea.addEventListener("dragstart", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -2414,6 +3062,9 @@ function wireEvents() {
   });
 
   els.nomenclatureDragArea.addEventListener("dragover", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     if (!draggedNomenclatureFieldId) {
       return;
     }
@@ -2437,6 +3088,9 @@ function wireEvents() {
   });
 
   els.nomenclatureDragArea.addEventListener("drop", (event) => {
+    if (!fieldsEditMode) {
+      return;
+    }
     if (!draggedNomenclatureFieldId) {
       return;
     }
@@ -2486,6 +3140,18 @@ function wireEvents() {
     }
     clearNomenclatureDropMarkers();
     draggedNomenclatureFieldId = "";
+  });
+
+  els.toggleFieldsEditButton?.addEventListener("click", () => {
+    fieldsEditMode = !fieldsEditMode;
+    if (!fieldsEditMode) {
+      clearMatrixSelection();
+    }
+    updateFieldsEditUi();
+    renderFieldsPanel(getActiveProject());
+    setStatus(fieldsEditMode
+      ? "Modo edicion activado en Listas."
+      : "Modo lectura activado en Listas.");
   });
 
   els.openAddDeliverableButton.addEventListener("click", () => {
@@ -3259,11 +3925,40 @@ function wireEvents() {
         || target instanceof HTMLTextAreaElement
         || target instanceof HTMLSelectElement
         || (target instanceof HTMLElement && target.isContentEditable);
+      const keyText = trimOrFallback(event.key, "").toLowerCase();
       const project = getActiveProject();
       if (project) {
         ensureBiState(project);
       }
       const selectedWidget = project ? getBiSelectedWidget(project) : null;
+
+      if (!isTypingTarget && project && event.ctrlKey && event.altKey && !event.metaKey) {
+        if (keyText === "[") {
+          event.preventDefault();
+          applyBiCanvasZoom(getBiCanvasFitZoom(project, "all"), "Zoom ajustado a vista");
+          return;
+        }
+        if (keyText === "]") {
+          event.preventDefault();
+          applyBiCanvasZoom(getBiCanvasFitZoom(project, "width"), "Zoom ajustado al ancho");
+          return;
+        }
+        if (keyText === "1") {
+          event.preventDefault();
+          applyBiCanvasZoom(100, "Zoom de pizarra");
+          return;
+        }
+        if (keyText === "+" || keyText === "=") {
+          event.preventDefault();
+          applyBiCanvasZoom(getBiSteppedCanvasZoom(project.biConfig.canvasZoom, 1), "Zoom de pizarra");
+          return;
+        }
+        if (keyText === "-" || keyText === "_") {
+          event.preventDefault();
+          applyBiCanvasZoom(getBiSteppedCanvasZoom(project.biConfig.canvasZoom, -1), "Zoom de pizarra");
+          return;
+        }
+      }
 
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
         if (!project || !selectedWidget) {
@@ -3313,6 +4008,44 @@ function wireEvents() {
         const step = snapEnabled
           ? (event.shiftKey ? snapSize * 2 : snapSize)
           : (event.shiftKey ? 10 : 1);
+        if (event.altKey) {
+          let dw = 0;
+          let dh = 0;
+          if (event.key === "ArrowLeft") dw = -step;
+          if (event.key === "ArrowRight") dw = step;
+          if (event.key === "ArrowUp") dh = -step;
+          if (event.key === "ArrowDown") dh = step;
+          if (dw !== 0 || dh !== 0) {
+            event.preventDefault();
+            if (selectedWidget.locked) {
+              setStatus("Widget bloqueado. Desbloquea para redimensionar.");
+              return;
+            }
+            const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
+            const minSize = getBiWidgetMinSize(selectedWidget);
+            selectedWidget.layout = clampBiWidgetLayoutToCanvas({
+              x: selectedWidget.layout?.x || 0,
+              y: selectedWidget.layout?.y || 0,
+              w: (selectedWidget.layout?.w || minSize.width) + dw,
+              h: (selectedWidget.layout?.h || minSize.height) + dh
+            }, canvasSize.width, canvasSize.height, minSize);
+            if (snapEnabled) {
+              selectedWidget.layout = clampBiWidgetLayoutToCanvas(
+                snapBiWidgetLayout(selectedWidget.layout, "resize", snapSize, minSize),
+                canvasSize.width,
+                canvasSize.height,
+                minSize
+              );
+            }
+            const widgetNode = findBiWidgetElement(selectedWidget.id);
+            if (widgetNode instanceof HTMLElement) {
+              widgetNode.style.width = `${selectedWidget.layout.w}px`;
+              widgetNode.style.height = `${selectedWidget.layout.h}px`;
+            }
+            saveState();
+            return;
+          }
+        }
         let dx = 0;
         let dy = 0;
         if (event.key === "ArrowLeft") dx = -step;
@@ -3374,9 +4107,18 @@ function renderAll() {
   renderDeliverablesPanel(project);
   renderReviewFlowPanel(project);
   renderReviewControlsPanel(project);
-  renderBiPanel(project);
   renderProjectChooser(project);
   renderTabState();
+  if (activeTab === "bi") {
+    if (biPendingRenderRafId) {
+      window.cancelAnimationFrame(biPendingRenderRafId);
+      biPendingRenderRafId = 0;
+    }
+    biPendingRenderRafId = window.requestAnimationFrame(() => {
+      biPendingRenderRafId = 0;
+      renderBiPanel(getActiveProject());
+    });
+  }
 }
 
 function renderHeader(project) {
@@ -3415,6 +4157,7 @@ function renderFieldsPanel(project) {
   }
 
   ensureNomenclatureConfig(project);
+  const editEnabled = fieldsEditMode;
   els.projectTitleInput.value = project.title;
   els.fieldSeparatorInput.value = project.codeSeparator;
   if (els.progressControlModeSelect) {
@@ -3442,7 +4185,7 @@ function renderFieldsPanel(project) {
           data-field-label="${escapeAttribute(field.id)}"
           value="${escapeAttribute(field.label)}"
           maxlength="40"
-          ${field.locked ? "readonly" : ""}>
+          ${(field.locked || !editEnabled) ? "readonly" : ""}>
       </th>
       <th class="matrix-code-head">codigo</th>
       ${dependencyHeader}
@@ -3479,7 +4222,8 @@ function renderFieldsPanel(project) {
           <select
             class="matrix-cell-input"
             data-matrix-system-parent-field="${escapeAttribute(field.id)}"
-            data-matrix-system-parent-row="${rowIndex}">
+            data-matrix-system-parent-row="${rowIndex}"
+            ${editEnabled ? "" : "disabled"}>
             <option value="">Disciplina</option>
             ${optionsHtml}
           </select>
@@ -3494,7 +4238,8 @@ function renderFieldsPanel(project) {
             data-matrix-row="${rowIndex}"
             data-matrix-key="name"
             value="${escapeAttribute(nameValue)}"
-            placeholder="Nombre">
+            placeholder="Nombre"
+            ${editEnabled ? "" : "readonly"}>
         </td>
         <td>
           <input
@@ -3504,7 +4249,8 @@ function renderFieldsPanel(project) {
             data-matrix-row="${rowIndex}"
             data-matrix-key="code"
             value="${escapeAttribute(codeValue)}"
-            placeholder="Cod.">
+            placeholder="Cod."
+            ${editEnabled ? "" : "readonly"}>
         </td>
         ${dependencyCell}
       `;
@@ -3527,7 +4273,7 @@ function renderFieldsPanel(project) {
       els.nomenclatureDragArea.innerHTML = "<span class=\"nomenclature-empty\">Activa \"Incluir en nomenclatura\" y luego arrastra para ordenar.</span>";
     } else {
       els.nomenclatureDragArea.innerHTML = orderedFields
-        .map((field, index) => `<div class="nomenclature-item" draggable="true" data-nomenclature-item="${escapeAttribute(field.id)}" title="Arrastra para ordenar">
+        .map((field, index) => `<div class="nomenclature-item" draggable="${editEnabled ? "true" : "false"}" data-nomenclature-item="${escapeAttribute(field.id)}" title="Arrastra para ordenar">
           <span class="nomenclature-drag-handle">|||</span>
           <span class="order-chip">${index + 1}</span>
           <span>${escapeHtml(field.label)}</span>
@@ -3540,7 +4286,7 @@ function renderFieldsPanel(project) {
     .map((field, index) => {
       const removeButton = field.locked
         ? "<span class=\"muted\">Base</span>"
-        : `<button type="button" class="danger" data-remove-field="${escapeAttribute(field.id)}">Quitar</button>`;
+        : `<button type="button" class="danger" data-remove-field="${escapeAttribute(field.id)}" ${editEnabled ? "" : "disabled"}>Quitar</button>`;
 
       const orderIndex = project.nomenclatureOrder.indexOf(field.id);
       const isIncluded = !!field.includeInCode;
@@ -3550,7 +4296,7 @@ function renderFieldsPanel(project) {
 
       return `<tr>
         <td>${index + 1}. ${escapeHtml(field.label)}</td>
-        <td><input type="checkbox" data-field-code="${escapeAttribute(field.id)}" ${field.includeInCode ? "checked" : ""}></td>
+        <td><input type="checkbox" data-field-code="${escapeAttribute(field.id)}" ${field.includeInCode ? "checked" : ""} ${editEnabled ? "" : "disabled"}></td>
         <td>${orderChip}</td>
         <td>${removeButton}</td>
       </tr>`;
@@ -4807,6 +5553,7 @@ function renderReviewFlowPanel(project) {
   if (!els.reviewMilestonesBody || !els.reviewMilestonesMetaText) {
     return;
   }
+  const editEnabled = reviewFlowEditMode;
 
   if (!project) {
     if (els.reviewMilestoneNameInput) {
@@ -4856,10 +5603,10 @@ function renderReviewFlowPanel(project) {
   els.reviewMilestonesBody.innerHTML = filteredRows
     .map((row, index) => `<tr>
       <td>${index + 1}</td>
-      <td><input type="text" class="cell-text-input" data-edit-review-milestone="${escapeAttribute(row.id)}" data-review-key="name" value="${escapeAttribute(row.name)}" maxlength="120"></td>
-      <td><input type="number" class="cell-number-input" data-edit-review-milestone="${escapeAttribute(row.id)}" data-review-key="baseUnits" value="${escapeAttribute(row.baseUnitsText)}" min="0" step="0.01"></td>
+      <td><input type="text" class="cell-text-input" data-edit-review-milestone="${escapeAttribute(row.id)}" data-review-key="name" value="${escapeAttribute(row.name)}" maxlength="120" ${editEnabled ? "" : "readonly"}></td>
+      <td><input type="number" class="cell-number-input" data-edit-review-milestone="${escapeAttribute(row.id)}" data-review-key="baseUnits" value="${escapeAttribute(row.baseUnitsText)}" min="0" step="0.01" ${editEnabled ? "" : "readonly"}></td>
       <td>${escapeHtml(row.createdLabel)}</td>
-      <td><button type="button" class="danger" data-remove-review-milestone="${escapeAttribute(row.id)}">Eliminar</button></td>
+      <td><button type="button" class="danger" data-remove-review-milestone="${escapeAttribute(row.id)}" ${editEnabled ? "" : "disabled"}>Eliminar</button></td>
     </tr>`)
     .join("");
 }
@@ -5168,6 +5915,27 @@ function renderBiPanel(project) {
     return;
   }
 
+  const biPanel = document.getElementById("tab-bi");
+  if (project && activeTab !== "bi") {
+    return;
+  }
+  if (
+    project
+    && activeTab === "bi"
+    && biPanel instanceof HTMLElement
+    && (biPanel.classList.contains("hidden") || biPanel.clientWidth <= 0 || biPanel.clientHeight <= 0)
+  ) {
+    if (!biPendingRenderRafId) {
+      biPendingRenderRafId = window.requestAnimationFrame(() => {
+        biPendingRenderRafId = 0;
+        if (activeTab === "bi") {
+          renderBiPanel(getActiveProject());
+        }
+      });
+    }
+    return;
+  }
+
   if (!project) {
     if (els.biWidgetsMetaText) {
       els.biWidgetsMetaText.textContent = "";
@@ -5204,6 +5972,7 @@ function renderBiPanel(project) {
     if (els.biRowsBody) {
       els.biRowsBody.innerHTML = "";
     }
+    renderBiPerformancePanel(null, []);
     refreshBiStudioPanelsUi();
     updateBiStudioOverlayOffset();
     return;
@@ -5215,6 +5984,7 @@ function renderBiPanel(project) {
   }
   biWidgetSnapshotsByProject[project.id] = {};
   refreshBiGroupByOptions(project);
+  refreshBiBreakdownOptions(project);
   refreshBiColorGroupByOptions(project);
   refreshBiVisualPresetOptions(project);
   syncBiInputs(project.biConfig);
@@ -5230,6 +6000,7 @@ function renderBiPanel(project) {
   renderBiInsights(project, filteredRows);
   renderBiKpis(filteredRows);
   renderBiWidgets(project, filteredRows);
+  renderBiPerformancePanel(project, filteredRows);
   refreshBiStudioPanelsUi();
   updateBiStudioOverlayOffset();
 }
@@ -5271,6 +6042,11 @@ function syncBiInputs(config) {
     const hasPreset = Array.from(els.biCanvasPresetSelect.options).some((option) => option.value === presetValue);
     els.biCanvasPresetSelect.value = hasPreset ? presetValue : "";
   }
+  if (els.biCanvasZoomSelect) {
+    const zoom = sanitizeBiCanvasZoom(config.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
+    syncBiZoomSelectControl(els.biCanvasZoomSelect, zoom);
+    updateBiZoomMenuUi(getActiveProject());
+  }
   if (els.biShowCanvasGridCheckbox) {
     els.biShowCanvasGridCheckbox.checked = normalizeBiToggle(config.showCanvasGrid, false);
   }
@@ -5279,6 +6055,9 @@ function syncBiInputs(config) {
   }
   if (els.biGridSnapSizeInput) {
     els.biGridSnapSizeInput.value = String(sanitizeBiInteger(config.gridSnapSize, 12, 4, 120));
+  }
+  if (els.biPerformanceModeSelect) {
+    els.biPerformanceModeSelect.value = normalizeBiPerformanceMode(config.performanceMode || "balanced");
   }
   if (els.biColorSourceSelect) {
     els.biColorSourceSelect.value = normalizeBiSource(config.colorSource || "all");
@@ -5581,8 +6360,10 @@ function syncBiInspectorByWidgetType(project, selectedWidget) {
   const isBoardMode = inspectorMode === "board";
   const isColorMode = inspectorMode === "colorimetry";
   const isFilterMode = inspectorMode === "filter";
+  const isPerformanceMode = inspectorMode === "performance";
   const shouldShowChartBuilder = !hasSelection || widgetKind === "chart";
   const shouldShowChartConfig = isSettingsMode && isChartWidget;
+  const chartTypeHint = normalizeBiChartType(selectedWidget?.chartType || els.biWidgetChartTypeSelect?.value || "bar");
 
   const toggleSection = (section, visible) => {
     if (!(section instanceof HTMLElement)) {
@@ -5594,13 +6375,19 @@ function syncBiInspectorByWidgetType(project, selectedWidget) {
   toggleSection(els.biSourceSection, isPropertiesMode && shouldShowChartBuilder);
   toggleSection(els.biDimensionSection, isPropertiesMode && shouldShowChartBuilder);
   toggleSection(els.biMetricSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.biDataRolesSection, isPropertiesMode && shouldShowChartBuilder);
   toggleSection(els.biChartSection, isPropertiesMode && shouldShowChartBuilder);
   toggleSection(els.biBuilderSection, isPropertiesMode);
   toggleSection(els.biSettingsSection, isSettingsMode);
+  toggleSection(els.biElementConfigSection, isSettingsMode);
   toggleSection(els.biBoardSection, isBoardMode);
   toggleSection(els.biColorSection, isColorMode);
   toggleSection(els.biFilterSection, isFilterMode);
+  toggleSection(els.biPerformanceSection, isPerformanceMode);
   toggleSection(els.biChartVisualSettingsSection, shouldShowChartConfig);
+  if (isSettingsMode) {
+    renderBiElementConfigPanel(project, selectedWidget || null, chartTypeHint);
+  }
 
   if (els.biUpdateWidgetButton instanceof HTMLButtonElement) {
     const canUpdateSelected = hasSelection && widgetKind === "chart" && !selectedWidget?.locked;
@@ -5631,6 +6418,10 @@ function syncBiInspectorByWidgetType(project, selectedWidget) {
     }
     if (isFilterMode) {
       els.biStudioTitle.textContent = "Filtros";
+      return;
+    }
+    if (isPerformanceMode) {
+      els.biStudioTitle.textContent = "Rendimiento";
       return;
     }
     if (!hasSelection) {
@@ -5666,16 +6457,42 @@ function resolveBiVisualTarget(project) {
   };
 }
 
+function applyBiPerformanceVisualTuning(rawVisual, mode) {
+  const visual = normalizeBiVisualSettings(rawVisual);
+  const safeMode = normalizeBiPerformanceMode(mode);
+  if (safeMode === "quality") {
+    return visual;
+  }
+  if (safeMode === "turbo") {
+    return normalizeBiVisualSettings({
+      ...visual,
+      showGrid: false,
+      showDataLabels: false,
+      smoothLines: false,
+      legendMaxItems: Math.min(6, sanitizeBiInteger(visual.legendMaxItems, 8, 1, 20)),
+      seriesMarkerSize: Math.min(6, sanitizeBiInteger(visual.seriesMarkerSize, 8, 0, 16)),
+      fontSizeLabels: Math.min(10, sanitizeBiInteger(visual.fontSizeLabels, 10, 8, 22)),
+      tooltipMode: "compact"
+    });
+  }
+  return normalizeBiVisualSettings({
+    ...visual,
+    legendMaxItems: Math.min(10, sanitizeBiInteger(visual.legendMaxItems, 10, 1, 20)),
+    tooltipMode: visual.tooltipMode === "full" ? "compact" : visual.tooltipMode
+  });
+}
+
 function getBiEffectiveVisualSettings(project, widget) {
   const globalVisual = normalizeBiVisualSettings(project?.biConfig?.visual);
+  const mode = normalizeBiPerformanceMode(project?.biConfig?.performanceMode || "balanced");
   if (!widget || typeof widget.visualOverride !== "object" || widget.visualOverride === null) {
-    return globalVisual;
+    return applyBiPerformanceVisualTuning(globalVisual, mode);
   }
   const override = normalizeBiVisualSettings(widget.visualOverride);
-  return normalizeBiVisualSettings({
+  return applyBiPerformanceVisualTuning(normalizeBiVisualSettings({
     ...globalVisual,
     ...override
-  });
+  }), mode);
 }
 
 function collectBiVisualSettingsFromInputs() {
@@ -5893,6 +6710,124 @@ function sanitizeBiCanvasDimension(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.round(numeric)));
 }
 
+function sanitizeBiCanvasZoom(value, fallback = BI_CANVAS_ZOOM_DEFAULT) {
+  const numeric = Math.round(Number(value));
+  const fallbackNumeric = Math.round(Number(fallback));
+  const safeFallback = Number.isFinite(fallbackNumeric)
+    ? Math.max(BI_CANVAS_ZOOM_MIN, Math.min(BI_CANVAS_ZOOM_MAX, fallbackNumeric))
+    : BI_CANVAS_ZOOM_DEFAULT;
+  if (!Number.isFinite(numeric)) {
+    return safeFallback;
+  }
+  return Math.max(BI_CANVAS_ZOOM_MIN, Math.min(BI_CANVAS_ZOOM_MAX, numeric));
+}
+
+function getBiCanvasZoomScale(config) {
+  const zoom = sanitizeBiCanvasZoom(
+    config?.canvasZoom ?? config?.zoomPizarra ?? config?.boardZoom,
+    BI_CANVAS_ZOOM_DEFAULT
+  );
+  return zoom / 100;
+}
+
+function getBiSteppedCanvasZoom(currentZoom, direction) {
+  const safeZoom = sanitizeBiCanvasZoom(currentZoom, BI_CANVAS_ZOOM_DEFAULT);
+  const safeDirection = direction >= 0 ? 1 : -1;
+  return sanitizeBiCanvasZoom(safeZoom + (BI_CANVAS_ZOOM_STEP * safeDirection), safeZoom);
+}
+
+function getBiCanvasUsedArea(project) {
+  const canvasSize = getBiCanvasSizeFromConfig(project?.biConfig);
+  const widgets = Array.isArray(project?.biWidgets) ? project.biWidgets : [];
+  if (widgets.length === 0) {
+    return { width: canvasSize.width, height: canvasSize.height };
+  }
+
+  let maxRight = 0;
+  let maxBottom = 0;
+  widgets.forEach((widget, index) => {
+    const normalized = normalizeBiWidget(widget, index);
+    const layout = normalizeBiWidgetLayout(normalized.layout, index, normalized);
+    maxRight = Math.max(maxRight, layout.x + layout.w);
+    maxBottom = Math.max(maxBottom, layout.y + layout.h);
+  });
+
+  const paddedWidth = Math.round(maxRight + 48);
+  const paddedHeight = Math.round(maxBottom + 48);
+  const width = Math.max(220, Math.min(canvasSize.width, paddedWidth || canvasSize.width));
+  const height = Math.max(180, Math.min(canvasSize.height, paddedHeight || canvasSize.height));
+  return { width, height };
+}
+
+function getBiCanvasFitZoom(project, mode = "all") {
+  if (!project || !(els.biWidgetsGrid instanceof HTMLElement)) {
+    return BI_CANVAS_ZOOM_DEFAULT;
+  }
+  const usedArea = getBiCanvasUsedArea(project);
+  const viewportWidth = Math.max(120, Math.round(els.biWidgetsGrid.clientWidth - 64));
+  const viewportHeight = Math.max(120, Math.round(els.biWidgetsGrid.clientHeight - 64));
+  const widthRatio = viewportWidth / Math.max(1, usedArea.width);
+  const heightRatio = viewportHeight / Math.max(1, usedArea.height);
+  let ratio = mode === "width" ? widthRatio : Math.min(widthRatio, heightRatio);
+  if (mode !== "width" && ratio < 0.34 && widthRatio > ratio * 1.45) {
+    ratio = widthRatio;
+  }
+  const rawZoom = Math.floor(ratio * 100);
+  return sanitizeBiCanvasZoom(rawZoom, BI_CANVAS_ZOOM_DEFAULT);
+}
+
+function syncBiZoomSelectControl(selectNode, zoom) {
+  if (!(selectNode instanceof HTMLSelectElement)) {
+    return;
+  }
+  const safeZoom = sanitizeBiCanvasZoom(zoom, BI_CANVAS_ZOOM_DEFAULT);
+  const safeValue = String(safeZoom);
+  Array.from(selectNode.options).forEach((option) => {
+    if (option.dataset.dynamicZoom === "1") {
+      option.remove();
+    }
+  });
+  const hasOption = Array.from(selectNode.options).some((option) => option.value === safeValue);
+  if (!hasOption) {
+    const dynamicOption = document.createElement("option");
+    dynamicOption.value = safeValue;
+    dynamicOption.textContent = `${safeValue}%`;
+    dynamicOption.dataset.dynamicZoom = "1";
+    selectNode.insertBefore(dynamicOption, selectNode.firstChild);
+  }
+  selectNode.value = safeValue;
+}
+
+function updateBiZoomMenuUi(project) {
+  const safeZoom = sanitizeBiCanvasZoom(project?.biConfig?.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
+  if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
+    els.biCanvasZoomMenuButton.textContent = `Zoom (${safeZoom}%) v`;
+  }
+  if (els.biZoomFitAllLabel instanceof HTMLElement) {
+    const fitAll = getBiCanvasFitZoom(project, "all");
+    els.biZoomFitAllLabel.textContent = `Ajustar todo (${fitAll}%)`;
+  }
+  if (els.biZoomFitWidthLabel instanceof HTMLElement) {
+    const fitWidth = getBiCanvasFitZoom(project, "width");
+    els.biZoomFitWidthLabel.textContent = `Ajustar ancho (${fitWidth}%)`;
+  }
+  if (els.biZoomDefaultButton instanceof HTMLButtonElement) {
+    const isDefault = safeZoom === 100;
+    els.biZoomDefaultButton.disabled = isDefault;
+    els.biZoomDefaultButton.classList.toggle("active", isDefault);
+  }
+  if (els.biCanvasZoomMenu instanceof HTMLElement) {
+    els.biCanvasZoomMenu
+      .querySelectorAll("[data-bi-zoom-value]")
+      .forEach((node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+        node.classList.toggle("active", trimOrFallback(node.dataset.biZoomValue, "") === String(safeZoom));
+      });
+  }
+}
+
 function getBiCanvasSizeFromConfig(config) {
   const width = sanitizeBiCanvasDimension(
     config?.canvasWidth ?? config?.pizarraAncho ?? config?.boardWidth,
@@ -6004,6 +6939,76 @@ function getBiGroupByOptions(project) {
   return [...fixed, ...custom];
 }
 
+function normalizeBiOptionalMetric(value) {
+  const metric = trimOrFallback(value, "");
+  return metric ? normalizeBiMetric(metric) : "";
+}
+
+function normalizeBiDateRole(value) {
+  const token = trimOrFallback(value, "").toLowerCase();
+  if (!token) {
+    return "";
+  }
+  if (token === "startdate" || token === "inicio" || token === "fechainicio") {
+    return "startDate";
+  }
+  if (token === "enddate" || token === "fin" || token === "fechafin") {
+    return "endDate";
+  }
+  if (token === "createdat" || token === "creado" || token === "created") {
+    return "createdAt";
+  }
+  return "";
+}
+
+function getBiChartCapabilities(chartType) {
+  const type = normalizeBiChartType(chartType || "bar");
+  const noAxisTypes = new Set(["pie", "donut", "treemap", "funnel", "gauge", "scorecard", "table", "pivot", "sankey", "timeline"]);
+  const legendlessTypes = new Set(["table", "pivot", "scorecard", "sankey", "timeline"]);
+  const stackTypes = new Set(["bar", "area", "combo"]);
+  const breakdownTypes = new Set(["pivot", "sankey", "scatter", "bubble", "treemap", "funnel"]);
+  const optionalMetricTypes = new Set(["scatter", "bubble", "bullet", "candlestick", "boxplot"]);
+  const dateRequiredTypes = new Set(["timeseries", "timeline", "candlestick"]);
+  return {
+    type,
+    usesAxes: !noAxisTypes.has(type),
+    supportsLegend: !legendlessTypes.has(type),
+    supportsGrid: !noAxisTypes.has(type),
+    supportsStack: stackTypes.has(type),
+    supportsBreakdown: breakdownTypes.has(type),
+    supportsOptionalMetric: optionalMetricTypes.has(type),
+    supportsDateDimension: dateRequiredTypes.has(type) || type === "line" || type === "area" || type === "combo",
+    requiresDateDimension: dateRequiredTypes.has(type)
+  };
+}
+
+function buildBiDataRolesFromBuilderInput(project, sourceWidget = null) {
+  const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || sourceWidget?.chartType || "bar");
+  const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || sourceWidget?.groupBy || "disciplina");
+  const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || sourceWidget?.metric || "count");
+  const defaults = buildBiDefaultDataRoles({ groupBy, metric, chartType });
+  const capabilities = getBiChartCapabilities(chartType);
+  const breakdownRaw = normalizeBiGroupBy(els.biWidgetBreakdownSelect?.value || sourceWidget?.dataRoles?.breakdownDimension || "");
+  const optionalMetricRaw = normalizeBiOptionalMetric(els.biWidgetOptionalMetricSelect?.value || sourceWidget?.dataRoles?.optionalMetrics?.[0] || "");
+  const dateRaw = normalizeBiDateRole(els.biWidgetDateDimensionSelect?.value || sourceWidget?.dataRoles?.dateDimension || "");
+  const breakdownDimension = capabilities.supportsBreakdown
+    ? (breakdownRaw || defaults.breakdownDimension || "fuente")
+    : null;
+  const optionalMetrics = capabilities.supportsOptionalMetric && optionalMetricRaw
+    ? [optionalMetricRaw]
+    : [];
+  const dateDimension = capabilities.supportsDateDimension
+    ? (dateRaw || defaults.dateDimension || (capabilities.requiresDateDimension ? "startDate" : ""))
+    : null;
+  return normalizeBiDataRoles({
+    dimensions: [groupBy],
+    metrics: [metric],
+    optionalMetrics,
+    breakdownDimension,
+    dateDimension
+  }, { groupBy, metric, chartType });
+}
+
 function refreshBiGroupByOptions(project) {
   if (!els.biWidgetGroupBySelect) {
     return;
@@ -6015,6 +7020,20 @@ function refreshBiGroupByOptions(project) {
     .join("");
   const valid = options.some((item) => item.value === currentValue);
   els.biWidgetGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
+}
+
+function refreshBiBreakdownOptions(project) {
+  if (!els.biWidgetBreakdownSelect) {
+    return;
+  }
+  const options = getBiGroupByOptions(project);
+  const currentValue = normalizeBiGroupBy(els.biWidgetBreakdownSelect.value || "");
+  const rows = [{ value: "", label: "(sin breakdown)" }, ...options];
+  els.biWidgetBreakdownSelect.innerHTML = rows
+    .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  const valid = rows.some((item) => item.value === currentValue);
+  els.biWidgetBreakdownSelect.value = valid ? currentValue : "";
 }
 
 function refreshBiColorGroupByOptions(project) {
@@ -6030,7 +7049,620 @@ function refreshBiColorGroupByOptions(project) {
   els.biColorGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
 }
 
+const BI_VISUAL_CONTROL_IDS = [
+  "biShowLegendCheckbox",
+  "biShowGridCheckbox",
+  "biShowAxisLabelsCheckbox",
+  "biShowDataLabelsCheckbox",
+  "biAxisXLabelInput",
+  "biAxisYLabelInput",
+  "biLabelMaxCharsInput",
+  "biValueDecimalsInput",
+  "biNumberFormatSelect",
+  "biValuePrefixInput",
+  "biValueSuffixInput",
+  "biFontSizeInput",
+  "biFontFamilyTitleSelect",
+  "biFontFamilyAxisSelect",
+  "biFontFamilyLabelSelect",
+  "biFontFamilyTooltipSelect",
+  "biFontSizeTitleInput",
+  "biFontSizeAxisInput",
+  "biFontSizeLabelsInput",
+  "biFontSizeTooltipInput",
+  "biLabelColorModeSelect",
+  "biLabelColorInput",
+  "biLineWidthInput",
+  "biSeriesLineStyleSelect",
+  "biSeriesMarkerStyleSelect",
+  "biSeriesMarkerSizeInput",
+  "biAreaOpacityInput",
+  "biStackModeSelect",
+  "biLegendPositionSelect",
+  "biLegendMaxItemsInput",
+  "biAxisScaleSelect",
+  "biAxisMinInput",
+  "biAxisMaxInput",
+  "biShowTargetLineCheckbox",
+  "biTargetLineValueInput",
+  "biTargetLineLabelInput",
+  "biTargetLineColorInput",
+  "biBarWidthRatioInput",
+  "biGridOpacityInput",
+  "biGridDashInput",
+  "biTooltipModeSelect",
+  "biSmoothLinesCheckbox"
+];
+
+const BI_CONFIG_SECTION_LABELS = {
+  general: "General",
+  axes: "Ejes",
+  series: "Series",
+  labels: "Labels",
+  numbers: "Formato",
+  typography: "Tipografia",
+  legend: "Leyenda",
+  target: "Meta",
+  interaction: "Interaccion"
+};
+
+function createBiChartProfile(chartType) {
+  const type = normalizeBiChartType(chartType || "bar");
+  const common = [
+    "biLabelMaxCharsInput",
+    "biValueDecimalsInput",
+    "biNumberFormatSelect",
+    "biValuePrefixInput",
+    "biValueSuffixInput",
+    "biFontSizeInput",
+    "biFontFamilyTitleSelect",
+    "biFontFamilyAxisSelect",
+    "biFontFamilyLabelSelect",
+    "biFontFamilyTooltipSelect",
+    "biFontSizeTitleInput",
+    "biFontSizeAxisInput",
+    "biFontSizeLabelsInput",
+    "biFontSizeTooltipInput",
+    "biLabelColorModeSelect",
+    "biLabelColorInput",
+    "biTooltipModeSelect"
+  ];
+  const legend = ["biShowLegendCheckbox", "biLegendPositionSelect", "biLegendMaxItemsInput"];
+  const axes = [
+    "biShowGridCheckbox",
+    "biShowAxisLabelsCheckbox",
+    "biAxisXLabelInput",
+    "biAxisYLabelInput",
+    "biAxisScaleSelect",
+    "biAxisMinInput",
+    "biAxisMaxInput",
+    "biGridOpacityInput",
+    "biGridDashInput"
+  ];
+  const lineSeries = [
+    "biLineWidthInput",
+    "biSeriesLineStyleSelect",
+    "biSeriesMarkerStyleSelect",
+    "biSeriesMarkerSizeInput",
+    "biSmoothLinesCheckbox"
+  ];
+  const markersOnly = ["biSeriesMarkerStyleSelect", "biSeriesMarkerSizeInput"];
+  const target = ["biShowTargetLineCheckbox", "biTargetLineValueInput", "biTargetLineLabelInput", "biTargetLineColorInput"];
+  const all = new Set();
+  const sections = [];
+  const addControls = (controls) => controls.forEach((id) => all.add(id));
+  const addSections = (names) => names.forEach((name) => {
+    if (!sections.includes(name)) {
+      sections.push(name);
+    }
+  });
+
+  addControls(common);
+  addSections(["general", "labels", "numbers", "typography", "interaction"]);
+
+  if (type === "line" || type === "timeseries") {
+    addControls(legend);
+    addControls(axes);
+    addControls(lineSeries);
+    addControls(target);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["axes", "series", "legend", "target"]);
+    return { controls: all, sections, description: "Configuracion para grafico de lineas/serie temporal." };
+  }
+  if (type === "area") {
+    addControls(legend);
+    addControls(axes);
+    addControls(lineSeries);
+    addControls(["biAreaOpacityInput", "biStackModeSelect", "biShowDataLabelsCheckbox"]);
+    addControls(target);
+    addSections(["axes", "series", "legend", "target"]);
+    return { controls: all, sections, description: "Configuracion para grafico de area." };
+  }
+  if (type === "combo") {
+    addControls(legend);
+    addControls(axes);
+    addControls(lineSeries);
+    addControls(["biAreaOpacityInput", "biStackModeSelect", "biBarWidthRatioInput", "biShowDataLabelsCheckbox"]);
+    addControls(target);
+    addSections(["axes", "series", "legend", "target"]);
+    return { controls: all, sections, description: "Configuracion para grafico combinado (lineas + barras)." };
+  }
+  if (type === "bar" || type === "pareto" || type === "waterfall") {
+    addControls(legend);
+    addControls(axes);
+    addControls(["biBarWidthRatioInput", "biStackModeSelect", "biShowDataLabelsCheckbox"]);
+    addControls(target);
+    addSections(["axes", "series", "legend", "target"]);
+    return { controls: all, sections, description: "Configuracion para grafico de barras/cartesiano." };
+  }
+  if (type === "scatter" || type === "bubble") {
+    addControls(axes);
+    addControls(markersOnly);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["axes", "series"]);
+    return { controls: all, sections, description: "Configuracion para dispersion/burbujas (sin leyenda ni stacking)." };
+  }
+  if (type === "pie" || type === "donut") {
+    addControls(legend);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["legend"]);
+    return { controls: all, sections, description: "Configuracion para grafico circular/dona (sin ejes ni rejilla)." };
+  }
+  if (type === "treemap" || type === "funnel") {
+    addControls(legend);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["legend", "series"]);
+    return { controls: all, sections, description: "Configuracion para jerarquia/proceso (sin ejes)." };
+  }
+  if (type === "radar") {
+    addControls(lineSeries);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["series"]);
+    return { controls: all, sections, description: "Configuracion para radar." };
+  }
+  if (type === "gauge" || type === "bullet") {
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["series"]);
+    return { controls: all, sections, description: "Configuracion para medidor/viñeta (sin ejes/rejilla)." };
+  }
+  if (type === "boxplot" || type === "candlestick") {
+    addControls(axes);
+    addControls(["biShowDataLabelsCheckbox"]);
+    addSections(["axes", "series"]);
+    return { controls: all, sections, description: "Configuracion para distribucion/vela." };
+  }
+  if (type === "table" || type === "pivot" || type === "scorecard") {
+    addSections(["numbers", "typography"]);
+    return { controls: all, sections, description: "Configuracion para tabla/KPI (sin ejes, rejilla ni series)." };
+  }
+  if (type === "sankey" || type === "timeline") {
+    addSections(["numbers", "typography", "interaction"]);
+    return { controls: all, sections, description: "Configuracion para flujo/cronograma (enfocado en formato)." };
+  }
+  addControls(legend);
+  addControls(axes);
+  addControls(["biShowDataLabelsCheckbox"]);
+  addSections(["axes", "series", "legend"]);
+  return { controls: all, sections, description: "Configuracion de grafico general." };
+}
+
+function renderBiChartConfigProfile(profile) {
+  if (els.biChartConfigIntro instanceof HTMLElement) {
+    els.biChartConfigIntro.textContent = trimOrFallback(profile?.description, "");
+  }
+  if (els.biChartConfigGroups instanceof HTMLElement) {
+    const sections = Array.isArray(profile?.sections) ? profile.sections : [];
+    els.biChartConfigGroups.innerHTML = sections
+      .map((section) => {
+        const label = BI_CONFIG_SECTION_LABELS[section] || section;
+        return `<span class="bi-config-chip">${escapeHtml(label)}</span>`;
+      })
+      .join("");
+    els.biChartConfigGroups.classList.toggle("hidden", sections.length === 0);
+  }
+}
+
+function getBiSpecificConfigSchema(kind, chartType) {
+  const safeKind = normalizeBiWidgetKind(kind || "chart");
+  if (safeKind === "text") {
+    return {
+      title: "Configuración de texto",
+      hint: "Controla tipografía, alineación y espaciado del cuadro de texto.",
+      fields: [
+        { key: "fontFamily", label: "Fuente", type: "select", options: Array.from(BI_ALLOWED_FONT_FAMILIES).map((item) => ({ value: item, label: item })) },
+        { key: "fontSize", label: "Tamaño (px)", type: "number", min: 12, max: 180, step: 1 },
+        { key: "fontWeight", label: "Peso", type: "number", min: 300, max: 900, step: 100 },
+        { key: "fontStyle", label: "Estilo", type: "select", options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Cursiva" }] },
+        { key: "textAlign", label: "Alineación", type: "select", options: [{ value: "left", label: "Izquierda" }, { value: "center", label: "Centro" }, { value: "right", label: "Derecha" }] },
+        { key: "lineHeight", label: "Interlineado", type: "number", min: 0.9, max: 2.4, step: 0.01 },
+        { key: "color", label: "Color texto", type: "color" },
+        { key: "padding", label: "Padding (px)", type: "number", min: 0, max: 48, step: 1 }
+      ]
+    };
+  }
+  if (safeKind === "image") {
+    return {
+      title: "Configuración de imagen",
+      hint: "Controla ajuste, opacidad y marco del widget de imagen.",
+      fields: [
+        { key: "fit", label: "Ajuste", type: "select", options: [{ value: "contain", label: "Contain" }, { value: "cover", label: "Cover" }, { value: "fill", label: "Fill" }] },
+        { key: "opacity", label: "Opacidad", type: "number", min: 0.05, max: 1, step: 0.01 },
+        { key: "borderRadius", label: "Radio borde (px)", type: "number", min: 0, max: 40, step: 1 },
+        { key: "frameColor", label: "Color marco", type: "color" },
+        { key: "background", label: "Fondo imagen", type: "color" }
+      ]
+    };
+  }
+
+  const safeType = normalizeBiChartType(chartType || "bar");
+  const base = {
+    title: `Configuración de ${safeType}`,
+    hint: "Opciones específicas del tipo de gráfico seleccionado.",
+    fields: []
+  };
+  if (safeType === "pie") {
+    base.fields = [
+      { key: "labelMinPercent", label: "Label mínimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "startAngle", label: "Ángulo inicial", type: "number", min: -360, max: 360, step: 1 }
+    ];
+    return base;
+  }
+  if (safeType === "donut") {
+    base.fields = [
+      { key: "labelMinPercent", label: "Label mínimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "innerRadiusRatio", label: "Radio interno", type: "number", min: 0.35, max: 0.8, step: 0.01 },
+      { key: "centerTitle", label: "Título central", type: "text", maxLength: 20 }
+    ];
+    return base;
+  }
+  if (safeType === "treemap") {
+    base.fields = [
+      { key: "minTilePercent", label: "Mín. área (%)", type: "number", min: 0, max: 25, step: 0.1 },
+      { key: "showValueText", label: "Mostrar valores", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "funnel") {
+    base.fields = [
+      { key: "sortMode", label: "Orden", type: "select", options: [{ value: "desc", label: "Mayor a menor" }, { value: "asc", label: "Menor a mayor" }] },
+      { key: "minSegmentPercent", label: "Mín. segmento (%)", type: "number", min: 0, max: 60, step: 0.1 }
+    ];
+    return base;
+  }
+  if (safeType === "gauge") {
+    base.fields = [
+      { key: "minValue", label: "Mínimo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
+      { key: "maxValue", label: "Máximo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
+      { key: "targetValue", label: "Meta", type: "number", min: -1000000, max: 1000000, step: 0.1 }
+    ];
+    return base;
+  }
+  if (safeType === "table") {
+    base.fields = [
+      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "showIndex", label: "Mostrar índice", type: "checkbox" },
+      { key: "compact", label: "Modo compacto", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "pivot") {
+    base.fields = [
+      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "showTotals", label: "Mostrar totales", type: "checkbox" },
+      { key: "compact", label: "Modo compacto", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "scorecard") {
+    base.fields = [
+      { key: "showSource", label: "Mostrar fuente", type: "checkbox" },
+      { key: "showGroups", label: "Mostrar grupos", type: "checkbox" },
+      { key: "prefix", label: "Prefijo", type: "text", maxLength: 10 },
+      { key: "suffix", label: "Sufijo", type: "text", maxLength: 10 }
+    ];
+    return base;
+  }
+  if (safeType === "waterfall") {
+    base.fields = [
+      { key: "showTotalBar", label: "Mostrar barra total", type: "checkbox" },
+      { key: "totalLabel", label: "Etiqueta total", type: "text", maxLength: 18 }
+    ];
+    return base;
+  }
+  if (safeType === "scatter") {
+    base.fields = [
+      { key: "pointAlpha", label: "Opacidad punto", type: "number", min: 0.15, max: 1, step: 0.01 },
+      { key: "minPointRadius", label: "Radio mínimo", type: "number", min: 3, max: 40, step: 1 }
+    ];
+    return base;
+  }
+  if (safeType === "bubble") {
+    base.fields = [
+      { key: "pointAlpha", label: "Opacidad burbuja", type: "number", min: 0.15, max: 1, step: 0.01 },
+      { key: "minBubbleRadius", label: "Radio mínimo", type: "number", min: 3, max: 60, step: 1 },
+      { key: "maxBubbleRadius", label: "Radio máximo", type: "number", min: 3, max: 80, step: 1 }
+    ];
+    return base;
+  }
+  if (safeType === "bullet") {
+    base.fields = [
+      { key: "targetValue", label: "Meta (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "lowBand", label: "Banda baja (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "midBand", label: "Banda media (%)", type: "number", min: 0, max: 100, step: 0.1 }
+    ];
+    return base;
+  }
+  if (safeType === "boxplot") {
+    base.fields = [
+      { key: "showMedianValue", label: "Mostrar mediana", type: "checkbox" },
+      { key: "whiskerMultiplier", label: "Multiplicador bigotes", type: "number", min: 0.5, max: 3.5, step: 0.1 }
+    ];
+    return base;
+  }
+  if (safeType === "candlestick") {
+    base.fields = [
+      { key: "upColor", label: "Color alza", type: "color" },
+      { key: "downColor", label: "Color baja", type: "color" },
+      { key: "wickWidth", label: "Grosor mecha", type: "number", min: 1, max: 4, step: 1 }
+    ];
+    return base;
+  }
+  if (safeType === "sankey") {
+    base.fields = [
+      { key: "maxLinks", label: "Máx. enlaces", type: "number", min: 1, max: 200, step: 1 },
+      { key: "minLinkPercent", label: "Mín. ancho (%)", type: "number", min: 0, max: 50, step: 0.1 },
+      { key: "showValues", label: "Mostrar valores", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "timeline") {
+    base.fields = [
+      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "showDates", label: "Mostrar fechas", type: "checkbox" },
+      { key: "minBarPercent", label: "Mín. barra (%)", type: "number", min: 0.2, max: 50, step: 0.1 }
+    ];
+    return base;
+  }
+  if (safeType === "radar") {
+    base.fields = [
+      { key: "maxScale", label: "Escala máxima", type: "number", min: 1, max: 10000, step: 1 },
+      { key: "showPointValues", label: "Mostrar valores", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "pareto") {
+    base.fields = [
+      { key: "targetPercent", label: "Meta acumulada (%)", type: "number", min: 1, max: 100, step: 0.1 },
+      { key: "showCumulativeLine", label: "Mostrar línea acumulada", type: "checkbox" }
+    ];
+    return base;
+  }
+  if (safeType === "line" || safeType === "timeseries" || safeType === "area" || safeType === "combo" || safeType === "bar") {
+    base.fields = [{ key: "labelMinValue", label: "Mín. valor para label", type: "number", min: -1000000, max: 1000000, step: 0.1 }];
+    return base;
+  }
+  return base;
+}
+
+function buildBiSpecificConfigControlHtml(field, value, disabled, kind, chartType) {
+  const sharedAttrs = `data-bi-specific-key="${escapeAttribute(field.key)}" data-bi-specific-kind="${escapeAttribute(kind)}" data-bi-specific-chart-type="${escapeAttribute(chartType || "")}"`;
+  const disabledAttr = disabled ? " disabled" : "";
+  if (field.type === "checkbox") {
+    return `<label class="bi-check-line"><input type="checkbox" ${sharedAttrs}${value ? " checked" : ""}${disabledAttr}><span>${escapeHtml(field.label)}</span></label>`;
+  }
+  if (field.type === "select") {
+    const options = (field.options || [])
+      .map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label)}</option>`)
+      .join("");
+    return `<label>${escapeHtml(field.label)}<select ${sharedAttrs}${disabledAttr}>${options}</select></label>`;
+  }
+  if (field.type === "color") {
+    return `<label>${escapeHtml(field.label)}<input type="color" ${sharedAttrs} value="${escapeAttribute(String(value || "#1f2f44"))}"${disabledAttr}></label>`;
+  }
+  if (field.type === "text") {
+    const maxLengthAttr = Number.isInteger(field.maxLength) ? ` maxlength="${field.maxLength}"` : "";
+    return `<label>${escapeHtml(field.label)}<input type="text" ${sharedAttrs}${maxLengthAttr} value="${escapeAttribute(String(value || ""))}"${disabledAttr}></label>`;
+  }
+  const minAttr = Number.isFinite(field.min) ? ` min="${field.min}"` : "";
+  const maxAttr = Number.isFinite(field.max) ? ` max="${field.max}"` : "";
+  const stepAttr = Number.isFinite(field.step) ? ` step="${field.step}"` : "";
+  return `<label>${escapeHtml(field.label)}<input type="number" ${sharedAttrs}${minAttr}${maxAttr}${stepAttr} value="${escapeAttribute(String(value ?? ""))}"${disabledAttr}></label>`;
+}
+
+function renderBiElementConfigPanel(project, selectedWidget, chartTypeHint) {
+  if (!(els.biElementConfigSection instanceof HTMLElement) || !(els.biElementConfigBody instanceof HTMLElement)) {
+    return;
+  }
+  const hasSelection = !!selectedWidget;
+  const kind = normalizeBiWidgetKind(selectedWidget?.kind || "chart");
+  const chartType = normalizeBiChartType(chartTypeHint || selectedWidget?.chartType || "bar");
+  const schema = getBiSpecificConfigSchema(kind, chartType);
+  if (els.biElementConfigTitle instanceof HTMLElement) {
+    els.biElementConfigTitle.textContent = schema.title;
+  }
+  if (els.biElementConfigHint instanceof HTMLElement) {
+    els.biElementConfigHint.textContent = hasSelection
+      ? schema.hint
+      : "Selecciona un widget para aplicar cambios persistentes en su configuración específica.";
+  }
+
+  let configValues = {};
+  if (kind === "text") {
+    configValues = normalizeBiTextConfig(selectedWidget?.textConfig);
+  } else if (kind === "image") {
+    configValues = normalizeBiImageConfig(selectedWidget?.imageConfig);
+  } else {
+    configValues = getBiSpecificChartConfigForWidget(selectedWidget, chartType);
+  }
+
+  if (!Array.isArray(schema.fields) || schema.fields.length === 0) {
+    els.biElementConfigBody.innerHTML = "<div class=\"muted\">Este tipo no tiene controles adicionales en esta versión.</div>";
+    return;
+  }
+  const disabled = !hasSelection;
+  els.biElementConfigBody.innerHTML = schema.fields
+    .map((field) => buildBiSpecificConfigControlHtml(field, configValues[field.key], disabled, kind, chartType))
+    .join("");
+}
+
+function applyBiSpecificConfigChange(input, options = {}) {
+  if (!(input instanceof HTMLElement)) {
+    return;
+  }
+  const key = trimOrFallback(input.dataset.biSpecificKey, "");
+  if (!key) {
+    return;
+  }
+  const project = getActiveProject();
+  if (!project) {
+    return;
+  }
+  ensureBiState(project);
+  const widget = getBiSelectedWidget(project);
+  if (!widget) {
+    return;
+  }
+  const kind = normalizeBiWidgetKind(input.dataset.biSpecificKind || widget.kind || "chart");
+  const chartType = normalizeBiChartType(input.dataset.biSpecificChartType || widget.chartType || "bar");
+  let rawValue = "";
+  if (input instanceof HTMLInputElement && input.type === "checkbox") {
+    rawValue = input.checked;
+  } else if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) {
+    rawValue = input.value;
+  } else {
+    return;
+  }
+
+  if (kind === "text") {
+    const next = normalizeBiTextConfig({ ...normalizeBiTextConfig(widget.textConfig), [key]: rawValue });
+    widget.textConfig = next;
+  } else if (kind === "image") {
+    const next = normalizeBiImageConfig({ ...normalizeBiImageConfig(widget.imageConfig), [key]: rawValue });
+    widget.imageConfig = next;
+  } else {
+    const current = getBiSpecificChartConfigForWidget(widget, chartType);
+    const next = normalizeBiChartTypeSpecificConfig({ ...current, [key]: rawValue }, chartType);
+    setBiSpecificChartConfigForWidget(widget, chartType, next);
+  }
+  saveState();
+  const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+  renderBiWidgets(project, filteredRows);
+  if (options.refreshInspector) {
+    syncBiInputs(project.biConfig);
+  }
+}
+
+function toggleBiControlLabel(input, visible) {
+  if (!(input instanceof HTMLElement)) {
+    return;
+  }
+  const label = input.closest("label");
+  if (label instanceof HTMLElement) {
+    label.classList.toggle("bi-hidden-by-chart", !visible);
+  }
+  if ("disabled" in input) {
+    input.disabled = !visible;
+  }
+}
+
+function syncBiChartContextControls(project, chartType, widget) {
+  const capabilities = getBiChartCapabilities(chartType);
+  const defaults = buildBiDefaultDataRoles({
+    groupBy: normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || widget?.groupBy || "disciplina"),
+    metric: normalizeBiMetric(els.biWidgetMetricSelect?.value || widget?.metric || "count"),
+    chartType
+  });
+  const dataRoles = normalizeBiDataRoles(widget?.dataRoles, {
+    groupBy: defaults.dimensions?.[0] || "disciplina",
+    metric: defaults.metrics?.[0] || "count",
+    chartType
+  });
+  if (els.biDataRolesSection instanceof HTMLElement) {
+    const hasDataRoleControls = capabilities.supportsBreakdown || capabilities.supportsOptionalMetric || capabilities.supportsDateDimension;
+    els.biDataRolesSection.classList.toggle("hidden", !hasDataRoleControls);
+  }
+
+  toggleBiControlLabel(els.biWidgetBreakdownSelect, capabilities.supportsBreakdown);
+  toggleBiControlLabel(els.biWidgetOptionalMetricSelect, capabilities.supportsOptionalMetric);
+  toggleBiControlLabel(els.biWidgetDateDimensionSelect, capabilities.supportsDateDimension);
+
+  if (els.biWidgetBreakdownSelect) {
+    const value = capabilities.supportsBreakdown
+      ? normalizeBiGroupBy(els.biWidgetBreakdownSelect.value || dataRoles.breakdownDimension || defaults.breakdownDimension || "")
+      : "";
+    els.biWidgetBreakdownSelect.value = value || "";
+  }
+  if (els.biWidgetOptionalMetricSelect) {
+    const value = capabilities.supportsOptionalMetric
+      ? normalizeBiOptionalMetric(els.biWidgetOptionalMetricSelect.value || dataRoles.optionalMetrics?.[0] || "")
+      : "";
+    const hasOption = Array.from(els.biWidgetOptionalMetricSelect.options).some((option) => option.value === value);
+    els.biWidgetOptionalMetricSelect.value = hasOption ? value : "";
+  }
+  if (els.biWidgetDateDimensionSelect) {
+    const value = capabilities.supportsDateDimension
+      ? (normalizeBiDateRole(els.biWidgetDateDimensionSelect.value || dataRoles.dateDimension || defaults.dateDimension || "") || (capabilities.requiresDateDimension ? "startDate" : ""))
+      : "";
+    const hasOption = Array.from(els.biWidgetDateDimensionSelect.options).some((option) => option.value === value);
+    els.biWidgetDateDimensionSelect.value = hasOption ? value : "";
+  }
+
+  const profile = createBiChartProfile(chartType);
+  BI_VISUAL_CONTROL_IDS.forEach((controlId) => {
+    const node = document.getElementById(controlId);
+    toggleBiControlLabel(node, profile.controls.has(controlId));
+  });
+  renderBiChartConfigProfile(profile);
+
+  const legendVisible = profile.controls.has("biShowLegendCheckbox");
+  const axisVisible = profile.controls.has("biAxisXLabelInput") || profile.controls.has("biShowAxisLabelsCheckbox");
+  const stackVisible = profile.controls.has("biStackModeSelect");
+
+  if (els.biDimensionSection instanceof HTMLElement) {
+    const title = els.biDimensionSection.querySelector("h4");
+    if (title instanceof HTMLElement) {
+      if (!axisVisible) {
+        title.textContent = "Dimension";
+      } else if (chartType === "bar" || chartType === "bullet") {
+        title.textContent = "Dimension - Y axis";
+      } else {
+        title.textContent = "Dimension - X axis";
+      }
+    }
+  }
+  if (els.biMetricSection instanceof HTMLElement) {
+    const title = els.biMetricSection.querySelector("h4");
+    if (title instanceof HTMLElement) {
+      if (!axisVisible) {
+        title.textContent = "Metrica";
+      } else if (chartType === "bar" || chartType === "bullet") {
+        title.textContent = "Metric - X axis";
+      } else {
+        title.textContent = "Metric - Y axis";
+      }
+    }
+  }
+
+  if (!legendVisible && els.biShowLegendCheckbox instanceof HTMLInputElement) {
+    els.biShowLegendCheckbox.checked = false;
+  }
+  if (!axisVisible) {
+    if (els.biShowAxisLabelsCheckbox instanceof HTMLInputElement) {
+      els.biShowAxisLabelsCheckbox.checked = false;
+    }
+    if (els.biShowGridCheckbox instanceof HTMLInputElement) {
+      els.biShowGridCheckbox.checked = false;
+    }
+  }
+  if (!stackVisible && els.biStackModeSelect instanceof HTMLSelectElement) {
+    els.biStackModeSelect.value = "none";
+  }
+}
+
 function syncBiBuilderSelectionUi(project) {
+  const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || "bar");
+  const selectedWidget = project ? getBiSelectedWidget(project) : null;
+
   if (els.biWidgetGroupBySelect) {
     const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect.value || "disciplina");
     if (els.biSelectedDimensionChip) {
@@ -6046,7 +7678,6 @@ function syncBiBuilderSelectionUi(project) {
   }
 
   if (els.biWidgetChartTypeSelect && els.biChartTypeButtons) {
-    const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect.value || "bar");
     els.biChartTypeButtons
       .querySelectorAll("[data-bi-chart-type]")
       .forEach((node) => {
@@ -6061,6 +7692,11 @@ function syncBiBuilderSelectionUi(project) {
     const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect.value || "value_desc");
     els.biWidgetSortModeSelect.value = sortMode;
   }
+
+  syncBiChartContextControls(project, chartType, selectedWidget);
+  if (normalizeBiRailMode(biRailMode) === "settings") {
+    renderBiElementConfigPanel(project, selectedWidget || null, chartType);
+  }
 }
 
 function syncBiBuilderInputsFromSelectedWidget(project) {
@@ -6071,6 +7707,12 @@ function syncBiBuilderInputsFromSelectedWidget(project) {
   if (!widget || normalizeBiWidgetKind(widget.kind || "chart") !== "chart") {
     return;
   }
+  const chartType = normalizeBiChartType(widget.chartType || "bar");
+  const dataRoles = normalizeBiDataRoles(widget.dataRoles, {
+    groupBy: normalizeBiGroupBy(widget.groupBy || "disciplina"),
+    metric: normalizeBiMetric(widget.metric || "baseunits"),
+    chartType
+  });
   if (els.biWidgetNameInput) {
     els.biWidgetNameInput.value = trimOrFallback(widget.name, "").slice(0, 60);
   }
@@ -6078,15 +7720,30 @@ function syncBiBuilderInputsFromSelectedWidget(project) {
     els.biWidgetSourceSelect.value = normalizeBiSource(widget.source || "all");
   }
   if (els.biWidgetGroupBySelect) {
-    const nextGroupBy = normalizeBiGroupBy(widget.groupBy || "disciplina");
+    const nextGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || widget.groupBy || "disciplina");
     const hasGroup = Array.from(els.biWidgetGroupBySelect.options).some((option) => option.value === nextGroupBy);
     els.biWidgetGroupBySelect.value = hasGroup ? nextGroupBy : (els.biWidgetGroupBySelect.options[0]?.value || "disciplina");
   }
   if (els.biWidgetMetricSelect) {
-    els.biWidgetMetricSelect.value = normalizeBiMetric(widget.metric || "baseunits");
+    els.biWidgetMetricSelect.value = normalizeBiMetric(dataRoles.metrics?.[0] || widget.metric || "baseunits");
+  }
+  if (els.biWidgetBreakdownSelect) {
+    const nextBreakdown = normalizeBiGroupBy(dataRoles.breakdownDimension || "");
+    const hasBreakdown = Array.from(els.biWidgetBreakdownSelect.options).some((option) => option.value === nextBreakdown);
+    els.biWidgetBreakdownSelect.value = hasBreakdown ? nextBreakdown : "";
+  }
+  if (els.biWidgetOptionalMetricSelect) {
+    const nextOptionalMetric = normalizeBiOptionalMetric(dataRoles.optionalMetrics?.[0] || "");
+    const hasOptionalMetric = Array.from(els.biWidgetOptionalMetricSelect.options).some((option) => option.value === nextOptionalMetric);
+    els.biWidgetOptionalMetricSelect.value = hasOptionalMetric ? nextOptionalMetric : "";
+  }
+  if (els.biWidgetDateDimensionSelect) {
+    const nextDateDimension = normalizeBiDateRole(dataRoles.dateDimension || "");
+    const hasDateDimension = Array.from(els.biWidgetDateDimensionSelect.options).some((option) => option.value === nextDateDimension);
+    els.biWidgetDateDimensionSelect.value = hasDateDimension ? nextDateDimension : "";
   }
   if (els.biWidgetChartTypeSelect) {
-    els.biWidgetChartTypeSelect.value = normalizeBiChartType(widget.chartType || "bar");
+    els.biWidgetChartTypeSelect.value = chartType;
   }
   if (els.biWidgetTopNInput) {
     els.biWidgetTopNInput.value = String(sanitizeBiTopN(widget.topN ?? 10));
@@ -6366,6 +8023,151 @@ function renderBiColorPanel(project, rows) {
       <input class="bi-color-picker" type="color" value="${escapeAttribute(row.color)}" data-bi-color-label="${escapeAttribute(row.label)}" data-bi-color-groupby="${escapeAttribute(selectedGroupBy)}">
     </div>`)
     .join("");
+}
+
+function getBiRuntimeStats(projectId) {
+  if (!projectId) {
+    return {
+      lastRenderMs: 0,
+      avgRenderMs: 0,
+      renderCount: 0,
+      widgets: 0,
+      rows: 0,
+      points: 0
+    };
+  }
+  return biRuntimeStatsByProject[projectId] || {
+    lastRenderMs: 0,
+    avgRenderMs: 0,
+    renderCount: 0,
+    widgets: 0,
+    rows: 0,
+    points: 0
+  };
+}
+
+function updateBiRuntimeStats(projectId, nextStats) {
+  if (!projectId || !nextStats || typeof nextStats !== "object") {
+    return;
+  }
+  const previous = getBiRuntimeStats(projectId);
+  const renderCount = (previous.renderCount || 0) + 1;
+  const lastRenderMs = sanitizeBiDecimal(nextStats.lastRenderMs, 0, 0, 200000);
+  const avgRenderMs = ((previous.avgRenderMs || 0) * (renderCount - 1) + lastRenderMs) / renderCount;
+  biRuntimeStatsByProject[projectId] = {
+    lastRenderMs,
+    avgRenderMs: Math.round(avgRenderMs * 100) / 100,
+    renderCount,
+    widgets: sanitizeBiInteger(nextStats.widgets, 0, 0, 9999),
+    rows: sanitizeBiInteger(nextStats.rows, 0, 0, 999999),
+    points: sanitizeBiInteger(nextStats.points, 0, 0, 9999999)
+  };
+}
+
+function runBiAutoOptimize(project, mode) {
+  if (!project || !Array.isArray(project.biWidgets)) {
+    return { updatedWidgets: 0, topNChanges: 0, visualChanges: 0, tableChanges: 0 };
+  }
+  const profile = normalizeBiPerformanceMode(mode || project?.biConfig?.performanceMode || "balanced");
+  let updatedWidgets = 0;
+  let topNChanges = 0;
+  let visualChanges = 0;
+  let tableChanges = 0;
+  const topNCap = profile === "turbo" ? 18 : (profile === "balanced" ? 32 : 50);
+  const rowLimitCap = profile === "turbo" ? 40 : (profile === "balanced" ? 80 : 160);
+  project.biWidgets.forEach((widget, index) => {
+    const normalizedWidget = normalizeBiWidget(widget, index);
+    if (normalizeBiWidgetKind(normalizedWidget.kind) !== "chart") {
+      return;
+    }
+    let changed = false;
+    const currentTopN = sanitizeBiTopN(normalizedWidget.topN ?? 10);
+    if (currentTopN > topNCap) {
+      normalizedWidget.topN = topNCap;
+      topNChanges += 1;
+      changed = true;
+    }
+    const chartType = normalizeBiChartType(normalizedWidget.chartType || "bar");
+    if (chartType === "table" || chartType === "pivot" || chartType === "timeline" || chartType === "sankey") {
+      const current = getBiSpecificChartConfigForWidget(normalizedWidget, chartType);
+      const safeRowLimit = sanitizeBiInteger(current.rowLimit, 60, 1, 200);
+      if (safeRowLimit > rowLimitCap) {
+        setBiSpecificChartConfigForWidget(normalizedWidget, chartType, {
+          ...current,
+          rowLimit: rowLimitCap
+        });
+        tableChanges += 1;
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return;
+    }
+    widget.topN = normalizedWidget.topN;
+    widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+    updatedWidgets += 1;
+  });
+  return { updatedWidgets, topNChanges, visualChanges, tableChanges };
+}
+
+function renderBiPerformancePanel(project, rows) {
+  if (
+    !(els.biPerformanceModeSelect instanceof HTMLSelectElement)
+    || !(els.biPerfRenderMsText instanceof HTMLElement)
+    || !(els.biPerfWidgetsText instanceof HTMLElement)
+    || !(els.biPerfPointsText instanceof HTMLElement)
+    || !(els.biPerfRowsText instanceof HTMLElement)
+    || !(els.biPerfSummaryText instanceof HTMLElement)
+  ) {
+    return;
+  }
+
+  if (!project) {
+    els.biPerformanceModeSelect.value = "balanced";
+    els.biPerfRenderMsText.textContent = "-";
+    els.biPerfWidgetsText.textContent = "-";
+    els.biPerfPointsText.textContent = "-";
+    els.biPerfRowsText.textContent = "-";
+    els.biPerfSummaryText.textContent = "Sin proyecto activo.";
+    return;
+  }
+
+  ensureBiState(project);
+  const runtime = getBiRuntimeStats(project.id);
+  const safeMode = normalizeBiPerformanceMode(project.biConfig.performanceMode || "balanced");
+  if (els.biPerformanceModeSelect.value !== safeMode) {
+    els.biPerformanceModeSelect.value = safeMode;
+  }
+  const widgets = Array.isArray(project.biWidgets) ? project.biWidgets : [];
+  const chartWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "chart");
+  const textWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "text");
+  const imageWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "image");
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const avgByWidget = runtime.widgets > 0
+    ? Math.round((runtime.points / runtime.widgets) * 10) / 10
+    : 0;
+  els.biPerfRenderMsText.textContent = `${Math.max(0, Math.round(runtime.lastRenderMs))} ms`;
+  els.biPerfWidgetsText.textContent = `${widgets.length} (${chartWidgets.length} gráficos)`;
+  els.biPerfPointsText.textContent = `${runtime.points.toLocaleString("es-PE")} | prom: ${avgByWidget.toLocaleString("es-PE")}`;
+  els.biPerfRowsText.textContent = safeRows.length.toLocaleString("es-PE");
+
+  const modeLabel = safeMode === "turbo"
+    ? "Turbo"
+    : (safeMode === "quality" ? "Calidad máxima" : "Balanceado");
+  const summaryParts = [
+    `Perfil activo: ${modeLabel}`,
+    `Render promedio: ${Math.round(runtime.avgRenderMs)} ms`,
+    `Texto: ${textWidgets.length}`,
+    `Imagen: ${imageWidgets.length}`
+  ];
+  if (safeMode === "turbo") {
+    summaryParts.push("Se prioriza velocidad: menos labels/rejilla.");
+  } else if (safeMode === "quality") {
+    summaryParts.push("Se prioriza fidelidad visual.");
+  } else {
+    summaryParts.push("Equilibrio entre claridad y performance.");
+  }
+  els.biPerfSummaryText.textContent = summaryParts.join(" | ");
 }
 
 function buildBiSearchBlob(row) {
@@ -7297,9 +9099,19 @@ function getBiRenderedValuesForVisual(values, visualSettings, chartType) {
 }
 
 function resizeCanvasForDisplay(canvas, fallbackHeight) {
-  const dpr = window.devicePixelRatio || 1;
-  const width = Math.max(200, Math.floor(canvas.clientWidth || canvas.width || 340));
-  const height = Math.max(120, Math.floor(canvas.clientHeight || canvas.height || fallbackHeight || 160));
+  const rawDprOverride = Number(canvas?.dataset?.biDpr || "");
+  const hasDprOverride = Number.isFinite(rawDprOverride) && rawDprOverride > 0;
+  const dpr = hasDprOverride ? rawDprOverride : (window.devicePixelRatio || 1);
+  const widthOverride = Number(canvas?.dataset?.biRenderWidth || "");
+  const heightOverride = Number(canvas?.dataset?.biRenderHeight || "");
+  const widthBase = Number.isFinite(widthOverride) && widthOverride > 0
+    ? widthOverride
+    : (canvas.clientWidth || canvas.width || 340);
+  const heightBase = Number.isFinite(heightOverride) && heightOverride > 0
+    ? heightOverride
+    : (canvas.clientHeight || canvas.height || fallbackHeight || 160);
+  const width = Math.max(200, Math.floor(widthBase));
+  const height = Math.max(120, Math.floor(heightBase));
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
   const ctx = canvas.getContext("2d");
@@ -7729,9 +9541,11 @@ function drawBiSeriesPath(ctx, points, smoothLines) {
   drawBiLinearPath(ctx, points);
 }
 
-function drawBiBarChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiBarChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "bar");
+  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
@@ -7772,7 +9586,7 @@ function drawBiBarChart(ctx, width, height, labels, values, colors, settings) {
     const y = top + plotHeight - barHeight;
     ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
     ctx.fillRect(x, y, barWidth, barHeight);
-    if (visual.showDataLabels) {
+    if (visual.showDataLabels && value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
       applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
@@ -7789,17 +9603,21 @@ function drawBiBarChart(ctx, width, height, labels, values, colors, settings) {
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
 }
 
-function drawBiLineChart(ctx, width, height, labels, values, colors, settings, labelOffsets, capture) {
+function drawBiLineChart(ctx, width, height, labels, values, colors, settings, labelOffsets, capture, rowsData, labelLayoutV2, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
 
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "line");
+  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
   const offsets = normalizeBiLabelOffsets(labelOffsets);
+  const layoutV2 = normalizeBiLabelLayoutV2(labelLayoutV2);
+  const safeRowsData = Array.isArray(rowsData) ? rowsData : [];
   const collector = capture && typeof capture === "object" ? capture : null;
   if (collector) {
     collector.labelItems = [];
@@ -7841,27 +9659,40 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
   points.forEach((point, index) => {
     const markerColor = normalizeBiColorHex(colors?.[index], lineColor);
     drawBiMarker(ctx, point.x, point.y, visual.seriesMarkerStyle, visual.seriesMarkerSize, markerColor);
-    if (visual.showDataLabels) {
+    if (visual.showDataLabels && point.value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
       applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
       const text = formatBiVisualNumber(point.value, visual, { percentHint });
-      const offset = offsets[String(index)] || { x: 0, y: 0 };
-      const labelX = point.x + (Number.isFinite(offset.x) ? offset.x : 0);
-      const labelY = Math.max(10, point.y - 6) + (Number.isFinite(offset.y) ? offset.y : 0);
+      const rowKey = trimOrFallback(safeRowsData[index]?.rowKey, "");
+      const fallbackKey = buildBiLabelFallbackKey(point.label);
+      const placement = getBiLabelPlacementFromLayout(layoutV2, rowKey, point.label || fallbackKey || "");
+      const legacyOffset = offsets[String(index)] || { x: 0, y: 0 };
+      const offsetX = placement
+        ? (placement.dxPct * plotWidth)
+        : (Number.isFinite(legacyOffset.x) ? legacyOffset.x : 0);
+      const offsetY = placement
+        ? (placement.dyPct * plotHeight)
+        : (Number.isFinite(legacyOffset.y) ? legacyOffset.y : 0);
+      const labelX = point.x + offsetX;
+      const labelY = Math.max(10, point.y - 6) + offsetY;
       ctx.fillText(text, labelX, labelY);
       if (collector) {
         const textWidth = ctx.measureText(text).width;
         const textHeight = Math.max(10, visual.fontSize + 2);
         collector.labelItems.push({
           index,
+          rowKey,
+          rowLabel: point.label,
           text,
           x: labelX - (textWidth / 2) - 4,
           y: labelY - textHeight - 1,
           w: textWidth + 8,
           h: textHeight + 6,
           anchorX: labelX,
-          anchorY: labelY
+          anchorY: labelY,
+          plotWidth,
+          plotHeight
         });
       }
     }
@@ -7889,7 +9720,7 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
 }
 
-function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, circularLayout, capture) {
+function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, circularLayout, capture, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     if (capture && typeof capture === "object") {
@@ -7898,6 +9729,7 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "donut");
   const legendTextColor = resolveBiLabelColor(visual, "#ffffff", "#4a5d73");
 
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
@@ -7921,7 +9753,8 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
   const centerX = layout.centerX;
   const centerY = layout.centerY;
   const radius = layout.radius;
-  const innerRadius = Math.floor(radius * 0.58);
+  const innerRadius = Math.floor(radius * sanitizeBiDecimal(specific.innerRadiusRatio, 0.58, 0.35, 0.8));
+  const minLabelPercent = sanitizeBiDecimal(specific.labelMinPercent, 4, 0, 100);
   let start = -Math.PI / 2;
   const arcItems = [];
 
@@ -7951,7 +9784,7 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
       const labelX = centerX + (Math.cos(mid) * labelRadius);
       const labelY = centerY + (Math.sin(mid) * labelRadius);
       const pct = (value / total) * 100;
-      if (pct >= 4) {
+      if (pct >= minLabelPercent) {
         ctx.fillStyle = resolveBiLabelColor(visual, sliceColor, "#1f2f44");
         applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
         ctx.textAlign = "center";
@@ -7969,7 +9802,7 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
   ctx.fillStyle = resolveBiLabelColor(visual, "#ffffff", "#3b4a5f");
   applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 12 });
   ctx.textAlign = "center";
-  ctx.fillText("Total", centerX, centerY - 2);
+  ctx.fillText(trimOrFallback(specific.centerTitle, "Total"), centerX, centerY - 2);
   applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 11 });
   ctx.fillText(formatBiVisualNumber(total, visual), centerX, centerY + 14);
 
@@ -8001,7 +9834,7 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
   }
 }
 
-function drawBiPieChart(ctx, width, height, labels, values, colors, settings, circularLayout, capture) {
+function drawBiPieChart(ctx, width, height, labels, values, colors, settings, circularLayout, capture, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     if (capture && typeof capture === "object") {
@@ -8010,7 +9843,9 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "pie");
   const legendTextColor = resolveBiLabelColor(visual, "#ffffff", "#4a5d73");
+  const minLabelPercent = sanitizeBiDecimal(specific.labelMinPercent, 4, 0, 100);
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
   if (total <= 0) {
@@ -8035,7 +9870,8 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
   const centerX = layout.centerX;
   const centerY = layout.centerY;
   const radius = layout.radius;
-  let start = -Math.PI / 2;
+  const startOffset = sanitizeBiDecimal(specific.startAngle, -90, -360, 360);
+  let start = (startOffset * Math.PI) / 180;
   const arcItems = [];
   safeValues.forEach((value, index) => {
     const angle = (value / total) * Math.PI * 2;
@@ -8059,7 +9895,7 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
     ctx.fill();
     if (visual.showDataLabels) {
       const pct = total > 0 ? ((value / total) * 100) : 0;
-      if (pct >= 4) {
+      if (pct >= minLabelPercent) {
         const mid = start + (angle / 2);
         const labelX = centerX + (Math.cos(mid) * (radius * 0.65));
         const labelY = centerY + (Math.sin(mid) * (radius * 0.65));
@@ -8100,13 +9936,15 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
   }
 }
 
-function drawBiAreaChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
 
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "area");
+  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
@@ -8158,6 +9996,9 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings) {
     ctx.textAlign = "center";
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
     points.forEach((point) => {
+      if (point.value < minLabelValue) {
+        return;
+      }
       ctx.fillStyle = labelTextColor;
       ctx.fillText(formatBiVisualNumber(point.value, visual, { percentHint }), point.x, Math.max(10, point.y - 6));
     });
@@ -8184,13 +10025,15 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings) {
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
 }
 
-function drawBiComboChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiComboChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
 
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "combo");
+  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
@@ -8224,7 +10067,7 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings) 
     const slotColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
     ctx.fillStyle = hexToRgba(slotColor, 0.45, "rgba(58, 136, 220, 0.45)");
     ctx.fillRect(x, y, barWidth, barHeight);
-    if (visual.showDataLabels) {
+    if (visual.showDataLabels && value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
       applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
@@ -8264,13 +10107,16 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings) 
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
 }
 
-function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "treemap");
   const defaultTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
+  const minTilePercent = sanitizeBiDecimal(specific.minTilePercent, 1, 0, 25) / 100;
+  const showValueText = normalizeBiToggle(specific.showValueText, true);
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
   if (total <= 0) {
@@ -8288,6 +10134,9 @@ function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings
   let offsetX = left;
   safeValues.forEach((value, index) => {
     const ratio = value / total;
+    if (ratio < minTilePercent) {
+      return;
+    }
     const blockWidth = Math.max(18, Math.round(plotWidth * ratio));
     const finalWidth = Math.min(blockWidth, left + plotWidth - offsetX);
     const blockColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
@@ -8298,7 +10147,7 @@ function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings
       : resolveBiLabelColor(visual, blockColor, "#ffffff");
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
     const labelText = truncateBiLabel(labels[index], visual, 12);
-    const valueText = visual.showDataLabels ? ` ${formatBiVisualNumber(safeValues[index], visual)}` : "";
+    const valueText = (visual.showDataLabels && showValueText) ? ` ${formatBiVisualNumber(safeValues[index], visual)}` : "";
     ctx.fillText(`${labelText}${valueText}`, offsetX + 6, top + 18);
     offsetX += finalWidth;
     if (offsetX >= left + plotWidth) {
@@ -8307,27 +10156,41 @@ function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings
   });
 }
 
-function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "funnel");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#24384f");
   const percentHint = visual.stackMode === "percent";
-  const max = Math.max(1, ...values);
+  const minSegmentRatio = sanitizeBiDecimal(specific.minSegmentPercent, 2, 0, 60) / 100;
+  const sortMode = trimOrFallback(specific.sortMode, "desc").toLowerCase() === "asc" ? "asc" : "desc";
+  const pairs = labels.map((label, index) => ({
+    label,
+    value: Number.isFinite(values[index]) ? values[index] : 0,
+    color: normalizeBiColorHex(colors?.[index], getBiPaletteColor(index))
+  })).sort((a, b) => sortMode === "asc" ? a.value - b.value : b.value - a.value);
+  const sortedLabels = pairs.map((item) => item.label);
+  const sortedValues = pairs.map((item) => item.value);
+  const sortedColors = pairs.map((item) => item.color);
+  const max = Math.max(1, ...sortedValues);
   const topY = 10;
-  const rowHeight = Math.max(20, Math.floor((height - 20) / values.length));
+  const rowHeight = Math.max(20, Math.floor((height - 20) / sortedValues.length));
   const centerX = Math.floor(width * 0.45);
   const maxWidth = Math.max(40, Math.floor(width * 0.72));
-  values.forEach((value, index) => {
+  sortedValues.forEach((value, index) => {
     const ratio = Math.max(0, value / max);
+    if (ratio < minSegmentRatio) {
+      return;
+    }
     const topWidth = Math.max(20, maxWidth * ratio);
-    const nextRatio = index === values.length - 1 ? 0.18 : Math.max(0, values[index + 1] / max);
+    const nextRatio = index === sortedValues.length - 1 ? 0.18 : Math.max(0, sortedValues[index + 1] / max);
     const bottomWidth = Math.max(16, maxWidth * nextRatio);
     const y = topY + (index * rowHeight);
 
-    ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    ctx.fillStyle = sortedColors[index];
     ctx.beginPath();
     ctx.moveTo(centerX - (topWidth / 2), y);
     ctx.lineTo(centerX + (topWidth / 2), y);
@@ -8338,7 +10201,7 @@ function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings)
 
     ctx.fillStyle = labelTextColor;
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
-    ctx.fillText(truncateBiLabel(labels[index], visual, 16), 8, y + (rowHeight / 2));
+    ctx.fillText(truncateBiLabel(sortedLabels[index], visual, 16), 8, y + (rowHeight / 2));
     if (visual.showDataLabels) {
       ctx.textAlign = "right";
       ctx.fillText(formatBiVisualNumber(value, visual, { percentHint }), width - 8, y + (rowHeight / 2));
@@ -8347,16 +10210,20 @@ function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings)
   });
 }
 
-function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "gauge");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#2c3e50");
-  const firstValue = Number.isFinite(values[0]) ? Math.max(0, values[0]) : 0;
-  const max = Math.max(1, ...values);
-  const ratio = Math.max(0, Math.min(1, firstValue / max));
+  const firstValue = Number.isFinite(values[0]) ? values[0] : 0;
+  const minValue = sanitizeBiDecimal(specific.minValue, 0, -1000000, 1000000);
+  const maxValue = sanitizeBiDecimal(specific.maxValue, 100, minValue, 1000000);
+  const targetValue = sanitizeBiDecimal(specific.targetValue, 80, minValue, maxValue);
+  const ratio = Math.max(0, Math.min(1, ((firstValue - minValue) / Math.max(1e-6, maxValue - minValue))));
+  const targetRatio = Math.max(0, Math.min(1, ((targetValue - minValue) / Math.max(1e-6, maxValue - minValue))));
   const centerX = Math.floor(width / 2);
   const centerY = Math.floor(height * 0.78);
   const radius = Math.max(40, Math.floor(Math.min(width * 0.42, height * 0.70)));
@@ -8374,6 +10241,15 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings) 
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, start, start - (Math.PI * ratio), true);
   ctx.stroke();
+  const targetAngle = start - (Math.PI * targetRatio);
+  const targetInner = radius - Math.max(8, visual.lineWidth * 3.6);
+  const targetOuter = radius + Math.max(2, visual.lineWidth * 1.4);
+  ctx.strokeStyle = normalizeBiColorHex(visual.targetLineColor, "#b03831");
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(centerX + (Math.cos(targetAngle) * targetInner), centerY + (Math.sin(targetAngle) * targetInner));
+  ctx.lineTo(centerX + (Math.cos(targetAngle) * targetOuter), centerY + (Math.sin(targetAngle) * targetOuter));
+  ctx.stroke();
 
   ctx.fillStyle = labelTextColor;
   applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 22 });
@@ -8384,12 +10260,13 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings) 
   ctx.fillText(truncateBiLabel(labels[0], visual, 22), centerX, centerY + 14);
 }
 
-function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "waterfall");
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
   const cumulatives = [];
@@ -8434,6 +10311,13 @@ function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settin
     }
     previous = current;
   });
+  if (normalizeBiToggle(specific.showTotalBar, true)) {
+    const total = cumulatives[cumulatives.length - 1] || 0;
+    ctx.fillStyle = "#1f4d78";
+    applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(9, visual.fontSizeLabels) });
+    ctx.textAlign = "right";
+    ctx.fillText(`${trimOrFallback(specific.totalLabel, "Total")}: ${formatBiVisualNumber(total, visual)}`, width - 6, 14);
+  }
   if (visual.showAxisLabels && labels.length <= 12) {
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "center";
@@ -8446,18 +10330,21 @@ function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settin
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
 }
 
-function drawBiRadarChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "radar");
   const axisColor = resolveBiLabelColor(visual, "#ffffff", "#5a6d84");
   const labelColor = resolveBiLabelColor(visual, "#ffffff", "#2e4258");
   const safeValues = values.map((value) => (Number.isFinite(value) ? Math.max(0, value) : 0));
   const maxRaw = Math.max(1, ...safeValues);
   const axisRange = resolveBiAxisRange(safeValues, { ...visual, axisMin: 0 }, { forceZeroBaseline: true });
-  const maxValue = Math.max(1, axisRange.max, maxRaw);
+  const maxScale = sanitizeBiDecimal(specific.maxScale, maxRaw, 1, 100000);
+  const maxValue = Math.max(1, axisRange.max, maxScale);
+  const showPointValues = normalizeBiToggle(specific.showPointValues, true);
   const count = Math.max(3, safeValues.length);
   const centerX = Math.floor(width / 2);
   const centerY = Math.floor(height / 2) + 6;
@@ -8550,7 +10437,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings) 
     ctx.fillText(truncateBiLabel(label, visual, 10), lx, ly);
   });
 
-  if (visual.showDataLabels) {
+  if (visual.showDataLabels && showPointValues) {
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
     ctx.textAlign = "center";
     points.forEach((point) => {
@@ -8560,12 +10447,15 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings) 
   }
 }
 
-function drawBiParetoChart(ctx, width, height, labels, values, colors, settings) {
+function drawBiParetoChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "pareto");
+  const showCumulativeLine = normalizeBiToggle(specific.showCumulativeLine, true);
+  const targetPercent = sanitizeBiDecimal(specific.targetPercent, 80, 1, 100);
   const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
   const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
   const safeValues = values.map((value) => (Number.isFinite(value) ? Math.max(0, value) : 0));
@@ -8620,17 +10510,19 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings)
     const y = top + plotHeight - ((pct / 100) * plotHeight);
     return { x, y, value: pct };
   });
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = visual.lineWidth;
-  ctx.setLineDash(resolveBiLineDashPattern(visual));
-  drawBiSeriesPath(ctx, points, visual.smoothLines);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  points.forEach((point) => {
-    drawBiMarker(ctx, point.x, point.y, visual.seriesMarkerStyle, visual.seriesMarkerSize, lineColor);
-  });
+  if (showCumulativeLine) {
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = visual.lineWidth;
+    ctx.setLineDash(resolveBiLineDashPattern(visual));
+    drawBiSeriesPath(ctx, points, visual.smoothLines);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    points.forEach((point) => {
+      drawBiMarker(ctx, point.x, point.y, visual.seriesMarkerStyle, visual.seriesMarkerSize, lineColor);
+    });
+  }
 
-  if (visual.showDataLabels) {
+  if (visual.showDataLabels && showCumulativeLine) {
     ctx.textAlign = "center";
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
     points.forEach((point) => {
@@ -8639,7 +10531,11 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings)
     });
   }
 
-  drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, visual, { percentHint: false });
+  drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, {
+    ...visual,
+    showTargetLine: true,
+    targetLineValue: targetPercent
+  }, { percentHint: false });
 
   if (visual.showAxisLabels) {
     applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
@@ -8662,6 +10558,287 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings)
   }
 
   drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
+}
+
+function drawBiScatterLikeChart(ctx, width, height, labels, values, colors, settings, rows, bubbleMode, labelOffsets, capture, labelLayoutV2, typeConfig) {
+  ctx.clearRect(0, 0, width, height);
+  if (!Array.isArray(values) || values.length === 0) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, bubbleMode ? "bubble" : "scatter");
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const offsets = normalizeBiLabelOffsets(labelOffsets);
+  const layoutV2 = normalizeBiLabelLayoutV2(labelLayoutV2);
+  const collector = capture && typeof capture === "object" ? capture : null;
+  if (collector) {
+    collector.labelItems = [];
+  }
+  const minRadius = bubbleMode
+    ? sanitizeBiInteger(specific.minBubbleRadius, 6, 3, 60)
+    : sanitizeBiInteger(specific.minPointRadius, 7, 3, 40);
+  const maxRadius = bubbleMode
+    ? sanitizeBiInteger(specific.maxBubbleRadius, 40, minRadius, 80)
+    : minRadius;
+  const pointsData = values.map((value, index) => {
+    const row = safeRows[index] || {};
+    const xValue = Number.isFinite(row.xValue) ? row.xValue : (index + 1);
+    const yValue = Number.isFinite(value) ? value : 0;
+    const bubbleSize = bubbleMode
+      ? (Number.isFinite(row.bubbleSize) ? row.bubbleSize : Math.max(minRadius, Math.round(Math.abs(yValue) * 0.16)))
+      : minRadius;
+    return {
+      xValue,
+      yValue,
+      bubbleSize: Math.max(minRadius, Math.min(maxRadius, bubbleSize))
+    };
+  });
+  const xValues = pointsData.map((item) => item.xValue);
+  const yValues = pointsData.map((item) => item.yValue);
+  const xMin = Math.min(...xValues, 0);
+  const xMax = Math.max(...xValues, 1);
+  const yMin = Math.min(...yValues, 0);
+  const yMax = Math.max(...yValues, 1);
+  const left = 52;
+  const right = 14;
+  const top = 12;
+  const bottom = (visual.showAxisLabels ? 32 : 18) + (visual.axisXLabel ? 14 : 0);
+  const plotWidth = Math.max(10, width - left - right);
+  const plotHeight = Math.max(10, height - top - bottom);
+  const xRange = xMax - xMin <= 0 ? 1 : (xMax - xMin);
+  const yRange = yMax - yMin <= 0 ? 1 : (yMax - yMin);
+  if (visual.showGrid) {
+    drawBiHorizontalGrid(ctx, left, top, plotWidth, plotHeight, 5, "#e4ecf5", visual);
+  }
+  ctx.strokeStyle = "#d6dde6";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, top + plotHeight);
+  ctx.lineTo(left + plotWidth, top + plotHeight);
+  ctx.stroke();
+  pointsData.forEach((item, index) => {
+    const x = left + (((item.xValue - xMin) / xRange) * plotWidth);
+    const y = top + plotHeight - (((item.yValue - yMin) / yRange) * plotHeight);
+    const color = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const pointAlpha = sanitizeBiDecimal(specific.pointAlpha, bubbleMode ? 0.95 : 1, 0.15, 1);
+    ctx.fillStyle = bubbleMode ? hexToRgba(color, pointAlpha, color) : hexToRgba(color, pointAlpha, color);
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, item.bubbleSize, 0, Math.PI * 2);
+    ctx.fill();
+    if (bubbleMode) {
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+    if (visual.showDataLabels) {
+      ctx.fillStyle = resolveBiLabelColor(visual, "#ffffff", "#2f425a");
+      ctx.textAlign = "center";
+      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+      const text = formatBiVisualNumber(item.yValue, visual);
+      const rowKey = trimOrFallback(safeRows[index]?.rowKey, "");
+      const fallbackKey = buildBiLabelFallbackKey(labels[index] || "");
+      const placement = getBiLabelPlacementFromLayout(layoutV2, rowKey, labels[index] || fallbackKey || "");
+      const legacyOffset = offsets[String(index)] || { x: 0, y: 0 };
+      const offsetX = placement
+        ? (placement.dxPct * plotWidth)
+        : (Number.isFinite(legacyOffset.x) ? legacyOffset.x : 0);
+      const offsetY = placement
+        ? (placement.dyPct * plotHeight)
+        : (Number.isFinite(legacyOffset.y) ? legacyOffset.y : 0);
+      const labelX = x + offsetX;
+      const labelY = Math.max(10, y - item.bubbleSize - 2) + offsetY;
+      ctx.fillText(text, labelX, labelY);
+      if (collector) {
+        const textWidth = ctx.measureText(text).width;
+        const textHeight = Math.max(10, visual.fontSizeLabels + 2);
+        collector.labelItems.push({
+          index,
+          rowKey,
+          rowLabel: labels[index] || "",
+          text,
+          x: labelX - (textWidth / 2) - 4,
+          y: labelY - textHeight - 1,
+          w: textWidth + 8,
+          h: textHeight + 6,
+          anchorX: labelX,
+          anchorY: labelY,
+          plotWidth,
+          plotHeight
+        });
+      }
+    }
+  });
+  if (visual.showAxisLabels) {
+    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    ctx.fillStyle = "#6a7686";
+    ctx.textAlign = "right";
+    ctx.fillText(formatBiVisualNumber(yMax, visual), left - 4, top + 8);
+    ctx.fillText(formatBiVisualNumber(yMin, visual), left - 4, top + plotHeight + 2);
+    ctx.textAlign = "left";
+    ctx.fillText(formatBiVisualNumber(xMin, visual), left, top + plotHeight + 14);
+    ctx.fillText(formatBiVisualNumber(xMax, visual), left + plotWidth - 16, top + plotHeight + 14);
+  }
+  drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, visual);
+}
+
+function drawBiBulletChart(ctx, width, height, labels, values, colors, settings, rows, typeConfig) {
+  ctx.clearRect(0, 0, width, height);
+  if (!Array.isArray(values) || values.length === 0) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "bullet");
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const maxValue = Math.max(1, ...values.map((item) => Math.abs(item)));
+  const targetPercent = sanitizeBiDecimal(specific.targetValue, Number.isFinite(visual.targetLineValue) ? visual.targetLineValue : 80, 0, 100);
+  const lowBand = sanitizeBiDecimal(specific.lowBand, 40, 0, 100);
+  const midBand = sanitizeBiDecimal(specific.midBand, 70, lowBand, 100);
+  const left = 12;
+  const right = 12;
+  const top = 10;
+  const rowHeight = Math.max(18, Math.floor((height - top - 8) / Math.max(1, values.length)));
+  const trackWidth = Math.max(40, width - left - right - 86);
+  values.forEach((value, index) => {
+    const y = top + (index * rowHeight);
+    const label = truncateBiLabel(labels[index] || "", visual, 16);
+    const ratio = Math.max(0, Math.min(1, (Math.abs(value) / maxValue)));
+    const barW = Math.max(1, Math.round(trackWidth * ratio));
+    const targetX = left + 76 + Math.round(trackWidth * Math.max(0, Math.min(1, targetPercent / 100)));
+    ctx.fillStyle = "#edf3fb";
+    ctx.fillRect(left + 76, y + 4, trackWidth, rowHeight - 8);
+    ctx.fillStyle = "rgba(77, 132, 199, 0.14)";
+    ctx.fillRect(left + 76, y + 4, Math.round(trackWidth * (lowBand / 100)), rowHeight - 8);
+    ctx.fillStyle = "rgba(44, 153, 110, 0.14)";
+    ctx.fillRect(left + 76 + Math.round(trackWidth * (lowBand / 100)), y + 4, Math.round(trackWidth * ((midBand - lowBand) / 100)), rowHeight - 8);
+    ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    ctx.fillRect(left + 76, y + 4, barW, rowHeight - 8);
+    ctx.strokeStyle = normalizeBiColorHex(visual.targetLineColor || "#b03831", "#b03831");
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(targetX, y + 2);
+    ctx.lineTo(targetX, y + rowHeight - 2);
+    ctx.stroke();
+    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+    ctx.fillStyle = "#2c405a";
+    ctx.textAlign = "left";
+    ctx.fillText(label, left, y + Math.round(rowHeight * 0.64));
+    ctx.textAlign = "right";
+    ctx.fillText(formatBiVisualNumber(value, visual), width - 4, y + Math.round(rowHeight * 0.64));
+  });
+}
+
+function drawBiBoxplotChart(ctx, width, height, labels, values, colors, settings, rows, typeConfig) {
+  ctx.clearRect(0, 0, width, height);
+  const safeRows = Array.isArray(rows) ? rows : [];
+  if (safeRows.length === 0) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "boxplot");
+  const showMedianValue = normalizeBiToggle(specific.showMedianValue, true);
+  const max = Math.max(1, ...safeRows.map((row) => Number(row?.box?.max) || 0));
+  const min = Math.min(0, ...safeRows.map((row) => Number(row?.box?.min) || 0));
+  const range = max - min <= 0 ? 1 : (max - min);
+  const left = 44;
+  const right = 10;
+  const top = 12;
+  const bottom = 30;
+  const plotWidth = Math.max(10, width - left - right);
+  const plotHeight = Math.max(10, height - top - bottom);
+  const slot = plotWidth / Math.max(1, safeRows.length);
+  safeRows.forEach((row, index) => {
+    const box = row?.box || {};
+    const color = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const toY = (v) => top + plotHeight - (((Number(v) - min) / range) * plotHeight);
+    const xCenter = left + (slot * index) + (slot / 2);
+    const boxW = Math.max(8, slot * 0.42);
+    const yMin = toY(box.min || 0);
+    const yQ1 = toY(box.q1 || 0);
+    const yMedian = toY(box.median || 0);
+    const yQ3 = toY(box.q3 || 0);
+    const yMax = toY(box.max || 0);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(xCenter, yMin);
+    ctx.lineTo(xCenter, yQ1);
+    ctx.moveTo(xCenter, yQ3);
+    ctx.lineTo(xCenter, yMax);
+    ctx.stroke();
+    ctx.fillStyle = hexToRgba(color, 0.26, "rgba(47,126,216,0.26)");
+    ctx.fillRect(xCenter - (boxW / 2), yQ3, boxW, Math.max(2, yQ1 - yQ3));
+    ctx.strokeRect(xCenter - (boxW / 2), yQ3, boxW, Math.max(2, yQ1 - yQ3));
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(xCenter - (boxW / 2), yMedian);
+    ctx.lineTo(xCenter + (boxW / 2), yMedian);
+    ctx.stroke();
+    if (showMedianValue) {
+      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+      ctx.fillStyle = "#2a3f56";
+      ctx.textAlign = "center";
+      ctx.fillText(formatBiVisualNumber(Number(box.median) || 0, visual), xCenter, Math.max(10, yMedian - 4));
+    }
+    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    ctx.fillStyle = "#5f7186";
+    ctx.textAlign = "center";
+    ctx.fillText(truncateBiLabel(labels[index] || "", visual, 10), xCenter, top + plotHeight + 12);
+  });
+}
+
+function drawBiCandlestickChart(ctx, width, height, labels, values, colors, settings, rows, typeConfig) {
+  ctx.clearRect(0, 0, width, height);
+  const safeRows = Array.isArray(rows) ? rows : [];
+  if (safeRows.length === 0) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "candlestick");
+  const upColor = normalizeBiColorHex(specific.upColor, "#25a368");
+  const downColor = normalizeBiColorHex(specific.downColor, "#d7565b");
+  const wickWidth = sanitizeBiInteger(specific.wickWidth, 1, 1, 4);
+  const max = Math.max(1, ...safeRows.map((row) => Number(row?.candle?.high) || 0));
+  const min = Math.min(0, ...safeRows.map((row) => Number(row?.candle?.low) || 0));
+  const range = max - min <= 0 ? 1 : (max - min);
+  const left = 44;
+  const right = 10;
+  const top = 12;
+  const bottom = 30;
+  const plotWidth = Math.max(10, width - left - right);
+  const plotHeight = Math.max(10, height - top - bottom);
+  const slot = plotWidth / Math.max(1, safeRows.length);
+  safeRows.forEach((row, index) => {
+    const candle = row?.candle || {};
+    const open = Number(candle.open) || 0;
+    const close = Number(candle.close) || 0;
+    const high = Number(candle.high) || Math.max(open, close);
+    const low = Number(candle.low) || Math.min(open, close);
+    const bullish = close >= open;
+    const color = bullish ? upColor : downColor;
+    const toY = (v) => top + plotHeight - (((v - min) / range) * plotHeight);
+    const xCenter = left + (slot * index) + (slot / 2);
+    const bodyW = Math.max(6, slot * 0.44);
+    const yOpen = toY(open);
+    const yClose = toY(close);
+    const yHigh = toY(high);
+    const yLow = toY(low);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = wickWidth;
+    ctx.beginPath();
+    ctx.moveTo(xCenter, yHigh);
+    ctx.lineTo(xCenter, yLow);
+    ctx.stroke();
+    ctx.fillStyle = hexToRgba(color, bullish ? 0.38 : 0.26, bullish ? "rgba(47,157,95,0.38)" : "rgba(212,78,71,0.26)");
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
+    ctx.fillRect(xCenter - (bodyW / 2), bodyTop, bodyW, bodyHeight);
+    ctx.strokeRect(xCenter - (bodyW / 2), bodyTop, bodyW, bodyHeight);
+    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    ctx.fillStyle = "#5f7186";
+    ctx.textAlign = "center";
+    ctx.fillText(truncateBiLabel(labels[index] || "", visual, 10), xCenter, top + plotHeight + 12);
+  });
 }
 
 function drawBiHoverHighlight(ctx, model, highlightIndex) {
@@ -8711,7 +10888,95 @@ function drawBiHoverHighlight(ctx, model, highlightIndex) {
   ctx.restore();
 }
 
-function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, colors, settings, labelOffsets, circularLayout) {
+function buildSeriesModel(type, snapshotRows, labels, values, chartConfig, typeConfig) {
+  const safeType = normalizeBiChartType(type || "bar");
+  return {
+    type: safeType,
+    rows: Array.isArray(snapshotRows) ? snapshotRows : [],
+    labels: Array.isArray(labels) ? labels : [],
+    values: Array.isArray(values) ? values : [],
+    chartConfig: normalizeBiChartConfig(chartConfig, safeType),
+    typeConfig: normalizeBiChartTypeSpecificConfig(typeConfig, safeType)
+  };
+}
+
+function drawSeriesModel(ctx, width, height, model, colors, visual, labelOffsets, circularLayout, geometry, labelLayoutV2) {
+  if (!ctx || !model) {
+    return;
+  }
+  const safeType = normalizeBiChartType(model.type || "bar");
+  const safeLabels = model.labels || [];
+  const safeValues = model.values || [];
+  const safeRows = model.rows || [];
+  const safeTypeConfig = normalizeBiChartTypeSpecificConfig(model.typeConfig, safeType);
+  if (safeType === "line" || safeType === "timeseries") {
+    drawBiLineChart(ctx, width, height, safeLabels, safeValues, colors, visual, labelOffsets, geometry, safeRows, labelLayoutV2, safeTypeConfig);
+    return;
+  }
+  if (safeType === "area") {
+    drawBiAreaChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "combo") {
+    drawBiComboChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "donut") {
+    drawBiDonutChart(ctx, width, height, safeLabels, safeValues, colors, visual, circularLayout, geometry, safeTypeConfig);
+    return;
+  }
+  if (safeType === "pie") {
+    drawBiPieChart(ctx, width, height, safeLabels, safeValues, colors, visual, circularLayout, geometry, safeTypeConfig);
+    return;
+  }
+  if (safeType === "scatter") {
+    drawBiScatterLikeChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeRows, false, labelOffsets, geometry, labelLayoutV2, safeTypeConfig);
+    return;
+  }
+  if (safeType === "bubble") {
+    drawBiScatterLikeChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeRows, true, labelOffsets, geometry, labelLayoutV2, safeTypeConfig);
+    return;
+  }
+  if (safeType === "bullet") {
+    drawBiBulletChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeRows, safeTypeConfig);
+    return;
+  }
+  if (safeType === "boxplot") {
+    drawBiBoxplotChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeRows, safeTypeConfig);
+    return;
+  }
+  if (safeType === "candlestick") {
+    drawBiCandlestickChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeRows, safeTypeConfig);
+    return;
+  }
+  if (safeType === "treemap") {
+    drawBiTreemapChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "funnel") {
+    drawBiFunnelChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "gauge") {
+    drawBiGaugeChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "waterfall") {
+    drawBiWaterfallChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "radar") {
+    drawBiRadarChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  if (safeType === "pareto") {
+    drawBiParetoChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+    return;
+  }
+  drawBiBarChart(ctx, width, height, safeLabels, safeValues, colors, visual, safeTypeConfig);
+}
+
+function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, colors, settings, labelOffsets, circularLayout, rowsData, chartConfig, labelLayoutV2, typeConfigMap) {
   if (!(canvas instanceof HTMLCanvasElement)) {
     return { type: "none", items: [] };
   }
@@ -8735,37 +11000,29 @@ function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, co
 
   const safeType = normalizeBiChartType(chartType || "bar");
   const renderedValues = getBiRenderedValuesForVisual(safeValues, visual, safeType);
+  const typeConfig = typeConfigMap && typeof typeConfigMap === "object"
+    ? typeConfigMap[safeType]
+    : null;
+  const seriesModel = buildSeriesModel(safeType, rowsData, safeLabels, renderedValues, chartConfig, typeConfig);
   const geometry = { labelItems: [], polarModel: null };
-  if (safeType === "line") {
-    drawBiLineChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual, labelOffsets, geometry);
-  } else if (safeType === "area") {
-    drawBiAreaChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "combo") {
-    drawBiComboChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "donut") {
-    drawBiDonutChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual, circularLayout, geometry);
-  } else if (safeType === "pie") {
-    drawBiPieChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual, circularLayout, geometry);
-  } else if (safeType === "treemap") {
-    drawBiTreemapChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "funnel") {
-    drawBiFunnelChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "gauge") {
-    drawBiGaugeChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "waterfall") {
-    drawBiWaterfallChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "radar") {
-    drawBiRadarChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else if (safeType === "pareto") {
-    drawBiParetoChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  } else {
-    drawBiBarChart(ctx, width, height, safeLabels, renderedValues, safeColors, visual);
-  }
+  drawSeriesModel(
+    ctx,
+    width,
+    height,
+    seriesModel,
+    safeColors,
+    visual,
+    labelOffsets,
+    circularLayout,
+    geometry,
+    labelLayoutV2
+  );
 
   const model = buildBiHoverModel(safeType, width, height, safeLabels, renderedValues, {
     visualSettings: visual,
     labelItems: geometry.labelItems,
-    polarModel: geometry.polarModel
+    polarModel: geometry.polarModel,
+    rowsData: rowsData
   });
   const activeIndex = Number.isInteger(highlightIndex) ? highlightIndex : -1;
   if (activeIndex >= 0) {
@@ -8787,7 +11044,7 @@ function buildBiHoverModel(chartType, width, height, labels, values, options) {
     ? options.labelItems.filter((item) => item && Number.isInteger(item.index))
     : [];
   const items = [];
-  if (type === "line" || type === "area" || type === "combo") {
+  if (type === "line" || type === "timeseries" || type === "area" || type === "combo") {
     const left = (visual.axisYLabel ? 58 : 44);
     const right = 10;
     const top = 12;
@@ -8801,6 +11058,44 @@ function buildBiHoverModel(chartType, width, height, labels, values, options) {
       const x = left + (stepX * index);
       const y = top + plotHeight - (Math.max(0, normalized) * plotHeight);
       items.push({ index, kind: "point", x, y, r: 12 });
+    });
+    return { type, items, labelItems };
+  }
+
+  if (type === "scatter" || type === "bubble") {
+    const safeRows = Array.isArray(options?.rowsData) ? options.rowsData : [];
+    const pointsData = safeValues.map((value, index) => {
+      const row = safeRows[index] || {};
+      const xValue = Number.isFinite(row.xValue) ? row.xValue : (index + 1);
+      const yValue = Number.isFinite(value) ? value : 0;
+      const bubbleSize = type === "bubble"
+        ? (Number.isFinite(row.bubbleSize) ? row.bubbleSize : Math.max(8, Math.round(Math.abs(yValue) * 0.16)))
+        : 8;
+      return {
+        index,
+        xValue,
+        yValue,
+        radius: Math.max(6, Math.min(40, bubbleSize))
+      };
+    });
+    const xValues = pointsData.map((item) => item.xValue);
+    const yValues = pointsData.map((item) => item.yValue);
+    const xMin = Math.min(...xValues, 0);
+    const xMax = Math.max(...xValues, 1);
+    const yMin = Math.min(...yValues, 0);
+    const yMax = Math.max(...yValues, 1);
+    const xRange = xMax - xMin <= 0 ? 1 : (xMax - xMin);
+    const yRange = yMax - yMin <= 0 ? 1 : (yMax - yMin);
+    const left = 52;
+    const right = 14;
+    const top = 12;
+    const bottom = (visual.showAxisLabels ? 32 : 18) + (visual.axisXLabel ? 14 : 0);
+    const plotWidth = Math.max(10, width - left - right);
+    const plotHeight = Math.max(10, height - top - bottom);
+    pointsData.forEach((item) => {
+      const x = left + (((item.xValue - xMin) / xRange) * plotWidth);
+      const y = top + plotHeight - (((item.yValue - yMin) / yRange) * plotHeight);
+      items.push({ index: item.index, kind: "point", x, y, r: item.radius + 2 });
     });
     return { type, items, labelItems };
   }
@@ -8854,6 +11149,84 @@ function buildBiHoverModel(chartType, width, height, labels, values, options) {
       const x = left + slot * index + ((slot - barWidth) / 2);
       items.push({ index, kind: "rect", x, y, w: barWidth, h });
       previous = current;
+    });
+    return { type, items };
+  }
+
+  if (type === "bullet") {
+    const left = 12;
+    const right = 12;
+    const top = 10;
+    const rowHeight = Math.max(18, Math.floor((height - top - 8) / Math.max(1, safeValues.length)));
+    const trackWidth = Math.max(40, width - left - right - 86);
+    safeValues.forEach((value, index) => {
+      const ratio = Math.max(0, Math.min(1, Math.abs(value) / Math.max(1, ...safeValues.map((item) => Math.abs(item)))));
+      const y = top + (index * rowHeight);
+      const w = Math.max(1, Math.round(trackWidth * ratio));
+      items.push({ index, kind: "rect", x: left + 76, y: y + 4, w, h: Math.max(4, rowHeight - 8) });
+    });
+    return { type, items };
+  }
+
+  if (type === "boxplot" || type === "candlestick") {
+    const safeRows = Array.isArray(options?.rowsData) ? options.rowsData : [];
+    const left = 44;
+    const right = 10;
+    const top = 12;
+    const bottom = 30;
+    const plotWidth = Math.max(10, width - left - right);
+    const plotHeight = Math.max(10, height - top - bottom);
+    const slot = plotWidth / Math.max(1, safeRows.length || safeValues.length);
+    safeRows.forEach((row, index) => {
+      const xCenter = left + (slot * index) + (slot / 2);
+      if (type === "boxplot") {
+        const boxW = Math.max(8, slot * 0.42);
+        const box = row?.box || {};
+        const allValues = safeRows.map((item) => [
+          Number(item?.box?.min) || 0,
+          Number(item?.box?.q1) || 0,
+          Number(item?.box?.median) || 0,
+          Number(item?.box?.q3) || 0,
+          Number(item?.box?.max) || 0
+        ]).flat();
+        const min = Math.min(0, ...allValues);
+        const max = Math.max(1, ...allValues);
+        const range = max - min <= 0 ? 1 : (max - min);
+        const toY = (value) => top + plotHeight - (((value - min) / range) * plotHeight);
+        const yQ1 = toY(Number(box.q1) || 0);
+        const yQ3 = toY(Number(box.q3) || 0);
+        items.push({
+          index,
+          kind: "rect",
+          x: xCenter - (boxW / 2),
+          y: Math.min(yQ1, yQ3),
+          w: boxW,
+          h: Math.max(2, Math.abs(yQ1 - yQ3))
+        });
+      } else {
+        const bodyW = Math.max(6, slot * 0.44);
+        const candle = row?.candle || {};
+        const allValues = safeRows.map((item) => [
+          Number(item?.candle?.low) || 0,
+          Number(item?.candle?.high) || 0,
+          Number(item?.candle?.open) || 0,
+          Number(item?.candle?.close) || 0
+        ]).flat();
+        const min = Math.min(0, ...allValues);
+        const max = Math.max(1, ...allValues);
+        const range = max - min <= 0 ? 1 : (max - min);
+        const toY = (value) => top + plotHeight - (((value - min) / range) * plotHeight);
+        const yOpen = toY(Number(candle.open) || 0);
+        const yClose = toY(Number(candle.close) || 0);
+        items.push({
+          index,
+          kind: "rect",
+          x: xCenter - (bodyW / 2),
+          y: Math.min(yOpen, yClose),
+          w: bodyW,
+          h: Math.max(2, Math.abs(yClose - yOpen))
+        });
+      }
     });
     return { type, items };
   }
@@ -8963,7 +11336,7 @@ function resolveBiHoverIndex(model, x, y) {
     return -1;
   }
 
-  if (model.type === "line" || model.type === "area" || model.type === "combo" || model.type === "radar") {
+  if (model.type === "line" || model.type === "timeseries" || model.type === "area" || model.type === "combo" || model.type === "radar") {
     let bestIndex = -1;
     let bestDistance = Number.POSITIVE_INFINITY;
     model.items.forEach((item) => {
@@ -9122,7 +11495,6 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
   const safeType = normalizeBiChartType(chartType || "bar");
   const visual = normalizeBiVisualSettings(settings);
   const renderedValues = getBiRenderedValuesForVisual(values, visual, safeType);
-  const canDragLabels = safeType === "line" && !!widget;
   const canDragLayout = (safeType === "pie" || safeType === "donut") && !!widget;
   let model = initialModel || drawBiWidgetChart(
     canvas,
@@ -9133,18 +11505,39 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     colors,
     settings,
     widget?.labelOffsets,
-    widget?.polarLayout
+    widget?.polarLayout,
+    snapshot.rows,
+    widget?.chartConfig,
+    widget?.labelLayoutV2,
+    widget?.chartTypeConfig
   );
   if (!model || !Array.isArray(model.items) || !model.items.length) {
     return;
   }
-  if (tooltip instanceof HTMLElement) {
-    tooltip.style.fontFamily = getBiFontFamilyByLayer(visual, "tooltip");
-    tooltip.style.fontSize = `${getBiFontSizeByLayer(visual, "tooltip", 11)}px`;
-  }
+  const canDragLabels = () => !!widget && Array.isArray(model?.labelItems) && model.labelItems.length > 0;
+  tooltip.style.fontFamily = getBiFontFamilyByLayer(visual, "tooltip");
+  tooltip.style.fontSize = `${getBiFontSizeByLayer(visual, "tooltip", 11)}px`;
   let highlightedIndex = -1;
   let suppressClickUntil = 0;
   let dragState = null;
+
+  const redraw = (highlight = highlightedIndex) => {
+    model = drawBiWidgetChart(
+      canvas,
+      chartType,
+      labels,
+      values,
+      highlight,
+      colors,
+      settings,
+      widget?.labelOffsets,
+      widget?.polarLayout,
+      snapshot.rows,
+      widget?.chartConfig,
+      widget?.labelLayoutV2,
+      widget?.chartTypeConfig
+    );
+  };
 
   const hideTooltip = () => {
     if (dragState) {
@@ -9154,17 +11547,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     tooltip.classList.add("hidden");
     if (highlightedIndex !== -1) {
       highlightedIndex = -1;
-      model = drawBiWidgetChart(
-        canvas,
-        chartType,
-        labels,
-        values,
-        -1,
-        colors,
-        settings,
-        widget?.labelOffsets,
-        widget?.polarLayout
-      );
+      redraw(-1);
     }
   };
 
@@ -9178,7 +11561,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
       return;
     }
     let cursor = "default";
-    if (canDragLabels) {
+    if (canDragLabels()) {
       const labelHover = resolveBiLabelDragIndex(model, x, y);
       if (labelHover >= 0) {
         cursor = "grab";
@@ -9196,22 +11579,10 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
       hideTooltip();
       return;
     }
-
     if (index !== highlightedIndex) {
       highlightedIndex = index;
-      model = drawBiWidgetChart(
-        canvas,
-        chartType,
-        labels,
-        values,
-        highlightedIndex,
-        colors,
-        settings,
-        widget?.labelOffsets,
-        widget?.polarLayout
-      );
+      redraw(highlightedIndex);
     }
-
     const row = snapshot.rows[index];
     const renderedValue = Number.isFinite(renderedValues[index]) ? renderedValues[index] : row.value;
     const valueDisplay = formatBiVisualNumber(renderedValue, visual, {
@@ -9237,25 +11608,44 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     tooltip.style.top = `${y}px`;
     tooltip.classList.remove("hidden");
   });
+
   canvas.addEventListener("pointerdown", (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    if (canDragLabels) {
+    if (canDragLabels()) {
       const labelIndex = resolveBiLabelDragIndex(model, x, y);
       if (labelIndex >= 0 && labelIndex < snapshot.rows.length) {
         event.preventDefault();
+        const labelItem = Array.isArray(model?.labelItems)
+          ? (model.labelItems.find((entry) => entry?.index === labelIndex) || null)
+          : null;
+        const rowKey = trimOrFallback(snapshot.rows[labelIndex]?.rowKey || labelItem?.rowKey, "");
+        const rowLabel = trimOrFallback(snapshot.rows[labelIndex]?.label || labelItem?.rowLabel || labels[labelIndex] || "", "");
         const safeOffsets = normalizeBiLabelOffsets(widget.labelOffsets);
-        const current = safeOffsets[String(labelIndex)] || { x: 0, y: 0 };
+        const currentLegacy = safeOffsets[String(labelIndex)] || { x: 0, y: 0 };
+        const currentPlacement = getBiLabelPlacement(widget, rowKey, rowLabel);
+        const plotWidth = Math.max(1, Number.isFinite(labelItem?.plotWidth) ? labelItem.plotWidth : 1);
+        const plotHeight = Math.max(1, Number.isFinite(labelItem?.plotHeight) ? labelItem.plotHeight : 1);
         dragState = {
           type: "label",
           pointerId: event.pointerId,
           index: labelIndex,
+          rowKey,
+          rowLabel,
+          plotWidth,
+          plotHeight,
           startX: x,
           startY: y,
-          startOffsetX: Number.isFinite(current.x) ? current.x : 0,
-          startOffsetY: Number.isFinite(current.y) ? current.y : 0,
+          startOffsetX: Number.isFinite(currentLegacy.x) ? currentLegacy.x : 0,
+          startOffsetY: Number.isFinite(currentLegacy.y) ? currentLegacy.y : 0,
+          startDxPct: Number.isFinite(currentPlacement?.dxPct)
+            ? currentPlacement.dxPct
+            : ((Number.isFinite(currentLegacy.x) ? currentLegacy.x : 0) / plotWidth),
+          startDyPct: Number.isFinite(currentPlacement?.dyPct)
+            ? currentPlacement.dyPct
+            : ((Number.isFinite(currentLegacy.y) ? currentLegacy.y : 0) / plotHeight),
           moved: false
         };
         suppressClickUntil = Date.now() + 200;
@@ -9289,11 +11679,9 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     canvas.style.cursor = "grabbing";
     tooltip.classList.add("hidden");
   });
+
   canvas.addEventListener("pointerup", (event) => {
-    if (!dragState) {
-      return;
-    }
-    if (event.pointerId !== dragState.pointerId) {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
     }
     const moved = dragState.moved;
@@ -9314,6 +11702,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     }
     canvas.style.cursor = "default";
   });
+
   canvas.addEventListener("pointercancel", (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
@@ -9322,6 +11711,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     canvas.releasePointerCapture?.(event.pointerId);
     canvas.style.cursor = "default";
   });
+
   canvas.addEventListener("pointermove", (event) => {
     if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
@@ -9338,17 +11728,18 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
         y: Math.max(-220, Math.min(220, Math.round(nextY)))
       };
       widget.labelOffsets = safeOffsets;
-      model = drawBiWidgetChart(
-        canvas,
-        chartType,
-        labels,
-        values,
-        dragState.index,
-        colors,
-        settings,
-        widget.labelOffsets,
-        widget?.polarLayout
-      );
+      if (dragState.rowKey || dragState.rowLabel) {
+        const dxPct = Math.max(-1.5, Math.min(1.5, dragState.startDxPct + ((x - dragState.startX) / Math.max(1, dragState.plotWidth))));
+        const dyPct = Math.max(-1.5, Math.min(1.5, dragState.startDyPct + ((y - dragState.startY) / Math.max(1, dragState.plotHeight))));
+        upsertBiLabelPlacement(widget, dragState.rowKey, {
+          anchorXPct: 0.5,
+          anchorYPct: 0.5,
+          dxPct,
+          dyPct,
+          scope: "plot"
+        }, dragState.rowLabel || labels[dragState.index] || "");
+      }
+      redraw(dragState.index);
       highlightedIndex = dragState.index;
     } else {
       const safeLayout = normalizeBiCircularLayout(widget.polarLayout);
@@ -9364,22 +11755,13 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
         };
       }
       widget.polarLayout = safeLayout;
-      model = drawBiWidgetChart(
-        canvas,
-        chartType,
-        labels,
-        values,
-        highlightedIndex,
-        colors,
-        settings,
-        widget?.labelOffsets,
-        widget.polarLayout
-      );
+      redraw(highlightedIndex);
     }
     tooltip.classList.add("hidden");
     canvas.style.cursor = "grabbing";
     dragState.moved = Math.abs(x - dragState.startX) > 1 || Math.abs(y - dragState.startY) > 1;
   });
+
   canvas.addEventListener("click", (event) => {
     if (Date.now() < suppressClickUntil) {
       return;
@@ -9402,22 +11784,26 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
     return;
   }
   const chartType = normalizeBiChartType(widget.chartType || "bar");
+  const typeConfig = getBiSpecificChartConfigForWidget(widget, chartType);
   if (chartType === "table") {
     const groupLabel = getBiGroupLabel(snapshot.groupBy, project);
     const metricLabel = getBiMetricLabel(snapshot.metric);
-    const rows = snapshot.rows.slice(0, BI_WIDGET_TABLE_LIMIT);
+    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
+    const rows = snapshot.rows.slice(0, rowLimit);
+    const showIndex = normalizeBiToggle(typeConfig.showIndex, true);
+    const compactClass = normalizeBiToggle(typeConfig.compact, false) ? " compact" : "";
     const body = rows.length === 0
       ? `<tr><td colspan="3" class="muted">Sin datos.</td></tr>`
-      : rows.map((row, index) => `<tr data-bi-row-index="${index}">
-          <td>${index + 1}</td>
+      : rows.map((row, index) => `<tr data-bi-row-index="${index}" data-bi-label="${escapeAttribute(row.label)}">
+          <td>${showIndex ? (index + 1) : ""}</td>
           <td>${escapeHtml(row.label)}</td>
           <td>${escapeHtml(row.valueText)}</td>
         </tr>`).join("");
-    target.innerHTML = `<div class="bi-widget-table-view">
+    target.innerHTML = `<div class="bi-widget-table-view${compactClass}">
       <table>
         <thead>
           <tr>
-            <th>#</th>
+            <th>${showIndex ? "#" : ""}</th>
             <th>${escapeHtml(groupLabel)}</th>
             <th>${escapeHtml(metricLabel)}</th>
           </tr>
@@ -9430,33 +11816,254 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
 
   if (chartType === "scorecard") {
     const total = snapshot.rows.reduce((sum, row) => sum + (row.value || 0), 0);
+    const valueText = `${trimOrFallback(typeConfig.prefix, "")}${formatBiMetricValue(snapshot.metric, total)}${trimOrFallback(typeConfig.suffix, "")}`;
+    const showSource = normalizeBiToggle(typeConfig.showSource, true);
+    const showGroups = normalizeBiToggle(typeConfig.showGroups, true);
+    const subTokens = [];
+    if (showSource) {
+      subTokens.push(`Fuente: ${getBiSourceLabel(snapshot.source)}`);
+    }
+    if (showGroups) {
+      subTokens.push(`grupos: ${snapshot.groupCount}`);
+    }
     target.innerHTML = `<div class="bi-scorecard-view" data-bi-row-index="0">
-      <div class="bi-scorecard-value">${escapeHtml(formatBiMetricValue(snapshot.metric, total))}</div>
+      <div class="bi-scorecard-value">${escapeHtml(valueText)}</div>
       <div class="bi-scorecard-label">${escapeHtml(getBiMetricLabel(snapshot.metric))}</div>
-      <div class="bi-scorecard-sub">${escapeHtml(`Fuente: ${getBiSourceLabel(snapshot.source)} | grupos: ${snapshot.groupCount}`)}</div>
+      <div class="bi-scorecard-sub">${escapeHtml(subTokens.join(" | "))}</div>
     </div>`;
+    return;
+  }
+
+  if (chartType === "pivot") {
+    const rowLabel = getBiGroupLabel(snapshot.pivot?.rowDimension || snapshot.groupBy, project);
+    const colLabels = Array.isArray(snapshot.pivot?.columns) ? snapshot.pivot.columns : [];
+    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
+    const showTotals = normalizeBiToggle(typeConfig.showTotals, true);
+    const compactClass = normalizeBiToggle(typeConfig.compact, false) ? " compact" : "";
+    const rows = (Array.isArray(snapshot.pivot?.rows) ? snapshot.pivot.rows : []).slice(0, rowLimit);
+    const headerCols = colLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join("");
+    const body = rows.length === 0
+      ? `<tr><td colspan="${2 + colLabels.length}" class="muted">Sin datos.</td></tr>`
+      : rows.map((row, rowIndex) => {
+        const cells = (row.cells || []).map((cell) => `<td>${escapeHtml(formatBiMetricValue(snapshot.metric, cell.value || 0))}</td>`).join("");
+        const totalCell = showTotals ? `<td><strong>${escapeHtml(formatBiMetricValue(snapshot.metric, row.total || 0))}</strong></td>` : "";
+        return `<tr data-bi-row-index="${rowIndex}" data-bi-label="${escapeAttribute(row.label)}">
+          <td>${rowIndex + 1}</td>
+          <td>${escapeHtml(row.label)}</td>
+          ${cells}
+          ${totalCell}
+        </tr>`;
+      }).join("");
+    target.innerHTML = `<div class="bi-widget-table-view${compactClass}">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${escapeHtml(rowLabel)}</th>
+            ${headerCols}
+            ${showTotals ? "<th>Total</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+    return;
+  }
+
+  if (chartType === "sankey") {
+    const maxLinks = sanitizeBiInteger(typeConfig.maxLinks, 12, 1, 200);
+    const minLinkPercent = sanitizeBiDecimal(typeConfig.minLinkPercent, 2, 0, 50);
+    const showValues = normalizeBiToggle(typeConfig.showValues, true);
+    const links = (Array.isArray(snapshot.sankey?.links) ? snapshot.sankey.links : []).slice(0, maxLinks);
+    const maxValue = links.length > 0 ? Math.max(...links.map((item) => Number(item.value) || 0), 1) : 1;
+    const body = links.length === 0
+      ? `<div class="bi-empty">Sin flujos para mostrar.</div>`
+      : links.map((link, index) => {
+        const ratio = Math.max(minLinkPercent / 100, Math.min(1, (Number(link.value) || 0) / maxValue));
+        return `<div class="bi-sankey-row" data-bi-row-index="${index}" data-bi-label="${escapeAttribute(link.from)}">
+          <div class="bi-sankey-labels">
+            <span>${escapeHtml(link.from)}</span>
+            <span class="muted">-></span>
+            <span>${escapeHtml(link.to)}</span>
+          </div>
+          <div class="bi-sankey-bar">
+            <div class="bi-sankey-bar-fill" style="width:${Math.round(ratio * 100)}%"></div>
+          </div>
+          ${showValues ? `<strong>${escapeHtml(formatBiMetricValue(snapshot.metric, link.value || 0))}</strong>` : ""}
+        </div>`;
+      }).join("");
+    target.innerHTML = `<div class="bi-sankey-view">${body}</div>`;
+    return;
+  }
+
+  if (chartType === "timeline") {
+    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, 20, 1, 200);
+    const showDates = normalizeBiToggle(typeConfig.showDates, true);
+    const minBarPercent = sanitizeBiDecimal(typeConfig.minBarPercent, 1, 0.2, 50);
+    const items = (Array.isArray(snapshot.timeline?.items) ? snapshot.timeline.items : []).slice(0, rowLimit);
+    const minDay = Number.isFinite(snapshot.timeline?.minDay) ? snapshot.timeline.minDay : 0;
+    const maxDay = Number.isFinite(snapshot.timeline?.maxDay) ? snapshot.timeline.maxDay : (minDay + 1);
+    const daySpan = Math.max(1, maxDay - minDay + 1);
+    const body = items.length === 0
+      ? `<div class="bi-empty">Sin rango de fechas para el cronograma.</div>`
+      : items.map((item, index) => {
+        const leftPct = Math.max(0, Math.min(100, ((item.startDay - minDay) / daySpan) * 100));
+        const widthPct = Math.max(minBarPercent, Math.min(100, (((item.endDay - item.startDay + 1) / daySpan) * 100)));
+        return `<div class="bi-timeline-row" data-bi-row-index="${index}" data-bi-label="${escapeAttribute(item.label)}">
+          <div class="bi-timeline-meta">
+            <strong>${escapeHtml(item.label)}</strong>
+            ${showDates ? `<span class="muted">${escapeHtml(formatDateFromInput(item.startDate))} - ${escapeHtml(formatDateFromInput(item.endDate))}</span>` : ""}
+          </div>
+          <div class="bi-timeline-track">
+            <div class="bi-timeline-bar" style="left:${leftPct}%;width:${widthPct}%"></div>
+          </div>
+        </div>`;
+      }).join("");
+    target.innerHTML = `<div class="bi-timeline-view">${body}</div>`;
     return;
   }
 
   target.innerHTML = "";
 }
 
+function normalizeBiDateDimension(value) {
+  const token = trimOrFallback(value, "").toLowerCase();
+  if (token === "enddate" || token === "fin" || token === "fechafin") {
+    return "endDate";
+  }
+  if (token === "createdat" || token === "creado") {
+    return "createdAt";
+  }
+  return "startDate";
+}
+
+function getBiRowMetricValue(row, metric) {
+  const safeMetric = normalizeBiMetric(metric || "count");
+  if (safeMetric === "count") {
+    return 1;
+  }
+  if (safeMetric === "baseunits") {
+    return Number.isFinite(row?.baseUnits) ? row.baseUnits : 0;
+  }
+  if (safeMetric === "baseavg" || safeMetric === "basemax" || safeMetric === "basemin") {
+    return Number.isFinite(row?.baseUnits) ? row.baseUnits : 0;
+  }
+  if (safeMetric === "realavg" || safeMetric === "realmax" || safeMetric === "realmin") {
+    return Number.isFinite(row?.realProgress) ? row.realProgress : 0;
+  }
+  if (safeMetric === "programmedavg" || safeMetric === "programmedmax" || safeMetric === "programmedmin") {
+    return Number.isFinite(row?.programmedPercent) ? row.programmedPercent : 0;
+  }
+  if (safeMetric === "weightedreal") {
+    return Number.isFinite(row?.weightedReal) ? row.weightedReal : 0;
+  }
+  if (safeMetric === "weightedprogrammed") {
+    return Number.isFinite(row?.weightedProgrammed) ? row.weightedProgrammed : 0;
+  }
+  if (safeMetric === "weightedgap") {
+    const real = Number.isFinite(row?.weightedReal) ? row.weightedReal : 0;
+    const programmed = Number.isFinite(row?.weightedProgrammed) ? row.weightedProgrammed : 0;
+    return real - programmed;
+  }
+  if (safeMetric === "invaliddates") {
+    return row?.invalidDates ? 1 : 0;
+  }
+  return 0;
+}
+
+function computeBiQuantile(values, q) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return 0;
+  }
+  const safe = values
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item))
+    .sort((a, b) => a - b);
+  if (safe.length === 0) {
+    return 0;
+  }
+  const pos = (safe.length - 1) * Math.max(0, Math.min(1, q));
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (safe[base + 1] === undefined) {
+    return safe[base];
+  }
+  return safe[base] + rest * (safe[base + 1] - safe[base]);
+}
+
+function sortBiGroupedRows(grouped, sortMode) {
+  return grouped.sort((a, b) => {
+    if (sortMode === "label_asc") {
+      return a.label.localeCompare(b.label, "es");
+    }
+    if (sortMode === "label_desc") {
+      return b.label.localeCompare(a.label, "es");
+    }
+    if (sortMode === "value_asc") {
+      if (a.value !== b.value) {
+        return a.value - b.value;
+      }
+      return a.label.localeCompare(b.label, "es");
+    }
+    if (b.value !== a.value) {
+      return b.value - a.value;
+    }
+    return a.label.localeCompare(b.label, "es");
+  });
+}
+
 function buildBiWidgetSnapshot(rows, widget) {
   const source = normalizeBiSource(widget?.source || "all");
-  const groupBy = normalizeBiGroupBy(widget?.groupBy || "disciplina");
-  const metric = normalizeBiMetric(widget?.metric || "count");
   const chartType = normalizeBiChartType(widget?.chartType || "bar");
   const sortMode = normalizeBiSortMode(widget?.sortMode || "value_desc");
   const topN = sanitizeBiTopN(widget?.topN ?? 10);
+  const dataRoles = normalizeBiDataRoles(widget?.dataRoles, widget);
+  const groupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || widget?.groupBy || "disciplina");
+  const metric = normalizeBiMetric(dataRoles.metrics?.[0] || widget?.metric || "count");
+  const optionalMetric = normalizeBiMetric(dataRoles.optionalMetrics?.[0] || "baseunits");
+  const breakdownDimension = normalizeBiGroupBy(dataRoles.breakdownDimension || "fuente");
+  const dateDimension = normalizeBiDateDimension(dataRoles.dateDimension || "startDate");
   const sourceRows = source === "all"
     ? rows.slice()
     : rows.filter((row) => row.source === source);
-  const grouped = buildBiGroupedRows(sourceRows, groupBy)
+  const groupedRaw = buildBiGroupedRows(sourceRows, groupBy);
+  const rowsByGroupLabel = new Map();
+  sourceRows.forEach((row) => {
+    const label = getBiRowGroupValue(row, groupBy);
+    if (!rowsByGroupLabel.has(label)) {
+      rowsByGroupLabel.set(label, []);
+    }
+    rowsByGroupLabel.get(label).push(row);
+  });
+
+  const grouped = groupedRaw
     .map((group) => {
       const value = getBiMetricValue(group, metric);
       const safeValue = Number.isFinite(value) ? value : 0;
+      const sourceGroupRows = rowsByGroupLabel.get(group.label) || [];
+      const sourceGroupMetricValues = sourceGroupRows
+        .map((row) => getBiRowMetricValue(row, metric))
+        .filter((item) => Number.isFinite(item));
+      const optionalValue = getBiMetricValue(group, optionalMetric);
+      const xValue = Number.isFinite(optionalValue) ? optionalValue : group.count;
+      const q1 = computeBiQuantile(sourceGroupMetricValues, 0.25);
+      const median = computeBiQuantile(sourceGroupMetricValues, 0.5);
+      const q3 = computeBiQuantile(sourceGroupMetricValues, 0.75);
+      const min = sourceGroupMetricValues.length > 0 ? Math.min(...sourceGroupMetricValues) : 0;
+      const max = sourceGroupMetricValues.length > 0 ? Math.max(...sourceGroupMetricValues) : 0;
+      const orderedByDate = sourceGroupRows
+        .slice()
+        .sort((left, right) => {
+          const a = sanitizeDateInput(left?.[dateDimension] || left?.startDate || "");
+          const b = sanitizeDateInput(right?.[dateDimension] || right?.startDate || "");
+          return a.localeCompare(b);
+        });
+      const open = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[0], metric) : safeValue;
+      const close = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[orderedByDate.length - 1], metric) : safeValue;
+      const rowKey = buildBiRowKey(source, groupBy, group.label);
       return {
         label: group.label,
+        rowKey,
         value: safeValue,
         valueText: formatBiMetricValue(metric, safeValue),
         count: group.count,
@@ -9465,28 +12072,105 @@ function buildBiWidgetSnapshot(rows, widget) {
         programmedAvg: group.programmedAvg,
         weightedReal: group.weightedReal,
         weightedProgrammed: group.weightedProgrammed,
-        invalidDates: group.invalidDates
+        invalidDates: group.invalidDates,
+        xValue,
+        bubbleSize: Math.max(6, Math.min(36, Math.round((group.baseUnits || group.count || 1) * 0.4))),
+        box: { min, q1, median, q3, max },
+        candle: { open, high: max, low: min, close }
+      };
+    });
+  sortBiGroupedRows(grouped, sortMode);
+  const trimmed = grouped.slice(0, topN);
+
+  const pivotColumnsSet = new Set();
+  const pivotMap = new Map();
+  sourceRows.forEach((row) => {
+    const rowLabel = getBiRowGroupValue(row, groupBy);
+    const colLabel = getBiRowGroupValue(row, breakdownDimension);
+    const cellValue = getBiRowMetricValue(row, metric);
+    pivotColumnsSet.add(colLabel);
+    if (!pivotMap.has(rowLabel)) {
+      pivotMap.set(rowLabel, new Map());
+    }
+    const rowBucket = pivotMap.get(rowLabel);
+    rowBucket.set(colLabel, (rowBucket.get(colLabel) || 0) + cellValue);
+  });
+  const pivotColumns = Array.from(pivotColumnsSet.values()).sort((a, b) => a.localeCompare(b, "es"));
+  const pivotRows = Array.from(pivotMap.entries()).map(([rowLabel, rowBucket]) => {
+    const cells = pivotColumns.map((columnLabel) => {
+      const value = rowBucket.get(columnLabel) || 0;
+      return {
+        key: buildBiRowKey(source, `${groupBy}_${breakdownDimension}`, `${rowLabel}|${columnLabel}`),
+        label: columnLabel,
+        value
+      };
+    });
+    const total = cells.reduce((sum, cell) => sum + (cell.value || 0), 0);
+    return {
+      rowKey: buildBiRowKey(source, groupBy, rowLabel),
+      label: rowLabel,
+      cells,
+      total
+    };
+  }).sort((a, b) => b.total - a.total).slice(0, topN);
+
+  const sankeyMap = new Map();
+  sourceRows.forEach((row) => {
+    const fromLabel = getBiRowGroupValue(row, groupBy);
+    const toLabel = getBiRowGroupValue(row, breakdownDimension);
+    const key = `${fromLabel}__${toLabel}`;
+    const value = getBiRowMetricValue(row, metric);
+    sankeyMap.set(key, (sankeyMap.get(key) || 0) + value);
+  });
+  const sankeyLinks = Array.from(sankeyMap.entries())
+    .map(([key, value]) => {
+      const [from, to] = key.split("__");
+      return {
+        rowKey: buildBiRowKey(source, `${groupBy}_${breakdownDimension}`, `${from}->${to}`),
+        from,
+        to,
+        value
       };
     })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, topN);
+
+  const timelineItems = sourceRows
+    .map((row, index) => {
+      const label = getBiRowGroupValue(row, groupBy);
+      const startDate = sanitizeDateInput(row?.[dateDimension] || row?.startDate || "");
+      const endDate = sanitizeDateInput(row?.endDate || row?.startDate || "");
+      if (!startDate || !endDate) {
+        return null;
+      }
+      const startDay = dateInputToDayIndex(startDate);
+      const endDay = dateInputToDayIndex(endDate);
+      if (!Number.isFinite(startDay) || !Number.isFinite(endDay)) {
+        return null;
+      }
+      const safeStartDay = Math.min(startDay, endDay);
+      const safeEndDay = Math.max(startDay, endDay);
+      return {
+        rowKey: buildBiRowKey(source, groupBy, `${label}_${startDate}_${endDate}_${index}`),
+        label,
+        startDate,
+        endDate,
+        startDay: safeStartDay,
+        endDay: safeEndDay,
+        value: getBiRowMetricValue(row, metric)
+      };
+    })
+    .filter((item) => !!item)
     .sort((a, b) => {
-      if (sortMode === "label_asc") {
-        return a.label.localeCompare(b.label, "es");
-      }
-      if (sortMode === "label_desc") {
-        return b.label.localeCompare(a.label, "es");
-      }
-      if (sortMode === "value_asc") {
-        if (a.value !== b.value) {
-          return a.value - b.value;
-        }
-        return a.label.localeCompare(b.label, "es");
-      }
-      if (b.value !== a.value) {
-        return b.value - a.value;
+      if (a.startDay !== b.startDay) {
+        return a.startDay - b.startDay;
       }
       return a.label.localeCompare(b.label, "es");
-    });
-  const trimmed = grouped.slice(0, topN);
+    })
+    .slice(0, topN);
+
+  const timelineMin = timelineItems.length > 0 ? Math.min(...timelineItems.map((item) => item.startDay)) : 0;
+  const timelineMax = timelineItems.length > 0 ? Math.max(...timelineItems.map((item) => item.endDay)) : 1;
 
   return {
     source,
@@ -9497,7 +12181,26 @@ function buildBiWidgetSnapshot(rows, widget) {
     topN,
     sourceRowsCount: sourceRows.length,
     groupCount: grouped.length,
-    rows: trimmed
+    dataRoles,
+    breakdownDimension,
+    dateDimension,
+    rows: trimmed,
+    pivot: {
+      rowDimension: groupBy,
+      colDimension: breakdownDimension,
+      columns: pivotColumns,
+      rows: pivotRows
+    },
+    sankey: {
+      fromDimension: groupBy,
+      toDimension: breakdownDimension,
+      links: sankeyLinks
+    },
+    timeline: {
+      items: timelineItems,
+      minDay: timelineMin,
+      maxDay: timelineMax
+    }
   };
 }
 
@@ -9522,23 +12225,37 @@ function renderBiTextWidgetContent(target, widget) {
   if (!(target instanceof HTMLElement) || !widget) {
     return;
   }
+  const textConfig = normalizeBiTextConfig(widget.textConfig);
   const text = typeof widget.textContent === "string"
     ? widget.textContent.slice(0, 4000)
     : "";
-  target.innerHTML = `<div class="bi-text-widget-box" data-bi-text-widget="${escapeAttribute(widget.id)}" data-placeholder="Escribe texto..." contenteditable="true" spellcheck="true">${escapeHtml(text)}</div>`;
+  const style = [
+    `font-family:${textConfig.fontFamily}`,
+    `font-size:${textConfig.fontSize}px`,
+    `font-weight:${textConfig.fontWeight}`,
+    `font-style:${textConfig.fontStyle}`,
+    `text-align:${textConfig.textAlign}`,
+    `line-height:${textConfig.lineHeight}`,
+    `color:${textConfig.color}`,
+    `padding:${textConfig.padding}px`
+  ].join(";");
+  target.innerHTML = `<div class="bi-text-widget-box" data-bi-text-widget="${escapeAttribute(widget.id)}" data-placeholder="Escribe texto..." contenteditable="true" spellcheck="true" style="${escapeAttribute(style)}">${escapeHtml(text)}</div>`;
 }
 
 function renderBiImageWidgetContent(target, widget) {
   if (!(target instanceof HTMLElement) || !widget) {
     return;
   }
+  const imageConfig = normalizeBiImageConfig(widget.imageConfig);
   const src = trimOrFallback(widget.imageSrc, "");
   const alt = trimOrFallback(widget.imageAlt || widget.name || "Imagen", "Imagen");
+  const frameStyle = `background:${imageConfig.background};border-radius:${imageConfig.borderRadius}px;border-color:${imageConfig.frameColor};`;
+  const imageStyle = `object-fit:${imageConfig.fit};opacity:${imageConfig.opacity};border-radius:${imageConfig.borderRadius}px;background:${imageConfig.background};`;
   const preview = src
-    ? `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" class="bi-image-widget-preview">`
+    ? `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(alt)}" class="bi-image-widget-preview" style="${escapeAttribute(imageStyle)}">`
     : `<div class="bi-image-widget-empty">Sin imagen</div>`;
   target.innerHTML = `<div class="bi-image-widget">
-    <div class="bi-image-widget-frame">${preview}</div>
+    <div class="bi-image-widget-frame" style="${escapeAttribute(frameStyle)}">${preview}</div>
     <div class="bi-image-widget-actions">
       <button type="button" class="secondary" data-bi-select-image="${escapeAttribute(widget.id)}">Subir</button>
       <input type="url" class="bi-image-widget-url" data-bi-image-url="${escapeAttribute(widget.id)}" placeholder="https://... o pega data URL" value="${escapeAttribute(src)}">
@@ -9551,6 +12268,9 @@ function renderBiWidgets(project, rows) {
   if (!project || !els.biWidgetsGrid) {
     return;
   }
+  const renderStartedAt = typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 
   const widgets = Array.isArray(project.biWidgets) ? project.biWidgets : [];
   const snapshots = {};
@@ -9563,15 +12283,35 @@ function renderBiWidgets(project, rows) {
   const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
   const surfaceWidth = canvasSize.width;
   const surfaceHeight = canvasSize.height;
+  const zoomPercent = sanitizeBiCanvasZoom(project?.biConfig?.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
+  const zoomScale = getBiCanvasZoomScale(project?.biConfig);
+  const scaledSurfaceWidth = Math.max(1, Math.round(surfaceWidth * zoomScale));
+  const scaledSurfaceHeight = Math.max(1, Math.round(surfaceHeight * zoomScale));
   const showCanvasGrid = normalizeBiToggle(project?.biConfig?.showCanvasGrid, false);
   const gridSize = sanitizeBiInteger(project?.biConfig?.gridSnapSize, 12, 4, 120);
   const canvasClass = showCanvasGrid ? "bi-canvas-surface show-grid" : "bi-canvas-surface";
   const canvasStyleSuffix = showCanvasGrid ? `;--bi-canvas-grid-size:${gridSize}px` : "";
+  const stageStyle = `--bi-canvas-zoom:${zoomScale};`;
+  const zoomWrapStyle = `width:${scaledSurfaceWidth}px;height:${scaledSurfaceHeight}px;`;
+  const surfaceStyle = `position:absolute;left:0;top:0;width:${surfaceWidth}px;height:${surfaceHeight}px;min-width:${surfaceWidth}px;min-height:${surfaceHeight}px;transform:scale(${zoomScale});transform-origin:top left;${canvasStyleSuffix}`;
 
   if (widgets.length === 0) {
-    els.biWidgetsGrid.innerHTML = `<div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" style="width:${surfaceWidth}px;height:${surfaceHeight}px;min-width:${surfaceWidth}px;min-height:${surfaceHeight}px${canvasStyleSuffix}">
-      <div class="bi-empty">Lienzo vacio. Configura Dimension/Metrica y usa "Agregar widget".</div>
+    els.biWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
+      <div class="bi-canvas-zoom-wrap" style="${escapeAttribute(zoomWrapStyle)}">
+        <div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" data-bi-canvas-zoom="${zoomPercent}" style="${escapeAttribute(surfaceStyle)}">
+          <div class="bi-empty">Lienzo vacio. Configura Dimension/Metrica y usa "Agregar widget".</div>
+        </div>
+      </div>
     </div>`;
+    const renderEndedAt = typeof performance !== "undefined" && typeof performance.now === "function"
+      ? performance.now()
+      : Date.now();
+    updateBiRuntimeStats(project.id, {
+      lastRenderMs: Math.max(0, renderEndedAt - renderStartedAt),
+      widgets: 0,
+      rows: Array.isArray(rows) ? rows.length : 0,
+      points: 0
+    });
     return;
   }
 
@@ -9579,7 +12319,12 @@ function renderBiWidgets(project, rows) {
     .map((widget, index) => {
       const normalizedWidget = normalizeBiWidget(widget, index);
       widget.layout = normalizeBiWidgetLayout(normalizedWidget.layout, index, normalizedWidget);
+      widget.kind = normalizedWidget.kind;
       widget.labelOffsets = normalizeBiLabelOffsets(normalizedWidget.labelOffsets);
+      widget.labelLayoutV2 = normalizeBiLabelLayoutV2(normalizedWidget.labelLayoutV2);
+      widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+      widget.textConfig = normalizeBiTextConfig(normalizedWidget.textConfig);
+      widget.imageConfig = normalizeBiImageConfig(normalizedWidget.imageConfig);
       widget.polarLayout = normalizeBiCircularLayout(normalizedWidget.polarLayout);
       widget.showTitle = normalizedWidget.showTitle !== false;
       widget.showBorder = normalizedWidget.showBorder !== false;
@@ -9600,7 +12345,7 @@ function renderBiWidgets(project, rows) {
       const chartCanvasId = `biWidgetCanvas_${normalizedWidget.id}`;
       const contentTargetId = `biWidgetContent_${normalizedWidget.id}`;
       const tooltipId = `biWidgetTooltip_${normalizedWidget.id}`;
-      const useCanvas = !!(snapshot && snapshot.chartType !== "table" && snapshot.chartType !== "scorecard");
+      const useCanvas = !!(snapshot && !BI_CUSTOM_CONTENT_TYPES.has(snapshot.chartType));
       const selectedClass = selectedBiWidgetId === normalizedWidget.id ? " selected" : "";
       const widgetKindClass = widgetKind === "text"
         ? " is-text-widget"
@@ -9646,11 +12391,20 @@ function renderBiWidgets(project, rows) {
     })
     .join("");
 
-  els.biWidgetsGrid.innerHTML = `<div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" style="width:${surfaceWidth}px;height:${surfaceHeight}px;min-height:${surfaceHeight}px;min-width:${surfaceWidth}px${canvasStyleSuffix}">${widgetsHtml}</div>`;
+  els.biWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
+    <div class="bi-canvas-zoom-wrap" style="${escapeAttribute(zoomWrapStyle)}">
+      <div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" data-bi-canvas-zoom="${zoomPercent}" style="${escapeAttribute(surfaceStyle)}">${widgetsHtml}</div>
+    </div>
+  </div>`;
 
   widgets.forEach((widget, index) => {
     const normalizedWidget = normalizeBiWidget(widget, index);
+    widget.kind = normalizedWidget.kind;
     widget.labelOffsets = normalizeBiLabelOffsets(normalizedWidget.labelOffsets);
+    widget.labelLayoutV2 = normalizeBiLabelLayoutV2(normalizedWidget.labelLayoutV2);
+    widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+    widget.textConfig = normalizeBiTextConfig(normalizedWidget.textConfig);
+    widget.imageConfig = normalizeBiImageConfig(normalizedWidget.imageConfig);
     widget.polarLayout = normalizeBiCircularLayout(normalizedWidget.polarLayout);
     widget.showTitle = normalizedWidget.showTitle !== false;
     widget.showBorder = normalizedWidget.showBorder !== false;
@@ -9679,7 +12433,7 @@ function renderBiWidgets(project, rows) {
     if (!snapshot) {
       return;
     }
-    if (snapshot.chartType === "table" || snapshot.chartType === "scorecard") {
+    if (BI_CUSTOM_CONTENT_TYPES.has(snapshot.chartType)) {
       renderBiWidgetCustomContent(contentTarget, snapshot, normalizedWidget, project);
       if (tooltip instanceof HTMLElement) {
         tooltip.classList.add("hidden");
@@ -9692,6 +12446,23 @@ function renderBiWidgets(project, rows) {
           }
           const rowNode = target.closest("[data-bi-row-index]");
           if (!(rowNode instanceof HTMLElement)) {
+            return;
+          }
+          const label = trimOrFallback(rowNode.dataset.biLabel || "", "");
+          if (label) {
+            const appendMode = !!(event && (event.ctrlKey || event.metaKey));
+            const changed = toggleBiCrossFilter(project, snapshot.groupBy, label, snapshot.source, appendMode);
+            if (changed) {
+              saveState();
+              renderBiPanel(project);
+              const hasFilter = normalizeBiCrossFilters(project.biConfig.crossFilters).length > 0;
+              if (hasFilter) {
+                const modeLabel = appendMode ? " (multi)" : "";
+                setStatus(`Filtro cruzado aplicado${modeLabel}: ${getBiGroupLabel(snapshot.groupBy, project)} = ${label}`);
+              } else {
+                setStatus("Filtro cruzado removido.");
+              }
+            }
             return;
           }
           const rowIndex = parseInt(rowNode.dataset.biRowIndex || "", 10);
@@ -9716,12 +12487,30 @@ function renderBiWidgets(project, rows) {
         seriesColors,
         effectiveVisual,
         normalizedWidget.labelOffsets,
-        normalizedWidget.polarLayout
+        normalizedWidget.polarLayout,
+        snapshot.rows,
+        normalizedWidget.chartConfig,
+        normalizedWidget.labelLayoutV2,
+        normalizedWidget.chartTypeConfig
       );
       bindBiCanvasHover(canvas, tooltip, snapshot, snapshot.chartType, (index, event) => {
         applyBiCrossFilterFromWidget(project, snapshot, index, event);
       }, hoverModel, seriesColors, effectiveVisual, widget);
     }
+  });
+
+  const pointCount = Object.values(snapshots).reduce((sum, snapshot) => {
+    const count = Array.isArray(snapshot?.rows) ? snapshot.rows.length : 0;
+    return sum + count;
+  }, 0);
+  const renderEndedAt = typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+  updateBiRuntimeStats(project.id, {
+    lastRenderMs: Math.max(0, renderEndedAt - renderStartedAt),
+    widgets: widgets.length,
+    rows: Array.isArray(rows) ? rows.length : 0,
+    points: pointCount
   });
 }
 
@@ -9773,6 +12562,10 @@ function duplicateBiWidget(project, widgetId) {
     id: uid(),
     name: buildBiDuplicateName(normalized.name, project.biWidgets.map((item) => item?.name)),
     labelOffsets: normalizeBiLabelOffsets(normalized.labelOffsets),
+    labelLayoutV2: normalizeBiLabelLayoutV2(normalized.labelLayoutV2),
+    chartTypeConfig: normalizeBiChartTypeConfigMap(normalized.chartTypeConfig),
+    textConfig: normalizeBiTextConfig(normalized.textConfig),
+    imageConfig: normalizeBiImageConfig(normalized.imageConfig),
     polarLayout: normalizeBiCircularLayout(normalized.polarLayout),
     visualOverride: normalized.visualOverride ? normalizeBiVisualSettings(normalized.visualOverride) : null,
     locked: false
@@ -9914,7 +12707,15 @@ function generateBiStarterDashboard(project) {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: template.groupBy, metric: template.metric, chartType: template.chartType }),
+      chartConfig: createDefaultBiChartConfig(template.chartType),
+      chartTypeConfig: {
+        [normalizeBiChartType(template.chartType)]: normalizeBiChartTypeSpecificConfig({}, template.chartType)
+      },
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length),
       visualOverride: null
@@ -9968,6 +12769,14 @@ function startBiWidgetInteraction(project, widget, widgetElement, mode, pointerE
   }
 
   const layout = normalizeBiWidgetLayout(widget.layout, 0, widget);
+  const zoomScale = Math.max(
+    0.25,
+    Math.min(2, sanitizeBiCanvasZoom(surface.dataset.biCanvasZoom, BI_CANVAS_ZOOM_DEFAULT) / 100)
+  );
+  const kindHint = widgetElement.classList.contains("is-text-widget")
+    ? "text"
+    : (widgetElement.classList.contains("is-image-widget") ? "image" : "chart");
+  widget.kind = normalizeBiWidgetKind(widget.kind || kindHint);
   const minSize = getBiWidgetMinSize(widget);
   widget.layout = layout;
   biCanvasInteraction = {
@@ -9980,6 +12789,7 @@ function startBiWidgetInteraction(project, widget, widgetElement, mode, pointerE
     layoutStart: { ...layout },
     layoutLive: { ...layout },
     minSize,
+    zoomScale,
     element: widgetElement,
     surface
   };
@@ -10015,8 +12825,8 @@ function snapBiWidgetLayout(layout, mode, gridSize, minSize) {
   if (!layout || !Number.isFinite(gridSize) || gridSize <= 1) {
     return layout;
   }
-  const minWidth = Math.max(BI_CANVAS_MIN_WIDTH, sanitizeBiInteger(minSize?.width, BI_CANVAS_MIN_WIDTH, BI_CANVAS_MIN_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH));
-  const minHeight = Math.max(BI_CANVAS_MIN_HEIGHT, sanitizeBiInteger(minSize?.height, BI_CANVAS_MIN_HEIGHT, BI_CANVAS_MIN_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT));
+  const minWidth = Math.max(80, sanitizeBiInteger(minSize?.width, 120, 80, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH));
+  const minHeight = Math.max(52, sanitizeBiInteger(minSize?.height, 64, 52, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT));
   const snapped = {
     ...layout,
     x: snapBiCoordinate(layout.x, gridSize),
@@ -10037,8 +12847,9 @@ function updateBiWidgetInteraction(pointerEvent) {
     return;
   }
 
-  const deltaX = pointerEvent.clientX - biCanvasInteraction.startX;
-  const deltaY = pointerEvent.clientY - biCanvasInteraction.startY;
+  const interactionScale = Math.max(0.25, Math.min(2, Number(biCanvasInteraction.zoomScale) || 1));
+  const deltaX = (pointerEvent.clientX - biCanvasInteraction.startX) / interactionScale;
+  const deltaY = (pointerEvent.clientY - biCanvasInteraction.startY) / interactionScale;
   const next = { ...biCanvasInteraction.layoutStart };
   if (biCanvasInteraction.mode === "drag") {
     next.x += deltaX;
@@ -10384,28 +13195,55 @@ function drawBiWidgetFallbackPreview(ctx, snapshot, width, height, drawBackgroun
   });
 }
 
-function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true) {
+function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true, typeConfig = null, chartType = "table") {
   if (!ctx) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const safeType = normalizeBiChartType(chartType || "table");
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, safeType === "pivot" ? "pivot" : "table");
+  const compact = normalizeBiToggle(specific.compact, false);
+  const rowLimit = sanitizeBiInteger(specific.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
+  const showIndex = safeType === "pivot"
+    ? true
+    : normalizeBiToggle(specific.showIndex, true);
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
   } else {
     ctx.clearRect(0, 0, width, height);
   }
-  const headerHeight = 24;
-  const rowHeight = 20;
+  const headerHeight = compact ? 20 : 24;
+  const rowHeight = compact ? 16 : 20;
   const left = 8;
   const top = 8;
   const tableWidth = Math.max(80, width - (left * 2));
   const tableHeight = Math.max(42, height - (top * 2));
-  const indexWidth = 36;
-  const valueWidth = Math.max(84, Math.floor(tableWidth * 0.34));
+  const indexWidth = showIndex ? 36 : 0;
+  const valueWidth = Math.max(84, Math.floor(tableWidth * 0.36));
   const labelWidth = Math.max(70, tableWidth - indexWidth - valueWidth);
-  const maxRows = Math.max(0, Math.floor((tableHeight - headerHeight) / rowHeight));
-  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows.slice(0, maxRows) : [];
+  const maxRowsByHeight = Math.max(0, Math.floor((tableHeight - headerHeight) / rowHeight));
+  const maxRows = Math.max(0, Math.min(rowLimit, maxRowsByHeight));
+  const metricLabel = getBiMetricLabel(snapshot?.metric || "baseunits");
+  let rows = Array.isArray(snapshot?.rows) ? snapshot.rows.slice(0, maxRows) : [];
+  let groupLabel = getBiGroupLabel(snapshot?.groupBy || "disciplina");
+  let valueHeader = metricLabel;
+  if (safeType === "pivot") {
+    const rowLabel = getBiGroupLabel(snapshot?.pivot?.rowDimension || snapshot?.groupBy || "disciplina");
+    const colLabels = Array.isArray(snapshot?.pivot?.columns) ? snapshot.pivot.columns : [];
+    const showTotals = normalizeBiToggle(specific.showTotals, true);
+    groupLabel = rowLabel;
+    valueHeader = showTotals ? "Total" : trimOrFallback(colLabels[0], metricLabel);
+    const pivotRows = Array.isArray(snapshot?.pivot?.rows) ? snapshot.pivot.rows : [];
+    rows = pivotRows.slice(0, maxRows).map((row) => {
+      const firstCellValue = Number(row?.cells?.[0]?.value) || 0;
+      const value = showTotals ? (Number(row?.total) || 0) : firstCellValue;
+      return {
+        label: trimOrFallback(row?.label, ""),
+        valueText: formatBiMetricValue(snapshot?.metric || "baseunits", value)
+      };
+    });
+  }
 
   ctx.strokeStyle = "#d3dce8";
   ctx.lineWidth = 1;
@@ -10414,8 +13252,10 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   ctx.fillRect(left + 1, top + 1, tableWidth - 2, headerHeight - 1);
   ctx.strokeStyle = "#d8e1ec";
   ctx.beginPath();
-  ctx.moveTo(left + indexWidth + 0.5, top);
-  ctx.lineTo(left + indexWidth + 0.5, top + tableHeight);
+  if (showIndex) {
+    ctx.moveTo(left + indexWidth + 0.5, top);
+    ctx.lineTo(left + indexWidth + 0.5, top + tableHeight);
+  }
   ctx.moveTo(left + indexWidth + labelWidth + 0.5, top);
   ctx.lineTo(left + indexWidth + labelWidth + 0.5, top + tableHeight);
   ctx.moveTo(left, top + headerHeight + 0.5);
@@ -10425,9 +13265,12 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(10, visual.fontSizeLabels) });
   ctx.fillStyle = "#21374f";
   ctx.textAlign = "left";
-  ctx.fillText("#", left + 8, top + 16);
-  ctx.fillText(truncateBiLabel(getBiGroupLabel(snapshot?.groupBy || "disciplina"), visual, 16), left + indexWidth + 6, top + 16);
-  ctx.fillText(truncateBiLabel(getBiMetricLabel(snapshot?.metric || "baseunits"), visual, 14), left + indexWidth + labelWidth + 6, top + 16);
+  const headerY = compact ? top + 14 : top + 16;
+  if (showIndex) {
+    ctx.fillText("#", left + 8, headerY);
+  }
+  ctx.fillText(truncateBiLabel(groupLabel, visual, 16), left + indexWidth + 6, headerY);
+  ctx.fillText(truncateBiLabel(valueHeader, visual, 14), left + indexWidth + labelWidth + 6, headerY);
 
   if (rows.length === 0) {
     applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(10, visual.fontSizeLabels) });
@@ -10445,18 +13288,22 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
     ctx.lineTo(left + tableWidth, y + rowHeight + 0.5);
     ctx.stroke();
     ctx.fillStyle = "#2b3f57";
-    ctx.fillText(String(index + 1), left + 8, y + 14);
-    ctx.fillText(truncateBiLabel(row.label, visual, 24), left + indexWidth + 6, y + 14);
+    const rowY = compact ? y + 12 : y + 14;
+    if (showIndex) {
+      ctx.fillText(String(index + 1), left + 8, rowY);
+    }
+    ctx.fillText(truncateBiLabel(row.label, visual, 24), left + indexWidth + 6, rowY);
     ctx.fillStyle = "#1d5b95";
-    ctx.fillText(trimOrFallback(row.valueText, "0"), left + indexWidth + labelWidth + 6, y + 14);
+    ctx.fillText(trimOrFallback(row.valueText, "0"), left + indexWidth + labelWidth + 6, rowY);
   });
 }
 
-function drawBiScorecardWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true) {
+function drawBiScorecardWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true, typeConfig = null) {
   if (!ctx) {
     return;
   }
   const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "scorecard");
   if (drawBackground) {
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, "#f6fbff");
@@ -10471,18 +13318,124 @@ function drawBiScorecardWidgetPreview(ctx, snapshot, width, height, settings, dr
   const total = Array.isArray(snapshot?.rows)
     ? snapshot.rows.reduce((sum, row) => sum + (Number.isFinite(row?.value) ? row.value : 0), 0)
     : 0;
+  const valueText = `${trimOrFallback(specific.prefix, "")}${formatBiMetricValue(snapshot?.metric || "count", total)}${trimOrFallback(specific.suffix, "")}`;
   const metricLabel = getBiMetricLabel(snapshot?.metric || "count");
-  const subLabel = `Fuente: ${getBiSourceLabel(snapshot?.source || "all")} | grupos: ${snapshot?.groupCount || 0}`;
+  const subTokens = [];
+  if (normalizeBiToggle(specific.showSource, true)) {
+    subTokens.push(`Fuente: ${getBiSourceLabel(snapshot?.source || "all")}`);
+  }
+  if (normalizeBiToggle(specific.showGroups, true)) {
+    subTokens.push(`grupos: ${snapshot?.groupCount || 0}`);
+  }
+  const subLabel = subTokens.join(" | ");
   ctx.textAlign = "center";
   ctx.fillStyle = "#20466e";
   applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 30 });
-  ctx.fillText(formatBiMetricValue(snapshot?.metric || "count", total), Math.floor(width / 2), Math.floor(height * 0.48));
+  ctx.fillText(valueText, Math.floor(width / 2), Math.floor(height * 0.48));
   ctx.fillStyle = "#2f4861";
   applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: 13 });
   ctx.fillText(metricLabel, Math.floor(width / 2), Math.floor(height * 0.64));
-  ctx.fillStyle = "#5f7389";
+  if (subLabel) {
+    ctx.fillStyle = "#5f7389";
+    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
+    ctx.fillText(truncateBiLabel(subLabel, visual, 44), Math.floor(width / 2), Math.floor(height * 0.75));
+  }
+}
+
+function drawBiSankeyWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true, typeConfig = null) {
+  if (!ctx) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "sankey");
+  if (drawBackground) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
+  const maxLinks = sanitizeBiInteger(specific.maxLinks, 12, 1, 200);
+  const minPercent = sanitizeBiDecimal(specific.minLinkPercent, 2, 0, 50);
+  const showValues = normalizeBiToggle(specific.showValues, true);
+  const links = Array.isArray(snapshot?.sankey?.links) ? snapshot.sankey.links.slice(0, maxLinks) : [];
+  if (links.length === 0) {
+    drawBiWidgetFallbackPreview(ctx, snapshot, width, height, false);
+    return;
+  }
+  const left = 10;
+  const top = 8;
+  const rowGap = 20;
+  const maxRowsByHeight = Math.max(1, Math.floor((height - 16) / rowGap));
+  const rows = links.slice(0, maxRowsByHeight);
+  const maxValue = Math.max(...rows.map((item) => Number(item.value) || 0), 1);
   applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
-  ctx.fillText(truncateBiLabel(subLabel, visual, 44), Math.floor(width / 2), Math.floor(height * 0.75));
+  rows.forEach((link, index) => {
+    const y = top + (index * rowGap);
+    const ratio = Math.max(minPercent / 100, Math.min(1, (Number(link.value) || 0) / maxValue));
+    const barX = left + 140;
+    const barY = y + 2;
+    const barWidth = Math.max(40, Math.floor((width - barX - 12) * ratio));
+    ctx.fillStyle = "#264f80";
+    ctx.fillText(`${trimOrFallback(link.from, "").slice(0, 12)} -> ${trimOrFallback(link.to, "").slice(0, 12)}`, left, y + 10);
+    ctx.fillStyle = "#dbe8f7";
+    ctx.fillRect(barX, barY, Math.max(24, width - barX - 12), 10);
+    ctx.fillStyle = "#3c79bf";
+    ctx.fillRect(barX, barY, barWidth, 10);
+    if (showValues) {
+      ctx.fillStyle = "#1f2f44";
+      ctx.fillText(formatBiMetricValue(snapshot?.metric || "baseunits", Number(link.value) || 0), barX + 4, y + 10);
+    }
+  });
+}
+
+function drawBiTimelineWidgetPreview(ctx, snapshot, width, height, settings, drawBackground = true, typeConfig = null) {
+  if (!ctx) {
+    return;
+  }
+  const visual = normalizeBiVisualSettings(settings);
+  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "timeline");
+  if (drawBackground) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
+  const rowLimit = sanitizeBiInteger(specific.rowLimit, 20, 1, 200);
+  const showDates = normalizeBiToggle(specific.showDates, true);
+  const minBarPercent = sanitizeBiDecimal(specific.minBarPercent, 1, 0.2, 50);
+  const items = Array.isArray(snapshot?.timeline?.items) ? snapshot.timeline.items.slice(0, rowLimit) : [];
+  if (items.length === 0) {
+    drawBiWidgetFallbackPreview(ctx, snapshot, width, height, false);
+    return;
+  }
+  const minDay = Number.isFinite(snapshot?.timeline?.minDay) ? snapshot.timeline.minDay : 0;
+  const maxDay = Number.isFinite(snapshot?.timeline?.maxDay) ? snapshot.timeline.maxDay : (minDay + 1);
+  const span = Math.max(1, maxDay - minDay + 1);
+  const left = 8;
+  const labelWidth = Math.max(70, Math.floor(width * 0.3));
+  const trackLeft = left + labelWidth + 8;
+  const trackWidth = Math.max(60, width - trackLeft - 10);
+  const rowHeight = 22;
+  const maxRowsByHeight = Math.max(1, Math.floor((height - 10) / rowHeight));
+  const rows = items.slice(0, maxRowsByHeight);
+  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
+  rows.forEach((item, index) => {
+    const y = 10 + (index * rowHeight);
+    const leftPct = Math.max(0, Math.min(100, ((item.startDay - minDay) / span) * 100));
+    const widthPct = Math.max(minBarPercent, Math.min(100, (((item.endDay - item.startDay + 1) / span) * 100)));
+    const barX = trackLeft + Math.round((leftPct / 100) * trackWidth);
+    const barWidth = Math.max(2, Math.round((widthPct / 100) * trackWidth));
+    ctx.fillStyle = "#264f80";
+    ctx.fillText(trimOrFallback(item.label, "").slice(0, 24), left, y + 10);
+    ctx.fillStyle = "#e4edf8";
+    ctx.fillRect(trackLeft, y + 2, trackWidth, 10);
+    ctx.fillStyle = "#5d8fcf";
+    ctx.fillRect(barX, y + 2, barWidth, 10);
+    if (showDates) {
+      ctx.fillStyle = "#62778e";
+      ctx.fillText(`${formatDateFromInput(item.startDate)} - ${formatDateFromInput(item.endDate)}`, left, y + 20);
+    }
+  });
 }
 
 function drawBiWrappedText(ctx, text, x, y, maxWidth, maxHeight, lineHeight) {
@@ -10529,6 +13482,7 @@ function drawBiTextWidgetPreview(ctx, widget, width, height, drawBackground = tr
   if (!ctx) {
     return;
   }
+  const textConfig = normalizeBiTextConfig(widget?.textConfig);
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
@@ -10542,9 +13496,24 @@ function drawBiTextWidgetPreview(ctx, widget, width, height, drawBackground = tr
     ctx.fillText("Sin texto", 14, 26);
     return;
   }
-  ctx.fillStyle = "#1f2f44";
-  ctx.font = "12px Segoe UI";
-  drawBiWrappedText(ctx, text, 12, 24, Math.max(20, width - 24), Math.max(24, height - 30), 17);
+  ctx.fillStyle = textConfig.color;
+  ctx.textAlign = textConfig.textAlign === "center" ? "center" : (textConfig.textAlign === "right" ? "right" : "left");
+  const safeFamily = textConfig.fontFamily.includes(" ") ? `'${textConfig.fontFamily}'` : textConfig.fontFamily;
+  ctx.font = `${textConfig.fontStyle} ${textConfig.fontWeight} ${Math.max(12, textConfig.fontSize)}px ${safeFamily}`;
+  const xBase = textConfig.textAlign === "center"
+    ? Math.floor(width / 2)
+    : (textConfig.textAlign === "right" ? Math.max(12, width - textConfig.padding - 2) : (12 + textConfig.padding));
+  const maxWidth = Math.max(20, width - ((textConfig.padding + 12) * 2));
+  drawBiWrappedText(
+    ctx,
+    text,
+    xBase,
+    24 + textConfig.padding,
+    maxWidth,
+    Math.max(24, height - 30 - (textConfig.padding * 2)),
+    Math.max(12, Math.round(textConfig.fontSize * textConfig.lineHeight))
+  );
+  ctx.textAlign = "left";
 }
 
 function loadBiImage(src) {
@@ -10565,10 +13534,11 @@ async function drawBiImageWidgetPreview(ctx, widget, width, height, drawBackgrou
   if (!ctx) {
     return false;
   }
+  const imageConfig = normalizeBiImageConfig(widget?.imageConfig);
   if (drawBackground) {
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = imageConfig.background;
     ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = "#d9e3ef";
+    ctx.strokeStyle = imageConfig.frameColor;
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
   } else {
     ctx.clearRect(0, 0, width, height);
@@ -10580,12 +13550,18 @@ async function drawBiImageWidgetPreview(ctx, widget, width, height, drawBackgrou
     ctx.fillText("Sin imagen", 14, 26);
     return false;
   }
-  const ratio = Math.min(width / image.width, height / image.height);
-  const drawWidth = Math.max(1, Math.round(image.width * ratio));
-  const drawHeight = Math.max(1, Math.round(image.height * ratio));
-  const offsetX = Math.round((width - drawWidth) / 2);
-  const offsetY = Math.round((height - drawHeight) / 2);
+  const fit = imageConfig.fit;
+  const ratioContain = Math.min(width / image.width, height / image.height);
+  const ratioCover = Math.max(width / image.width, height / image.height);
+  const ratio = fit === "cover" ? ratioCover : (fit === "fill" ? null : ratioContain);
+  const drawWidth = fit === "fill" ? width : Math.max(1, Math.round(image.width * ratio));
+  const drawHeight = fit === "fill" ? height : Math.max(1, Math.round(image.height * ratio));
+  const offsetX = fit === "fill" ? 0 : Math.round((width - drawWidth) / 2);
+  const offsetY = fit === "fill" ? 0 : Math.round((height - drawHeight) / 2);
+  ctx.save();
+  ctx.globalAlpha = imageConfig.opacity;
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+  ctx.restore();
   return true;
 }
 
@@ -10608,7 +13584,7 @@ async function exportBiWidgetPng(project, widgetId) {
   const width = Math.max(320, Math.round(widget.layout?.w || 360));
   const height = Math.max(220, Math.round(widget.layout?.h || 280));
   const canvas = document.createElement("canvas");
-  const exportScale = 2;
+  const exportScale = 3;
   canvas.width = width * exportScale;
   canvas.height = height * exportScale;
   const ctx = canvas.getContext("2d");
@@ -10617,6 +13593,8 @@ async function exportBiWidgetPng(project, widgetId) {
     return;
   }
   ctx.scale(exportScale, exportScale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   const showBackground = widget.showBackground !== false;
   if (showBackground) {
     ctx.fillStyle = "#ffffff";
@@ -10643,23 +13621,68 @@ async function exportBiWidgetPng(project, widgetId) {
   const chartTop = showTitle ? 46 : 10;
   const chartWidth = width - 24;
   const chartHeight = Math.max(40, height - chartTop - 10);
+  const renderWidth = Math.max(1, Math.round(chartWidth));
+  const renderHeight = Math.max(1, Math.round(chartHeight));
   const chartCanvas = document.createElement("canvas");
-  chartCanvas.width = chartWidth;
-  chartCanvas.height = chartHeight;
+  chartCanvas.width = Math.max(1, Math.round(renderWidth * exportScale));
+  chartCanvas.height = Math.max(1, Math.round(renderHeight * exportScale));
+  chartCanvas.dataset.biRenderWidth = String(renderWidth);
+  chartCanvas.dataset.biRenderHeight = String(renderHeight);
+  chartCanvas.dataset.biDpr = String(exportScale);
   const chartCtx = chartCanvas.getContext("2d");
   if (!chartCtx) {
     setStatus("No se pudo preparar el contenido del widget.");
     return;
   }
+  chartCtx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+  chartCtx.imageSmoothingEnabled = true;
+  chartCtx.imageSmoothingQuality = "high";
   const visual = getBiEffectiveVisualSettings(project, widget);
   if (widgetKind === "text") {
-    drawBiTextWidgetPreview(chartCtx, widget, chartWidth, chartHeight, showBackground);
+    drawBiTextWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
   } else if (widgetKind === "image") {
-    await drawBiImageWidgetPreview(chartCtx, widget, chartWidth, chartHeight, showBackground);
-  } else if (chartType === "table") {
-    drawBiTableWidgetPreview(chartCtx, snapshot, chartWidth, chartHeight, visual, showBackground);
+    await drawBiImageWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
+  } else if (chartType === "table" || chartType === "pivot") {
+    drawBiTableWidgetPreview(
+      chartCtx,
+      snapshot,
+      renderWidth,
+      renderHeight,
+      visual,
+      showBackground,
+      getBiSpecificChartConfigForWidget(widget, chartType),
+      chartType
+    );
   } else if (chartType === "scorecard") {
-    drawBiScorecardWidgetPreview(chartCtx, snapshot, chartWidth, chartHeight, visual, showBackground);
+    drawBiScorecardWidgetPreview(
+      chartCtx,
+      snapshot,
+      renderWidth,
+      renderHeight,
+      visual,
+      showBackground,
+      getBiSpecificChartConfigForWidget(widget, chartType)
+    );
+  } else if (chartType === "sankey") {
+    drawBiSankeyWidgetPreview(
+      chartCtx,
+      snapshot,
+      renderWidth,
+      renderHeight,
+      visual,
+      showBackground,
+      getBiSpecificChartConfigForWidget(widget, chartType)
+    );
+  } else if (chartType === "timeline") {
+    drawBiTimelineWidgetPreview(
+      chartCtx,
+      snapshot,
+      renderWidth,
+      renderHeight,
+      visual,
+      showBackground,
+      getBiSpecificChartConfigForWidget(widget, chartType)
+    );
   } else {
     if (snapshot && snapshot.rows.length > 0) {
       const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
@@ -10672,12 +13695,18 @@ async function exportBiWidgetPng(project, widgetId) {
         seriesColors,
         visual,
         widget.labelOffsets,
-        widget.polarLayout
+        widget.polarLayout,
+        snapshot.rows,
+        widget.chartConfig,
+        widget.labelLayoutV2,
+        widget.chartTypeConfig
       );
     } else {
-      drawBiWidgetFallbackPreview(chartCtx, snapshot, chartWidth, chartHeight, showBackground);
+      drawBiWidgetFallbackPreview(chartCtx, snapshot, renderWidth, renderHeight, showBackground);
     }
   }
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(chartCanvas, 12, chartTop, chartWidth, chartHeight);
   downloadDataUrl(buildBiExportFileName("dechini_bi_widget", project, "png"), canvas.toDataURL("image/png"));
   setStatus(`Widget PNG exportado: ${widget.name}.`);
@@ -10695,7 +13724,7 @@ async function exportBiBoardPng(project) {
   }
   const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
   const boardCanvas = document.createElement("canvas");
-  const exportScale = 2;
+  const exportScale = 3;
   boardCanvas.width = canvasSize.width * exportScale;
   boardCanvas.height = canvasSize.height * exportScale;
   const ctx = boardCanvas.getContext("2d");
@@ -10704,6 +13733,8 @@ async function exportBiBoardPng(project) {
     return;
   }
   ctx.scale(exportScale, exportScale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
@@ -10746,22 +13777,67 @@ async function exportBiBoardPng(project) {
     const chartTop = showTitle ? 38 : 8;
     const chartW = Math.max(120, w - 16);
     const chartH = Math.max(90, h - chartTop - 8);
+    const renderWidth = Math.max(1, Math.round(chartW));
+    const renderHeight = Math.max(1, Math.round(chartH));
     const chartCanvas = document.createElement("canvas");
-    chartCanvas.width = chartW;
-    chartCanvas.height = chartH;
+    chartCanvas.width = Math.max(1, Math.round(renderWidth * exportScale));
+    chartCanvas.height = Math.max(1, Math.round(renderHeight * exportScale));
+    chartCanvas.dataset.biRenderWidth = String(renderWidth);
+    chartCanvas.dataset.biRenderHeight = String(renderHeight);
+    chartCanvas.dataset.biDpr = String(exportScale);
     const chartCtx = chartCanvas.getContext("2d");
     if (!chartCtx) {
       continue;
     }
+    chartCtx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
+    chartCtx.imageSmoothingEnabled = true;
+    chartCtx.imageSmoothingQuality = "high";
     const visual = getBiEffectiveVisualSettings(project, widget);
     if (widgetKind === "text") {
-      drawBiTextWidgetPreview(chartCtx, widget, chartW, chartH, showBackground);
+      drawBiTextWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
     } else if (widgetKind === "image") {
-      await drawBiImageWidgetPreview(chartCtx, widget, chartW, chartH, showBackground);
-    } else if (chartType === "table") {
-      drawBiTableWidgetPreview(chartCtx, snapshot, chartW, chartH, visual, showBackground);
+      await drawBiImageWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
+    } else if (chartType === "table" || chartType === "pivot") {
+      drawBiTableWidgetPreview(
+        chartCtx,
+        snapshot,
+        renderWidth,
+        renderHeight,
+        visual,
+        showBackground,
+        getBiSpecificChartConfigForWidget(widget, chartType),
+        chartType
+      );
     } else if (chartType === "scorecard") {
-      drawBiScorecardWidgetPreview(chartCtx, snapshot, chartW, chartH, visual, showBackground);
+      drawBiScorecardWidgetPreview(
+        chartCtx,
+        snapshot,
+        renderWidth,
+        renderHeight,
+        visual,
+        showBackground,
+        getBiSpecificChartConfigForWidget(widget, chartType)
+      );
+    } else if (chartType === "sankey") {
+      drawBiSankeyWidgetPreview(
+        chartCtx,
+        snapshot,
+        renderWidth,
+        renderHeight,
+        visual,
+        showBackground,
+        getBiSpecificChartConfigForWidget(widget, chartType)
+      );
+    } else if (chartType === "timeline") {
+      drawBiTimelineWidgetPreview(
+        chartCtx,
+        snapshot,
+        renderWidth,
+        renderHeight,
+        visual,
+        showBackground,
+        getBiSpecificChartConfigForWidget(widget, chartType)
+      );
     } else if (snapshot && snapshot.rows.length > 0) {
       const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
       drawBiWidgetChart(
@@ -10773,11 +13849,17 @@ async function exportBiBoardPng(project) {
         seriesColors,
         visual,
         widget.labelOffsets,
-        widget.polarLayout
+        widget.polarLayout,
+        snapshot.rows,
+        widget.chartConfig,
+        widget.labelLayoutV2,
+        widget.chartTypeConfig
       );
     } else {
-      drawBiWidgetFallbackPreview(chartCtx, snapshot, chartW, chartH, showBackground);
+      drawBiWidgetFallbackPreview(chartCtx, snapshot, renderWidth, renderHeight, showBackground);
     }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(chartCanvas, x + 8, y + chartTop, chartW, chartH);
   }
   downloadDataUrl(buildBiExportFileName("dechini_bi_pizarra", project, "png"), boardCanvas.toDataURL("image/png"));
@@ -11237,7 +14319,10 @@ function getBiCommandDefinitions(project) {
     { id: "open_settings", label: "Panel Configuracion", keywords: "panel configuracion", run: () => applyBiRailMode("settings", { forceOpen: true }) },
     { id: "open_board", label: "Panel Pizarra", keywords: "panel pizarra", run: () => applyBiRailMode("board", { forceOpen: true }) },
     { id: "open_color", label: "Panel Colorimetria", keywords: "panel colorimetria", run: () => applyBiRailMode("colorimetry", { forceOpen: true }) },
-    { id: "open_filter", label: "Panel Filtro", keywords: "panel filtro", run: () => applyBiRailMode("filter", { forceOpen: true }) }
+    { id: "open_filter", label: "Panel Filtro", keywords: "panel filtro", run: () => applyBiRailMode("filter", { forceOpen: true }) },
+    { id: "open_performance", label: "Panel Rendimiento", keywords: "panel rendimiento performance", run: () => applyBiRailMode("performance", { forceOpen: true }) },
+    { id: "open_others", label: "Panel Otros", keywords: "panel otros resumen kpi", run: () => applyBiRailMode("others", { forceOpen: true }) },
+    { id: "optimize_now", label: "Optimizar rendimiento ahora", keywords: "optimizar rendimiento turbo", run: () => els.biOptimizeNowButton?.click() }
   ];
   if (project) {
     definitions.push({
@@ -11387,7 +14472,7 @@ function handleBiCommandPaletteKeydown(event) {
 }
 
 function normalizeBiRailMode(mode) {
-  if (mode === "properties" || mode === "filter" || mode === "board" || mode === "colorimetry" || mode === "settings") {
+  if (mode === "properties" || mode === "filter" || mode === "board" || mode === "colorimetry" || mode === "settings" || mode === "performance" || mode === "others") {
     return mode;
   }
   return "data";
@@ -11410,19 +14495,14 @@ function focusBiInspectorSection(mode) {
     section = els.biColorSection;
   } else if (normalizedMode === "settings") {
     section = els.biSettingsSection;
+  } else if (normalizedMode === "performance") {
+    section = els.biPerformanceSection;
   }
   if (!(section instanceof HTMLElement)) {
     return;
   }
   if (section.classList.contains("hidden")) {
     return;
-  }
-  const scroller = els.biStudioLeft?.querySelector(".bi-studio-body");
-  if (scroller instanceof HTMLElement && scroller.contains(section)) {
-    const sectionTop = Math.max(0, section.offsetTop - 12);
-    if (Math.abs(scroller.scrollTop - sectionTop) > 36) {
-      scroller.scrollTop = sectionTop;
-    }
   }
   section.classList.add("bi-focus");
   if (biFilterFocusTimer !== null) {
@@ -11438,6 +14518,11 @@ function refreshBiStudioPanelsUi() {
   if (els.biStudioShell) {
     els.biStudioShell.classList.toggle("bi-panel-data-open", !!biDataPanelOpen);
     els.biStudioShell.classList.toggle("bi-panel-props-open", !!biInspectorPanelOpen);
+    els.biStudioShell.classList.toggle("bi-panel-other-open", !!biOtherPanelOpen);
+  }
+
+  if (els.biStudioOtherPanel instanceof HTMLElement) {
+    els.biStudioOtherPanel.classList.toggle("hidden", !biOtherPanelOpen);
   }
 
   if (els.biRailButtons && els.biRailButtons.length) {
@@ -11446,27 +14531,70 @@ function refreshBiStudioPanelsUi() {
         return;
       }
       const buttonMode = normalizeBiRailMode(button.dataset.biRailMode || "data");
-      const active = buttonMode === "data"
-        ? !!biDataPanelOpen
-        : (!!biInspectorPanelOpen && biRailMode === buttonMode);
+      let active = false;
+      if (buttonMode === "data") {
+        active = !!biDataPanelOpen;
+      } else if (buttonMode === "others") {
+        active = !!biOtherPanelOpen;
+      } else {
+        active = !!biInspectorPanelOpen && biRailMode === buttonMode;
+      }
       button.classList.toggle("active", active);
     });
   }
+  updateBiWorkspaceInsets();
+}
+
+function updateBiWorkspaceInsets() {
+  const tabPanel = document.getElementById("tab-bi");
+  if (!(tabPanel instanceof HTMLElement)) {
+    return;
+  }
+  applyBiStudioPanelWidths();
+  if (!(els.biStudioShell instanceof HTMLElement) || activeTab !== "bi") {
+    tabPanel.style.setProperty("--bi-shell-reserve-right", "0px");
+    return;
+  }
+  const desktopMode = window.innerWidth > 1180;
+  if (!desktopMode) {
+    tabPanel.style.setProperty("--bi-shell-reserve-right", "0px");
+    return;
+  }
+  const shellRect = els.biStudioShell.getBoundingClientRect();
+  const reserve = Math.max(72, Math.round(shellRect.width + 12));
+  tabPanel.style.setProperty("--bi-shell-reserve-right", `${reserve}px`);
 }
 
 function updateBiStudioOverlayOffset() {
   if (!(els.biStudioShell instanceof HTMLElement)) {
     return;
   }
+  applyBiStudioPanelWidths();
   const tabPanel = document.getElementById("tab-bi");
   if (!(tabPanel instanceof HTMLElement)) {
     return;
   }
   const header = tabPanel.querySelector(".panel-header");
-  const topOffset = header instanceof HTMLElement
-    ? Math.max(56, Math.round(header.offsetHeight + 8))
-    : 82;
+  const contextBar = document.querySelector(".workspace-main .context-bar");
+  const panelRect = tabPanel.getBoundingClientRect();
+  const headerBottom = header instanceof HTMLElement
+    ? header.getBoundingClientRect().bottom
+    : panelRect.top + 82;
+  const contextBottom = contextBar instanceof HTMLElement
+    ? contextBar.getBoundingClientRect().bottom
+    : 0;
+  const topOffset = Math.max(56, Math.round(Math.max(headerBottom, contextBottom) + 8));
+  const rightOffset = Math.max(10, Math.round(window.innerWidth - panelRect.right + 10));
   els.biStudioShell.style.top = `${topOffset}px`;
+  els.biStudioShell.style.right = `${rightOffset}px`;
+
+  if (els.biStudioOtherPanel instanceof HTMLElement) {
+    const shellRect = els.biStudioShell.getBoundingClientRect();
+    const otherTop = Math.max(topOffset + 8, Math.round(shellRect.bottom + 10));
+    els.biStudioOtherPanel.style.top = `${otherTop}px`;
+    els.biStudioOtherPanel.style.right = `${rightOffset}px`;
+  }
+  updateBiWorkspaceInsets();
 }
 
 function applyBiRailMode(mode, options = {}) {
@@ -11477,6 +14605,7 @@ function applyBiRailMode(mode, options = {}) {
   if (normalizedMode === "data") {
     const wasDataMode = biRailMode === "data";
     biRailMode = "data";
+    biOtherPanelOpen = false;
     if (forceClose) {
       biDataPanelOpen = false;
     } else if (forceOpen) {
@@ -11486,9 +14615,28 @@ function applyBiRailMode(mode, options = {}) {
     } else {
       biDataPanelOpen = true;
     }
+    if (biDataPanelOpen) {
+      biInspectorPanelOpen = false;
+    }
+  } else if (normalizedMode === "others") {
+    const wasOthersMode = biRailMode === "others";
+    biRailMode = "others";
+    biDataPanelOpen = false;
+    biInspectorPanelOpen = false;
+    if (forceClose) {
+      biOtherPanelOpen = false;
+    } else if (forceOpen) {
+      biOtherPanelOpen = true;
+    } else if (wasOthersMode && biOtherPanelOpen) {
+      biOtherPanelOpen = false;
+    } else {
+      biOtherPanelOpen = true;
+    }
   } else {
     const wasSameInspectorMode = biRailMode === normalizedMode;
     biRailMode = normalizedMode;
+    biDataPanelOpen = false;
+    biOtherPanelOpen = false;
     if (forceClose) {
       biInspectorPanelOpen = false;
     } else if (forceOpen) {
@@ -11504,6 +14652,7 @@ function applyBiRailMode(mode, options = {}) {
   syncBiInspectorByWidgetType(activeProject, activeProject ? getBiSelectedWidget(activeProject) : null);
   refreshBiStudioPanelsUi();
   updateBiStudioOverlayOffset();
+  saveBiStudioUiPreferences();
 
   if (biInspectorPanelOpen && normalizedMode !== "data") {
     focusBiInspectorSection(normalizedMode);
@@ -11520,8 +14669,12 @@ function applyBiRailMode(mode, options = {}) {
     setStatus(biInspectorPanelOpen ? "Panel de colorimetria mostrado." : "Panel de colorimetria oculto.");
   } else if (normalizedMode === "settings") {
     setStatus(biInspectorPanelOpen ? "Panel de configuracion mostrado." : "Panel de configuracion oculto.");
+  } else if (normalizedMode === "performance") {
+    setStatus(biInspectorPanelOpen ? "Panel de rendimiento mostrado." : "Panel de rendimiento oculto.");
   } else if (normalizedMode === "filter") {
     setStatus(biInspectorPanelOpen ? "Panel de filtros mostrado." : "Panel de filtros oculto.");
+  } else if (normalizedMode === "others") {
+    setStatus(biOtherPanelOpen ? "Panel Otros mostrado." : "Panel Otros oculto.");
   } else {
     setStatus(biDataPanelOpen ? "Panel de datos mostrado." : "Panel de datos oculto.");
   }
@@ -11559,6 +14712,8 @@ function renderTabState() {
     button.classList.toggle("active", isActive);
   });
 
+  document.body.classList.add("bi-hide-context");
+
   if (els.currentViewLabel) {
     if (activeTab === "fields") {
       els.currentViewLabel.textContent = "LISTAS";
@@ -11592,7 +14747,9 @@ function renderTabState() {
   }
 
   updateMidpEditUi();
+  updateFieldsEditUi();
   updatePackageEditUi();
+  updateReviewFlowEditUi();
   updateReviewControlsEditUi();
 }
 
@@ -11618,6 +14775,7 @@ function switchTab(tab) {
   if (activeTab !== "review-flow") {
     closeReviewMilestoneDrawer();
   }
+  renderTabState();
   if (activeTab === "packages") {
     renderPackageControlsPanel(getActiveProject());
   } else if (activeTab === "review-flow") {
@@ -11625,9 +14783,15 @@ function switchTab(tab) {
   } else if (activeTab === "review-controls") {
     renderReviewControlsPanel(getActiveProject());
   } else if (activeTab === "bi") {
-    renderBiPanel(getActiveProject());
+    if (biPendingRenderRafId) {
+      window.cancelAnimationFrame(biPendingRenderRafId);
+      biPendingRenderRafId = 0;
+    }
+    biPendingRenderRafId = window.requestAnimationFrame(() => {
+      biPendingRenderRafId = 0;
+      renderBiPanel(getActiveProject());
+    });
   }
-  renderTabState();
 }
 
 function updateMidpEditUi() {
@@ -11658,6 +14822,31 @@ function updateMidpEditUi() {
   }
 }
 
+function updateFieldsEditUi() {
+  if (!els.toggleFieldsEditButton) {
+    return;
+  }
+
+  els.toggleFieldsEditButton.textContent = fieldsEditMode ? "Bloquear edicion" : "Editar";
+  els.toggleFieldsEditButton.classList.toggle("active", fieldsEditMode);
+
+  if (els.projectTitleInput) {
+    els.projectTitleInput.disabled = !fieldsEditMode;
+  }
+  if (els.fieldSeparatorInput) {
+    els.fieldSeparatorInput.disabled = !fieldsEditMode;
+  }
+  if (els.progressControlModeSelect) {
+    els.progressControlModeSelect.disabled = !fieldsEditMode;
+  }
+  if (els.addFieldButton) {
+    els.addFieldButton.disabled = !fieldsEditMode;
+  }
+  if (els.addFieldRowButton) {
+    els.addFieldRowButton.disabled = !fieldsEditMode;
+  }
+}
+
 function updatePackageEditUi() {
   if (!els.togglePackageEditButton) {
     return;
@@ -11665,6 +14854,22 @@ function updatePackageEditUi() {
 
   els.togglePackageEditButton.textContent = packageEditMode ? "Bloquear edicion" : "Editar";
   els.togglePackageEditButton.classList.toggle("active", packageEditMode);
+}
+
+function updateReviewFlowEditUi() {
+  if (!els.toggleReviewFlowEditButton) {
+    return;
+  }
+
+  els.toggleReviewFlowEditButton.textContent = reviewFlowEditMode ? "Bloquear edicion" : "Editar";
+  els.toggleReviewFlowEditButton.classList.toggle("active", reviewFlowEditMode);
+
+  if (els.openAddReviewMilestoneButton) {
+    els.openAddReviewMilestoneButton.disabled = !reviewFlowEditMode;
+  }
+  if (els.addBlankReviewMilestoneButton) {
+    els.addBlankReviewMilestoneButton.disabled = !reviewFlowEditMode;
+  }
 }
 
 function updateReviewControlsEditUi() {
@@ -13210,6 +16415,14 @@ function normalizeBiUiMode(value) {
   return trimOrFallback(value, "").toLowerCase() === "advanced" ? "advanced" : "basic";
 }
 
+function normalizeBiPerformanceMode(value) {
+  const token = trimOrFallback(value, "").toLowerCase();
+  if (token === "quality" || token === "balanced" || token === "turbo") {
+    return token;
+  }
+  return "balanced";
+}
+
 function normalizeBiGroupBy(value) {
   const raw = trimOrFallback(value, "");
   if (/^field:/i.test(raw)) {
@@ -13272,23 +16485,7 @@ function normalizeBiSortMode(value) {
 
 function normalizeBiChartType(value) {
   const token = trimOrFallback(value, "").toLowerCase();
-  const allowed = new Set([
-    "bar",
-    "line",
-    "donut",
-    "area",
-    "combo",
-    "pie",
-    "treemap",
-    "funnel",
-    "gauge",
-    "table",
-    "scorecard",
-    "waterfall",
-    "radar",
-    "pareto"
-  ]);
-  if (allowed.has(token)) {
+  if (BI_CHART_TYPES.has(token)) {
     return token;
   }
   return "bar";
@@ -13319,6 +16516,400 @@ function getBiWidgetMinSize(kindOrWidget) {
   return { width: BI_CANVAS_MIN_WIDTH, height: BI_CANVAS_MIN_HEIGHT };
 }
 
+function biStableHash(value) {
+  const text = String(value || "");
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) + hash) + text.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function buildBiRowKey(source, groupBy, label) {
+  const sourceToken = normalizeLookup(source || "all") || "all";
+  const groupToken = normalizeLookup(groupBy || "group") || "group";
+  const labelToken = normalizeLookup(label || "") || "sin_dato";
+  return `${sourceToken}_${groupToken}_${labelToken}_${biStableHash(`${sourceToken}|${groupToken}|${label || ""}`)}`;
+}
+
+function buildBiDefaultDataRoles(widget) {
+  const groupBy = normalizeBiGroupBy(widget?.groupBy || "disciplina");
+  const metric = normalizeBiMetric(widget?.metric || "count");
+  const chartType = normalizeBiChartType(widget?.chartType || "bar");
+  const dateDimension = chartType === "timeseries" || chartType === "timeline"
+    ? (groupBy === "mes_fin" ? "endDate" : "startDate")
+    : null;
+  return {
+    dimensions: [groupBy],
+    metrics: [metric],
+    optionalMetrics: [],
+    breakdownDimension: chartType === "pivot" || chartType === "sankey" ? "fuente" : null,
+    dateDimension
+  };
+}
+
+function normalizeBiDataRoles(rawRoles, widget) {
+  const defaults = buildBiDefaultDataRoles(widget);
+  const source = rawRoles && typeof rawRoles === "object" && !Array.isArray(rawRoles)
+    ? rawRoles
+    : {};
+  const dimensions = Array.isArray(source.dimensions)
+    ? source.dimensions.map((item) => normalizeBiGroupBy(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    : [];
+  const metrics = Array.isArray(source.metrics)
+    ? source.metrics.map((item) => normalizeBiMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    : [];
+  const optionalMetrics = Array.isArray(source.optionalMetrics)
+    ? source.optionalMetrics.map((item) => normalizeBiMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    : [];
+  const breakdownDimension = trimOrFallback(source.breakdownDimension, "")
+    ? normalizeBiGroupBy(source.breakdownDimension)
+    : defaults.breakdownDimension;
+  const dateDimensionToken = trimOrFallback(source.dateDimension, "").toLowerCase();
+  const dateDimension = new Set(["startdate", "enddate", "createdat"]).has(dateDimensionToken)
+    ? (dateDimensionToken === "createdat" ? "createdAt" : (dateDimensionToken === "enddate" ? "endDate" : "startDate"))
+    : defaults.dateDimension;
+  return {
+    dimensions: dimensions.length > 0 ? dimensions : defaults.dimensions.slice(),
+    metrics: metrics.length > 0 ? metrics : defaults.metrics.slice(),
+    optionalMetrics,
+    breakdownDimension,
+    dateDimension
+  };
+}
+
+function createDefaultBiTextConfig() {
+  return {
+    fontFamily: "Segoe UI",
+    fontSize: 56,
+    fontWeight: 700,
+    fontStyle: "normal",
+    textAlign: "left",
+    lineHeight: 1.12,
+    color: "#1f2f44",
+    padding: 6
+  };
+}
+
+function normalizeBiTextConfig(rawConfig) {
+  const defaults = createDefaultBiTextConfig();
+  const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
+    ? rawConfig
+    : {};
+  const fontFamily = trimOrFallback(source.fontFamily, defaults.fontFamily);
+  const safeFamily = BI_ALLOWED_FONT_FAMILIES.has(fontFamily) ? fontFamily : defaults.fontFamily;
+  const styleToken = trimOrFallback(source.fontStyle, "").toLowerCase();
+  const alignToken = trimOrFallback(source.textAlign, "").toLowerCase();
+  return {
+    fontFamily: safeFamily,
+    fontSize: sanitizeBiInteger(source.fontSize, defaults.fontSize, 12, 180),
+    fontWeight: sanitizeBiInteger(source.fontWeight, defaults.fontWeight, 300, 900),
+    fontStyle: styleToken === "italic" ? "italic" : "normal",
+    textAlign: new Set(["left", "center", "right"]).has(alignToken) ? alignToken : defaults.textAlign,
+    lineHeight: sanitizeBiDecimal(source.lineHeight, defaults.lineHeight, 0.9, 2.4),
+    color: normalizeBiColorHex(source.color, defaults.color),
+    padding: sanitizeBiInteger(source.padding, defaults.padding, 0, 48)
+  };
+}
+
+function createDefaultBiImageConfig() {
+  return {
+    fit: "contain",
+    opacity: 1,
+    borderRadius: 8,
+    frameColor: "#ffffff",
+    background: "#ffffff"
+  };
+}
+
+function normalizeBiImageConfig(rawConfig) {
+  const defaults = createDefaultBiImageConfig();
+  const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
+    ? rawConfig
+    : {};
+  const fitToken = trimOrFallback(source.fit, "").toLowerCase();
+  return {
+    fit: new Set(["contain", "cover", "fill"]).has(fitToken) ? fitToken : defaults.fit,
+    opacity: sanitizeBiDecimal(source.opacity, defaults.opacity, 0.05, 1),
+    borderRadius: sanitizeBiInteger(source.borderRadius, defaults.borderRadius, 0, 40),
+    frameColor: normalizeBiColorHex(source.frameColor, defaults.frameColor),
+    background: normalizeBiColorHex(source.background, defaults.background)
+  };
+}
+
+function getBiChartTypeDefaultSpecificConfig(chartType) {
+  const type = normalizeBiChartType(chartType || "bar");
+  if (type === "pie") {
+    return { labelMinPercent: 4, startAngle: -90 };
+  }
+  if (type === "donut") {
+    return { labelMinPercent: 4, innerRadiusRatio: 0.58, centerTitle: "Total" };
+  }
+  if (type === "treemap") {
+    return { minTilePercent: 1, showValueText: true };
+  }
+  if (type === "funnel") {
+    return { sortMode: "desc", minSegmentPercent: 2 };
+  }
+  if (type === "gauge") {
+    return { minValue: 0, maxValue: 100, targetValue: 80 };
+  }
+  if (type === "table") {
+    return { rowLimit: BI_WIDGET_TABLE_LIMIT, showIndex: true, compact: false };
+  }
+  if (type === "pivot") {
+    return { rowLimit: BI_WIDGET_TABLE_LIMIT, showTotals: true, compact: false };
+  }
+  if (type === "scorecard") {
+    return { showSource: true, showGroups: true, prefix: "", suffix: "" };
+  }
+  if (type === "waterfall") {
+    return { showTotalBar: true, totalLabel: "Total" };
+  }
+  if (type === "scatter") {
+    return { pointAlpha: 1, minPointRadius: 7 };
+  }
+  if (type === "bubble") {
+    return { pointAlpha: 0.95, minBubbleRadius: 6, maxBubbleRadius: 40 };
+  }
+  if (type === "bullet") {
+    return { targetValue: 80, lowBand: 40, midBand: 70 };
+  }
+  if (type === "boxplot") {
+    return { showMedianValue: true, whiskerMultiplier: 1.5 };
+  }
+  if (type === "candlestick") {
+    return { upColor: "#25a368", downColor: "#d7565b", wickWidth: 1 };
+  }
+  if (type === "sankey") {
+    return { maxLinks: 12, minLinkPercent: 2, showValues: true };
+  }
+  if (type === "timeline") {
+    return { rowLimit: 20, showDates: true, minBarPercent: 1 };
+  }
+  if (type === "radar") {
+    return { maxScale: 100, showPointValues: true };
+  }
+  if (type === "pareto") {
+    return { targetPercent: 80, showCumulativeLine: true };
+  }
+  if (type === "line" || type === "timeseries" || type === "area" || type === "combo" || type === "bar") {
+    return { labelMinValue: 0 };
+  }
+  return {};
+}
+
+function normalizeBiChartTypeSpecificConfig(rawConfig, chartType) {
+  const defaults = getBiChartTypeDefaultSpecificConfig(chartType);
+  const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
+    ? rawConfig
+    : {};
+  const type = normalizeBiChartType(chartType || "bar");
+  const next = { ...defaults };
+  if (Object.prototype.hasOwnProperty.call(defaults, "labelMinPercent")) {
+    next.labelMinPercent = sanitizeBiDecimal(source.labelMinPercent, defaults.labelMinPercent, 0, 100);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "startAngle")) {
+    next.startAngle = sanitizeBiDecimal(source.startAngle, defaults.startAngle, -360, 360);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "innerRadiusRatio")) {
+    next.innerRadiusRatio = sanitizeBiDecimal(source.innerRadiusRatio, defaults.innerRadiusRatio, 0.35, 0.8);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "centerTitle")) {
+    next.centerTitle = trimOrFallback(source.centerTitle, defaults.centerTitle).slice(0, 20);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minTilePercent")) {
+    next.minTilePercent = sanitizeBiDecimal(source.minTilePercent, defaults.minTilePercent, 0, 25);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showValueText")) {
+    next.showValueText = normalizeBiToggle(source.showValueText, defaults.showValueText);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "sortMode")) {
+    const token = trimOrFallback(source.sortMode, defaults.sortMode).toLowerCase();
+    next.sortMode = token === "asc" ? "asc" : "desc";
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minSegmentPercent")) {
+    next.minSegmentPercent = sanitizeBiDecimal(source.minSegmentPercent, defaults.minSegmentPercent, 0, 60);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minValue")) {
+    next.minValue = sanitizeBiDecimal(source.minValue, defaults.minValue, -1000000, 1000000);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "maxValue")) {
+    const rawMax = sanitizeBiDecimal(source.maxValue, defaults.maxValue, -1000000, 1000000);
+    const minRef = Number(next.minValue || 0);
+    next.maxValue = rawMax < minRef ? minRef : rawMax;
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "targetValue")) {
+    next.targetValue = sanitizeBiDecimal(source.targetValue, defaults.targetValue, -1000000, 1000000);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "rowLimit")) {
+    next.rowLimit = sanitizeBiInteger(source.rowLimit, defaults.rowLimit, 1, 200);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showIndex")) {
+    next.showIndex = normalizeBiToggle(source.showIndex, defaults.showIndex);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "compact")) {
+    next.compact = normalizeBiToggle(source.compact, defaults.compact);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showTotals")) {
+    next.showTotals = normalizeBiToggle(source.showTotals, defaults.showTotals);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showSource")) {
+    next.showSource = normalizeBiToggle(source.showSource, defaults.showSource);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showGroups")) {
+    next.showGroups = normalizeBiToggle(source.showGroups, defaults.showGroups);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "prefix")) {
+    next.prefix = trimOrFallback(source.prefix, defaults.prefix).slice(0, 10);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "suffix")) {
+    next.suffix = trimOrFallback(source.suffix, defaults.suffix).slice(0, 10);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showTotalBar")) {
+    next.showTotalBar = normalizeBiToggle(source.showTotalBar, defaults.showTotalBar);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "totalLabel")) {
+    next.totalLabel = trimOrFallback(source.totalLabel, defaults.totalLabel).slice(0, 18);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "pointAlpha")) {
+    next.pointAlpha = sanitizeBiDecimal(source.pointAlpha, defaults.pointAlpha, 0.15, 1);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minPointRadius")) {
+    next.minPointRadius = sanitizeBiInteger(source.minPointRadius, defaults.minPointRadius, 3, 40);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minBubbleRadius")) {
+    next.minBubbleRadius = sanitizeBiInteger(source.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "maxBubbleRadius")) {
+    const minRef = sanitizeBiInteger(next.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
+    next.maxBubbleRadius = sanitizeBiInteger(source.maxBubbleRadius, defaults.maxBubbleRadius, minRef, 80);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "lowBand")) {
+    next.lowBand = sanitizeBiDecimal(source.lowBand, defaults.lowBand, 0, 100);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "midBand")) {
+    const minBand = Number(next.lowBand || 0);
+    next.midBand = sanitizeBiDecimal(source.midBand, defaults.midBand, minBand, 100);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showMedianValue")) {
+    next.showMedianValue = normalizeBiToggle(source.showMedianValue, defaults.showMedianValue);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "whiskerMultiplier")) {
+    next.whiskerMultiplier = sanitizeBiDecimal(source.whiskerMultiplier, defaults.whiskerMultiplier, 0.5, 3.5);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "upColor")) {
+    next.upColor = normalizeBiColorHex(source.upColor, defaults.upColor);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "downColor")) {
+    next.downColor = normalizeBiColorHex(source.downColor, defaults.downColor);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "wickWidth")) {
+    next.wickWidth = sanitizeBiInteger(source.wickWidth, defaults.wickWidth, 1, 4);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "maxLinks")) {
+    next.maxLinks = sanitizeBiInteger(source.maxLinks, defaults.maxLinks, 1, 200);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minLinkPercent")) {
+    next.minLinkPercent = sanitizeBiDecimal(source.minLinkPercent, defaults.minLinkPercent, 0, 50);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showValues")) {
+    next.showValues = normalizeBiToggle(source.showValues, defaults.showValues);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showDates")) {
+    next.showDates = normalizeBiToggle(source.showDates, defaults.showDates);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "minBarPercent")) {
+    next.minBarPercent = sanitizeBiDecimal(source.minBarPercent, defaults.minBarPercent, 0.2, 50);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "maxScale")) {
+    next.maxScale = sanitizeBiDecimal(source.maxScale, defaults.maxScale, 1, 10000);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showPointValues")) {
+    next.showPointValues = normalizeBiToggle(source.showPointValues, defaults.showPointValues);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "targetPercent")) {
+    next.targetPercent = sanitizeBiDecimal(source.targetPercent, defaults.targetPercent, 1, 100);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "showCumulativeLine")) {
+    next.showCumulativeLine = normalizeBiToggle(source.showCumulativeLine, defaults.showCumulativeLine);
+  }
+  if (Object.prototype.hasOwnProperty.call(defaults, "labelMinValue")) {
+    next.labelMinValue = sanitizeBiDecimal(source.labelMinValue, defaults.labelMinValue, -1000000, 1000000);
+  }
+  return next;
+}
+
+function normalizeBiChartTypeConfigMap(rawMap) {
+  const source = rawMap && typeof rawMap === "object" && !Array.isArray(rawMap)
+    ? rawMap
+    : {};
+  const map = {};
+  BI_CHART_TYPES.forEach((type) => {
+    if (source[type] && typeof source[type] === "object" && !Array.isArray(source[type])) {
+      map[type] = normalizeBiChartTypeSpecificConfig(source[type], type);
+    }
+  });
+  return map;
+}
+
+function getBiSpecificChartConfigForWidget(widget, chartType) {
+  const type = normalizeBiChartType(chartType || widget?.chartType || "bar");
+  const map = normalizeBiChartTypeConfigMap(widget?.chartTypeConfig);
+  return normalizeBiChartTypeSpecificConfig(map[type], type);
+}
+
+function setBiSpecificChartConfigForWidget(widget, chartType, nextConfig) {
+  if (!widget) {
+    return;
+  }
+  const type = normalizeBiChartType(chartType || widget.chartType || "bar");
+  const map = normalizeBiChartTypeConfigMap(widget.chartTypeConfig);
+  map[type] = normalizeBiChartTypeSpecificConfig(nextConfig, type);
+  widget.chartTypeConfig = map;
+}
+
+function createDefaultBiChartConfig(chartType) {
+  const safeType = normalizeBiChartType(chartType || "bar");
+  return {
+    common: {
+      smooth: false,
+      stacked: "none",
+      showMedian: true
+    },
+    [safeType]: {
+      markerSize: 4
+    }
+  };
+}
+
+function normalizeBiChartConfig(rawConfig, chartType) {
+  const defaults = createDefaultBiChartConfig(chartType);
+  const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
+    ? rawConfig
+    : {};
+  const common = source.common && typeof source.common === "object" && !Array.isArray(source.common)
+    ? source.common
+    : {};
+  const safeType = normalizeBiChartType(chartType || "bar");
+  const typeConfig = source[safeType] && typeof source[safeType] === "object" && !Array.isArray(source[safeType])
+    ? source[safeType]
+    : {};
+  return {
+    common: {
+      smooth: normalizeBiToggle(common.smooth, defaults.common.smooth),
+      stacked: new Set(["none", "normal", "percent"]).has(trimOrFallback(common.stacked, "").toLowerCase())
+        ? trimOrFallback(common.stacked, "").toLowerCase()
+        : defaults.common.stacked,
+      showMedian: normalizeBiToggle(common.showMedian, defaults.common.showMedian)
+    },
+    [safeType]: {
+      markerSize: sanitizeBiInteger(typeConfig.markerSize, defaults[safeType].markerSize, 1, 24)
+    }
+  };
+}
+
 function normalizeBiLabelOffsets(rawOffsets) {
   if (!rawOffsets || typeof rawOffsets !== "object" || Array.isArray(rawOffsets)) {
     return {};
@@ -13341,6 +16932,145 @@ function normalizeBiLabelOffsets(rawOffsets) {
     };
   });
   return next;
+}
+
+function normalizeBiLabelLayoutV2(rawLayout) {
+  const source = rawLayout && typeof rawLayout === "object" && !Array.isArray(rawLayout)
+    ? rawLayout
+    : {};
+  const rawByKey = source.byKey && typeof source.byKey === "object" && !Array.isArray(source.byKey)
+    ? source.byKey
+    : {};
+  const byKey = {};
+  Object.entries(rawByKey).forEach(([rawKey, rawPlacement]) => {
+    const key = trimOrFallback(rawKey, "");
+    if (!key) {
+      return;
+    }
+    const placement = rawPlacement && typeof rawPlacement === "object" ? rawPlacement : {};
+    const dxPct = Number(placement.dxPct);
+    const dyPct = Number(placement.dyPct);
+    const anchorXPct = Number(placement.anchorXPct);
+    const anchorYPct = Number(placement.anchorYPct);
+    if (!Number.isFinite(dxPct) && !Number.isFinite(dyPct) && !Number.isFinite(anchorXPct) && !Number.isFinite(anchorYPct)) {
+      return;
+    }
+    const scopeToken = trimOrFallback(placement.scope, "").toLowerCase();
+    byKey[key] = {
+      anchorXPct: Number.isFinite(anchorXPct) ? Math.max(0, Math.min(1, anchorXPct)) : 0.5,
+      anchorYPct: Number.isFinite(anchorYPct) ? Math.max(0, Math.min(1, anchorYPct)) : 0.5,
+      dxPct: Number.isFinite(dxPct) ? Math.max(-1.5, Math.min(1.5, dxPct)) : 0,
+      dyPct: Number.isFinite(dyPct) ? Math.max(-1.5, Math.min(1.5, dyPct)) : 0,
+      scope: new Set(["plot", "legend", "canvas"]).has(scopeToken) ? scopeToken : "plot",
+      updatedAt: trimOrFallback(placement.updatedAt, "")
+    };
+  });
+  return {
+    version: 2,
+    byKey,
+    cachePolicy: "keep_hidden"
+  };
+}
+
+function buildBiLabelFallbackKey(label) {
+  const token = normalizeLookup(label || "");
+  return token ? `label_${token}` : "";
+}
+
+function buildBiRowKeyAlias(rowKey) {
+  const key = trimOrFallback(rowKey, "");
+  if (!key) {
+    return "";
+  }
+  const splitAt = key.lastIndexOf("_");
+  if (splitAt <= 0) {
+    return key;
+  }
+  return key.slice(0, splitAt);
+}
+
+function getBiLabelPlacementFromLayout(layoutInput, rowKey, rowLabel = "") {
+  const layout = normalizeBiLabelLayoutV2(layoutInput);
+  const key = trimOrFallback(rowKey, "");
+  if (key && layout.byKey[key]) {
+    return layout.byKey[key];
+  }
+
+  const aliasKey = buildBiRowKeyAlias(key);
+  if (aliasKey && layout.byKey[aliasKey]) {
+    return layout.byKey[aliasKey];
+  }
+
+  if (aliasKey) {
+    const prefix = `${aliasKey}_`;
+    const candidates = Object.entries(layout.byKey)
+      .filter(([candidateKey]) => candidateKey.startsWith(prefix))
+      .map(([, placement]) => placement)
+      .filter((placement) => placement && typeof placement === "object");
+    if (candidates.length > 0) {
+      candidates.sort((left, right) => {
+        const a = Date.parse(trimOrFallback(left.updatedAt, ""));
+        const b = Date.parse(trimOrFallback(right.updatedAt, ""));
+        const safeA = Number.isFinite(a) ? a : 0;
+        const safeB = Number.isFinite(b) ? b : 0;
+        return safeB - safeA;
+      });
+      return candidates[0] || null;
+    }
+  }
+
+  const fallbackKey = buildBiLabelFallbackKey(rowLabel);
+  if (fallbackKey && layout.byKey[fallbackKey]) {
+    return layout.byKey[fallbackKey];
+  }
+  return null;
+}
+
+function getBiLabelPlacement(widget, rowKey, rowLabel = "") {
+  if (!widget) {
+    return null;
+  }
+  return getBiLabelPlacementFromLayout(widget.labelLayoutV2, rowKey, rowLabel);
+}
+
+function upsertBiLabelPlacement(widget, rowKey, nextPlacement, rowLabel = "") {
+  if (!widget) {
+    return;
+  }
+  const key = trimOrFallback(rowKey, "");
+  if (!nextPlacement || typeof nextPlacement !== "object") {
+    return;
+  }
+  const layout = normalizeBiLabelLayoutV2(widget.labelLayoutV2);
+  const normalizedPlacement = {
+    anchorXPct: Number.isFinite(nextPlacement.anchorXPct) ? Math.max(0, Math.min(1, nextPlacement.anchorXPct)) : 0.5,
+    anchorYPct: Number.isFinite(nextPlacement.anchorYPct) ? Math.max(0, Math.min(1, nextPlacement.anchorYPct)) : 0.5,
+    dxPct: Number.isFinite(nextPlacement.dxPct) ? Math.max(-1.5, Math.min(1.5, nextPlacement.dxPct)) : 0,
+    dyPct: Number.isFinite(nextPlacement.dyPct) ? Math.max(-1.5, Math.min(1.5, nextPlacement.dyPct)) : 0,
+    scope: new Set(["plot", "legend", "canvas"]).has(trimOrFallback(nextPlacement.scope, "").toLowerCase())
+      ? trimOrFallback(nextPlacement.scope, "").toLowerCase()
+      : "plot",
+    updatedAt: new Date().toISOString()
+  };
+  if (key) {
+    layout.byKey[key] = normalizedPlacement;
+  }
+  const aliasKey = buildBiRowKeyAlias(key);
+  if (aliasKey && aliasKey !== key) {
+    layout.byKey[aliasKey] = {
+      ...normalizedPlacement,
+      scope: "plot"
+    };
+  }
+  const fallbackKey = buildBiLabelFallbackKey(rowLabel);
+  if (fallbackKey) {
+    layout.byKey[fallbackKey] = {
+      ...normalizedPlacement,
+      // Helps keep label position when row keys change by regroup/sort.
+      scope: "plot"
+    };
+  }
+  widget.labelLayoutV2 = layout;
 }
 
 function normalizeBiCircularLayout(rawLayout) {
@@ -13438,11 +17168,16 @@ function normalizeBiCrossFilters(rawFilters) {
   return result;
 }
 
-function getDefaultBiWidgetLayout(index) {
+function getDefaultBiWidgetLayout(index, kindOrWidget = "chart") {
   const safeIndex = Math.max(0, Number.isInteger(index) ? index : 0);
+  const kind = normalizeBiWidgetKind(
+    typeof kindOrWidget === "string"
+      ? kindOrWidget
+      : kindOrWidget?.kind
+  );
   const columns = 3;
-  const slotWidth = 360;
-  const slotHeight = 290;
+  const slotWidth = kind === "text" ? 520 : (kind === "image" ? 420 : 360);
+  const slotHeight = kind === "text" ? 108 : (kind === "image" ? 260 : 290);
   const col = safeIndex % columns;
   const row = Math.floor(safeIndex / columns);
   return {
@@ -13454,7 +17189,7 @@ function getDefaultBiWidgetLayout(index) {
 }
 
 function normalizeBiWidgetLayout(rawLayout, index, kindOrWidget = "chart") {
-  const fallback = getDefaultBiWidgetLayout(index);
+  const fallback = getDefaultBiWidgetLayout(index, kindOrWidget);
   const minSize = getBiWidgetMinSize(kindOrWidget);
   const minWidth = Math.max(80, Math.round(minSize.width));
   const minHeight = Math.max(52, Math.round(minSize.height));
@@ -13667,9 +17402,11 @@ function createDefaultBiConfig() {
     uiMode: "basic",
     canvasWidth: BI_CANVAS_SURFACE_MIN_WIDTH,
     canvasHeight: BI_CANVAS_SURFACE_HEIGHT,
+    canvasZoom: BI_CANVAS_ZOOM_DEFAULT,
     showCanvasGrid: false,
     snapToGrid: true,
     gridSnapSize: 12,
+    performanceMode: "balanced",
     colorSource: "all",
     colorGroupBy: "disciplina",
     colorMap: {},
@@ -13693,9 +17430,11 @@ function normalizeBiConfig(rawConfig) {
     uiMode: normalizeBiUiMode(base.uiMode || base.modoInterfaz || "basic"),
     canvasWidth: canvasSize.width,
     canvasHeight: canvasSize.height,
+    canvasZoom: sanitizeBiCanvasZoom(base.canvasZoom ?? base.zoomPizarra ?? base.boardZoom, BI_CANVAS_ZOOM_DEFAULT),
     showCanvasGrid: normalizeBiToggle(base.showCanvasGrid ?? base.mostrarRejillaPizarra, false),
     snapToGrid: normalizeBiToggle(base.snapToGrid ?? base.ajustarARejilla, true),
     gridSnapSize: sanitizeBiInteger(base.gridSnapSize ?? base.pasoRejilla, 12, 4, 120),
+    performanceMode: normalizeBiPerformanceMode(base.performanceMode || base.modoRendimiento || "balanced"),
     colorSource: normalizeBiSource(base.colorSource || base.fuenteColor || "all"),
     colorGroupBy: normalizeBiGroupBy(base.colorGroupBy || base.dimensionColor || "disciplina"),
     colorMap: normalizeBiColorMap(base.colorMap || base.mapaColor),
@@ -13726,7 +17465,15 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "weightedreal", chartType: "bar" }),
+      chartConfig: createDefaultBiChartConfig("bar"),
+      chartTypeConfig: {
+        bar: normalizeBiChartTypeSpecificConfig({}, "bar")
+      },
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
       visualOverride: null
     },
@@ -13747,7 +17494,15 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: "sistema", metric: "baseunits", chartType: "donut" }),
+      chartConfig: createDefaultBiChartConfig("donut"),
+      chartTypeConfig: {
+        donut: normalizeBiChartTypeSpecificConfig({}, "donut")
+      },
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
       visualOverride: null
     },
@@ -13768,7 +17523,15 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
+      dataRoles: buildBiDefaultDataRoles({ groupBy: "mes_inicio", metric: "programmedavg", chartType: "line" }),
+      chartConfig: createDefaultBiChartConfig("line"),
+      chartTypeConfig: {
+        line: normalizeBiChartTypeSpecificConfig({}, "line")
+      },
+      textConfig: createDefaultBiTextConfig(),
+      imageConfig: createDefaultBiImageConfig(),
       labelOffsets: {},
+      labelLayoutV2: normalizeBiLabelLayoutV2({}),
       polarLayout: normalizeBiCircularLayout({}),
       visualOverride: null
     }
@@ -13782,6 +17545,11 @@ function normalizeBiWidget(rawWidget, index) {
   const imageSrc = trimOrFallback(widget.imageSrc ?? widget.imagenSrc ?? widget.imagen ?? widget.image ?? widget.urlImagen ?? "", "").slice(0, 2000000);
   const imageAlt = trimOrFallback(widget.imageAlt ?? widget.imagenAlt ?? widget.altImagen ?? "", "").slice(0, 120);
   const labelOffsets = normalizeBiLabelOffsets(widget.labelOffsets ?? widget.posicionLabels ?? widget.desplazamientoLabels);
+  const labelLayoutV2 = normalizeBiLabelLayoutV2(
+    widget.labelLayoutV2
+    ?? widget.labelLayout
+    ?? widget.etiquetasLayout
+  );
   const polarLayout = normalizeBiCircularLayout(
     widget.polarLayout
     ?? widget.circularLayout
@@ -13807,14 +17575,28 @@ function normalizeBiWidget(rawWidget, index) {
     widget.locked ?? widget.bloqueado ?? widget.widgetLocked,
     false
   );
+  const source = normalizeBiSource(widget.source || widget.fuente || "all");
+  const groupByInput = normalizeBiGroupBy(widget.groupBy || widget.agruparPor || "disciplina");
+  const metricInput = normalizeBiMetric(widget.metric || widget.metrica || "baseunits");
+  const chartType = normalizeBiChartType(widget.chartType || widget.tipoGrafico || "bar");
+  const baseForRoles = { source, groupBy: groupByInput, metric: metricInput, chartType };
+  const dataRoles = normalizeBiDataRoles(widget.dataRoles ?? widget.rolesDatos, baseForRoles);
+  const groupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupByInput);
+  const metric = normalizeBiMetric(dataRoles.metrics?.[0] || metricInput);
+  const textConfig = normalizeBiTextConfig(widget.textConfig ?? widget.configTexto);
+  const imageConfig = normalizeBiImageConfig(widget.imageConfig ?? widget.configImagen);
+  const chartTypeConfig = normalizeBiChartTypeConfigMap(widget.chartTypeConfig ?? widget.configTipoGrafico);
+  if (!chartTypeConfig[chartType]) {
+    chartTypeConfig[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+  }
   return {
     id: typeof widget.id === "string" && widget.id.trim() ? widget.id.trim() : uid(),
     kind,
     name: trimOrFallback(widget.name || `Widget ${index + 1}`, `Widget ${index + 1}`).slice(0, 60),
-    source: normalizeBiSource(widget.source || widget.fuente || "all"),
-    groupBy: normalizeBiGroupBy(widget.groupBy || widget.agruparPor || "disciplina"),
-    metric: normalizeBiMetric(widget.metric || widget.metrica || "baseunits"),
-    chartType: normalizeBiChartType(widget.chartType || widget.tipoGrafico || "bar"),
+    source,
+    groupBy,
+    metric,
+    chartType,
     sortMode: normalizeBiSortMode(widget.sortMode || widget.orden || widget.sort || "value_desc"),
     topN: sanitizeBiTopN(widget.topN),
     textContent,
@@ -13824,7 +17606,13 @@ function normalizeBiWidget(rawWidget, index) {
     showBorder,
     showBackground,
     locked,
+    dataRoles,
+    chartConfig: normalizeBiChartConfig(widget.chartConfig ?? widget.configGrafico, chartType),
+    chartTypeConfig,
+    textConfig,
+    imageConfig,
     labelOffsets,
+    labelLayoutV2,
     polarLayout,
     layout: normalizeBiWidgetLayout(widget.layout ?? widget.posicion, index, kind),
     visualOverride: widget.visualOverride ? normalizeBiVisualSettings(widget.visualOverride) : null
@@ -14602,6 +18390,7 @@ function trimOrFallback(value, fallback) {
 function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
+
 
 
 

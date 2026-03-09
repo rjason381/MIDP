@@ -251,6 +251,12 @@ const quickSightPanelState = {
   props: true
 };
 let quickSightEditMenuOpen = false;
+let quickSightZoomMenuOpen = false;
+let quickSightPropsTab = "visual";
+const quickSightPropsSectionState = {
+  visual: Object.create(null),
+  interactions: Object.create(null)
+};
 let biPendingImageWidgetId = "";
 let biCommandPaletteOpen = false;
 let biCommandPaletteSelection = 0;
@@ -537,13 +543,28 @@ function bindElements() {
   els.qsCanvasZoomSelect = document.getElementById("qsCanvasZoomSelect");
   els.qsApplyCanvasSizeButton = document.getElementById("qsApplyCanvasSizeButton");
   els.qsResetCanvasSizeButton = document.getElementById("qsResetCanvasSizeButton");
+  els.qsZoomMenuWrap = document.getElementById("qsZoomMenuWrap");
+  els.qsCanvasZoomMenuButton = document.getElementById("qsCanvasZoomMenuButton");
+  els.qsCanvasZoomMenuLabel = document.getElementById("qsCanvasZoomMenuLabel");
+  els.qsCanvasZoomMenu = document.getElementById("qsCanvasZoomMenu");
+  els.qsZoomFitAllButton = document.getElementById("qsZoomFitAllButton");
+  els.qsZoomFitWidthButton = document.getElementById("qsZoomFitWidthButton");
+  els.qsZoomDefaultButton = document.getElementById("qsZoomDefaultButton");
+  els.qsZoomFitAllLabel = document.getElementById("qsZoomFitAllLabel");
+  els.qsZoomFitWidthLabel = document.getElementById("qsZoomFitWidthLabel");
   els.qsDataSummaryText = document.getElementById("qsDataSummaryText");
   els.qsSourceSelect = document.getElementById("qsSourceSelect");
   els.qsFieldsSearchInput = document.getElementById("qsFieldsSearchInput");
   els.qsFieldsList = document.getElementById("qsFieldsList");
+  els.qsRoleDimensionList = document.getElementById("qsRoleDimensionList");
+  els.qsRoleMetricList = document.getElementById("qsRoleMetricList");
+  els.qsAddMetricGhostButton = document.getElementById("qsAddMetricGhostButton");
+  els.qsRoleBreakdownList = document.getElementById("qsRoleBreakdownList");
+  els.qsAddBreakdownGhostButton = document.getElementById("qsAddBreakdownGhostButton");
   els.qsChartTypeSelect = document.getElementById("qsChartTypeSelect");
   els.qsChartTypeGrid = document.getElementById("qsChartTypeGrid");
   els.qsGroupBySelect = document.getElementById("qsGroupBySelect");
+  els.qsBreakdownSelect = document.getElementById("qsBreakdownSelect");
   els.qsMetricSelect = document.getElementById("qsMetricSelect");
   els.qsTopNInput = document.getElementById("qsTopNInput");
   els.qsDeleteVisualButton = document.getElementById("qsDeleteVisualButton");
@@ -917,17 +938,51 @@ function wireEvents() {
       return;
     }
     ensureQuickSightState(project);
-    project.quickSightConfig.source = normalizeBiSource(els.qsSourceSelect?.value || project.quickSightConfig.source || "all");
-    project.quickSightConfig.groupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
-    project.quickSightConfig.metric = normalizeBiMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
-    project.quickSightConfig.chartType = normalizeBiChartType(els.qsChartTypeSelect?.value || project.quickSightConfig.chartType || "bar");
-    project.quickSightConfig.topN = sanitizeBiTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
+    const nextSource = normalizeBiSource(els.qsSourceSelect?.value || project.quickSightConfig.source || "all");
+    const nextGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
+    const nextBreakdown = normalizeBiOptionalGroupBy(
+      els.qsBreakdownSelect?.value
+      || project.quickSightConfig.breakdownDimension
+      || ""
+    );
+    const nextMetric = normalizeBiMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
+    const nextChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || project.quickSightConfig.chartType || "bar");
+    const nextTopN = sanitizeBiTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
+    const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+    if (selectedVisual) {
+      selectedVisual.source = nextSource;
+      selectedVisual.groupBy = nextGroupBy;
+      selectedVisual.breakdownDimension = nextBreakdown;
+      selectedVisual.metric = nextMetric;
+      selectedVisual.chartType = nextChartType;
+      selectedVisual.topN = nextTopN;
+      syncQuickSightVisualDataRoles(selectedVisual, {
+        groupBy: nextGroupBy,
+        breakdownDimension: nextBreakdown,
+        metric: nextMetric,
+        chartType: nextChartType
+      });
+      selectedVisual.display = normalizeQuickSightDisplaySettings(selectedVisual.display);
+      selectedVisual.visualSettings = normalizeBiVisualSettings(selectedVisual.visualSettings);
+      selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
+      const safeTypeMap = normalizeBiChartTypeConfigMap(selectedVisual.chartTypeConfig);
+      if (!safeTypeMap[selectedVisual.chartType]) {
+        safeTypeMap[selectedVisual.chartType] = normalizeBiChartTypeSpecificConfig({}, selectedVisual.chartType);
+      }
+      selectedVisual.chartTypeConfig = safeTypeMap;
+    }
+    project.quickSightConfig.source = nextSource;
+    project.quickSightConfig.groupBy = nextGroupBy;
+    project.quickSightConfig.breakdownDimension = nextBreakdown;
+    project.quickSightConfig.metric = nextMetric;
+    project.quickSightConfig.chartType = nextChartType;
+    project.quickSightConfig.topN = nextTopN;
     project.quickSightConfig.fieldsSearch = trimOrFallback(els.qsFieldsSearchInput?.value, "").slice(0, 80);
     saveState();
     renderQuickSightPanel(project);
   };
 
-  [els.qsSourceSelect, els.qsGroupBySelect, els.qsMetricSelect, els.qsChartTypeSelect, els.qsTopNInput, els.qsFieldsSearchInput]
+  [els.qsSourceSelect, els.qsGroupBySelect, els.qsBreakdownSelect, els.qsMetricSelect, els.qsChartTypeSelect, els.qsTopNInput, els.qsFieldsSearchInput]
     .forEach((node) => {
       if (!node) {
         return;
@@ -951,6 +1006,165 @@ function wireEvents() {
     }
     handleQuickSightConfigChange();
   });
+
+  els.qsRoleDimensionList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const chip = target.closest("[data-qs-groupby]");
+    if (!(chip instanceof HTMLElement)) {
+      return;
+    }
+    const nextGroupBy = normalizeBiGroupBy(chip.dataset.qsGroupby || "");
+    if (!nextGroupBy) {
+      return;
+    }
+    if (els.qsGroupBySelect instanceof HTMLSelectElement) {
+      els.qsGroupBySelect.value = nextGroupBy;
+    }
+    handleQuickSightConfigChange();
+  });
+
+  els.qsRoleMetricList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const chip = target.closest("[data-qs-metric]");
+    if (!(chip instanceof HTMLElement)) {
+      return;
+    }
+    const nextMetric = normalizeBiMetric(chip.dataset.qsMetric || "");
+    if (!nextMetric) {
+      return;
+    }
+    if (els.qsMetricSelect instanceof HTMLSelectElement) {
+      els.qsMetricSelect.value = nextMetric;
+    }
+    handleQuickSightConfigChange();
+  });
+
+  els.qsRoleBreakdownList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const chip = target.closest("[data-qs-breakdown]");
+    if (!(chip instanceof HTMLElement)) {
+      return;
+    }
+    const nextBreakdown = normalizeBiOptionalGroupBy(chip.dataset.qsBreakdown || "");
+    if (els.qsBreakdownSelect instanceof HTMLSelectElement) {
+      els.qsBreakdownSelect.value = nextBreakdown;
+    }
+    handleQuickSightConfigChange();
+  });
+
+  els.qsAddMetricGhostButton?.addEventListener("click", () => {
+    setStatus("VALOR usa una metrica principal en esta version de Dechini Quicksigth.");
+  });
+
+  els.qsAddBreakdownGhostButton?.addEventListener("click", () => {
+    if (els.qsBreakdownSelect instanceof HTMLSelectElement) {
+      els.qsBreakdownSelect.value = "";
+    }
+    handleQuickSightConfigChange();
+    setStatus("GRUPO/COLOR limpiado.");
+  });
+
+  const parseQuickSightDragPayload = (dataTransfer) => {
+    if (!dataTransfer) {
+      return null;
+    }
+    const raw = dataTransfer.getData("application/x-qs-field")
+      || dataTransfer.getData("text/plain")
+      || "";
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") {
+        return null;
+      }
+      return {
+        groupBy: normalizeBiOptionalGroupBy(parsed.groupBy || ""),
+        metric: normalizeBiOptionalMetric(parsed.metric || ""),
+        name: trimOrFallback(parsed.name, "")
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const assignQuickSightRoleFromPayload = (role, payload) => {
+    if (!payload || typeof payload !== "object") {
+      return;
+    }
+    if (role === "dimension" && payload.groupBy && els.qsGroupBySelect instanceof HTMLSelectElement) {
+      els.qsGroupBySelect.value = payload.groupBy;
+      handleQuickSightConfigChange();
+      setStatus(`Dimension asignada: ${getBiGroupLabel(payload.groupBy)}.`);
+      return;
+    }
+    if (role === "metric" && payload.metric && els.qsMetricSelect instanceof HTMLSelectElement) {
+      els.qsMetricSelect.value = payload.metric;
+      handleQuickSightConfigChange();
+      setStatus(`Metrica asignada: ${getBiMetricLabel(payload.metric)}.`);
+      return;
+    }
+    if (role === "breakdown" && payload.groupBy && els.qsBreakdownSelect instanceof HTMLSelectElement) {
+      els.qsBreakdownSelect.value = payload.groupBy;
+      handleQuickSightConfigChange();
+      setStatus(`GRUPO/COLOR asignado: ${getBiGroupLabel(payload.groupBy)}.`);
+      return;
+    }
+    setStatus("Ese campo no aplica para ese rol.");
+  };
+
+  const bindQuickSightRoleDropZone = (node, role) => {
+    if (!(node instanceof HTMLElement)) {
+      return;
+    }
+    node.addEventListener("dragenter", (event) => {
+      const payload = parseQuickSightDragPayload(event.dataTransfer);
+      if (!payload) {
+        return;
+      }
+      if ((role === "metric" && payload.metric) || ((role === "dimension" || role === "breakdown") && payload.groupBy)) {
+        node.classList.add("is-drop-target");
+      }
+    });
+    node.addEventListener("dragover", (event) => {
+      const payload = parseQuickSightDragPayload(event.dataTransfer);
+      if (!payload) {
+        return;
+      }
+      const canDrop = (role === "metric" && payload.metric) || ((role === "dimension" || role === "breakdown") && payload.groupBy);
+      if (!canDrop) {
+        return;
+      }
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      node.classList.add("is-drop-target");
+    });
+    node.addEventListener("dragleave", () => {
+      node.classList.remove("is-drop-target");
+    });
+    node.addEventListener("drop", (event) => {
+      event.preventDefault();
+      node.classList.remove("is-drop-target");
+      const payload = parseQuickSightDragPayload(event.dataTransfer);
+      assignQuickSightRoleFromPayload(role, payload);
+    });
+  };
+
+  bindQuickSightRoleDropZone(els.qsRoleDimensionList, "dimension");
+  bindQuickSightRoleDropZone(els.qsRoleMetricList, "metric");
+  bindQuickSightRoleDropZone(els.qsRoleBreakdownList, "breakdown");
 
   const toggleQuickSightPanel = (panelKey) => {
     quickSightPanelState[panelKey] = !quickSightPanelState[panelKey];
@@ -978,6 +1192,56 @@ function wireEvents() {
   bindQuickSightToggleButton(els.qsToggleDataButton, "data");
   bindQuickSightToggleButton(els.qsToggleVisualsButton, "visuals");
   bindQuickSightToggleButton(els.qsTogglePropsButton, "props");
+
+  els.qsCanvasZoomMenuButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeTab !== "quicksight") {
+      return;
+    }
+    if (quickSightEditMenuOpen) {
+      setQuickSightEditMenuOpen(false);
+    }
+    setQuickSightZoomMenuOpen(!quickSightZoomMenuOpen);
+  });
+
+  els.qsCanvasZoomMenu?.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest("[data-qs-zoom-value], [data-qs-zoom-action]")
+      : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const project = getActiveProject();
+    if (!project) {
+      setQuickSightZoomMenuOpen(false);
+      return;
+    }
+    ensureQuickSightState(project);
+    const zoomValue = target.dataset.qsZoomValue;
+    const action = trimOrFallback(target.dataset.qsZoomAction, "");
+    if (zoomValue) {
+      setQuickSightCanvasZoom(zoomValue, "Zoom pizarra Quicksigth");
+      setQuickSightZoomMenuOpen(false);
+      return;
+    }
+    if (action === "fit-all" || action === "fit-width") {
+      const fitMode = action === "fit-width" ? "width" : "all";
+      const fitZoom = getQuickSightCanvasFitZoom(project, fitMode);
+      const statusLabel = action === "fit-width" ? "Zoom ajustado al ancho" : "Zoom ajustado a vista";
+      setQuickSightCanvasZoom(fitZoom, statusLabel);
+      setQuickSightZoomMenuOpen(false);
+      return;
+    }
+    if (action === "in" || action === "out") {
+      const step = action === "in" ? 1 : -1;
+      const nextZoom = getSteppedQuickSightCanvasZoom(project.quickSightConfig.canvasZoom, step);
+      setQuickSightCanvasZoom(nextZoom, "Zoom pizarra Quicksigth");
+      setQuickSightZoomMenuOpen(false);
+    }
+  });
 
   const applyQuickSightCanvasFromEditMenu = (mode = "apply") => {
     const project = getActiveProject();
@@ -1016,6 +1280,7 @@ function wireEvents() {
       )
     }));
     syncQuickSightEditMenuInputs(project);
+    updateQuickSightZoomMenuUi(project);
     saveState();
     renderQuickSightPanel(project);
     setStatus(
@@ -1033,6 +1298,9 @@ function wireEvents() {
     const project = getActiveProject();
     if (project) {
       syncQuickSightEditMenuInputs(project);
+    }
+    if (quickSightZoomMenuOpen) {
+      setQuickSightZoomMenuOpen(false);
     }
     setQuickSightEditMenuOpen(!quickSightEditMenuOpen);
   });
@@ -1074,8 +1342,27 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && quickSightEditMenuOpen) {
-      setQuickSightEditMenuOpen(false);
+    if (event.key === "Escape") {
+      let handled = false;
+      if (quickSightEditMenuOpen) {
+        setQuickSightEditMenuOpen(false);
+        handled = true;
+      }
+      if (quickSightZoomMenuOpen) {
+        setQuickSightZoomMenuOpen(false);
+        handled = true;
+      }
+      if (activeTab === "quicksight" && selectedQuickSightVisualId) {
+        selectedQuickSightVisualId = "";
+        const project = getActiveProject();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus("Visual deseleccionado.");
+        handled = true;
+      }
+      if (handled) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
     }
   });
 
@@ -1092,6 +1379,21 @@ function wireEvents() {
       return;
     }
     setQuickSightEditMenuOpen(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!quickSightZoomMenuOpen) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      setQuickSightZoomMenuOpen(false);
+      return;
+    }
+    if (target.closest("#qsZoomMenuWrap")) {
+      return;
+    }
+    setQuickSightZoomMenuOpen(false);
   });
 
   document.addEventListener("click", (event) => {
@@ -1135,28 +1437,95 @@ function wireEvents() {
     const metricValue = trimOrFallback(item.dataset.qsMetric || "", "");
     const legacyKind = item.dataset.qsKind;
     const legacyValue = trimOrFallback(item.dataset.qsValue || "", "");
+    const applyAsBreakdown = !!(event.shiftKey || event.altKey);
+    const selectedVisual = project.quickSightVisuals.find((entry) => entry.id === selectedQuickSightVisualId) || null;
     if (groupByValue) {
-      project.quickSightConfig.groupBy = normalizeBiGroupBy(groupByValue);
-      if (els.qsGroupBySelect) {
-        els.qsGroupBySelect.value = project.quickSightConfig.groupBy;
+      const nextGroupBy = normalizeBiGroupBy(groupByValue);
+      if (applyAsBreakdown) {
+        if (selectedVisual) {
+          selectedVisual.breakdownDimension = nextGroupBy;
+        }
+        project.quickSightConfig.breakdownDimension = nextGroupBy;
+        if (els.qsBreakdownSelect) {
+          els.qsBreakdownSelect.value = nextGroupBy;
+        }
+        setStatus(`GRUPO/COLOR seleccionado: ${getBiGroupLabel(nextGroupBy, project)}.`);
+      } else {
+        if (selectedVisual) {
+          selectedVisual.groupBy = nextGroupBy;
+        }
+        project.quickSightConfig.groupBy = nextGroupBy;
+        if (els.qsGroupBySelect) {
+          els.qsGroupBySelect.value = nextGroupBy;
+        }
+        setStatus(`Dimension seleccionada: ${getBiGroupLabel(nextGroupBy, project)}.`);
       }
-      setStatus(`Dimension seleccionada: ${getBiGroupLabel(project.quickSightConfig.groupBy, project)}.`);
     } else if (metricValue) {
-      project.quickSightConfig.metric = normalizeBiMetric(metricValue);
-      if (els.qsMetricSelect) {
-        els.qsMetricSelect.value = project.quickSightConfig.metric;
+      const nextMetric = normalizeBiMetric(metricValue);
+      if (selectedVisual) {
+        selectedVisual.metric = nextMetric;
       }
-      setStatus(`Metrica seleccionada: ${getBiMetricLabel(project.quickSightConfig.metric)}.`);
+      project.quickSightConfig.metric = nextMetric;
+      if (els.qsMetricSelect) {
+        els.qsMetricSelect.value = nextMetric;
+      }
+      setStatus(`Metrica seleccionada: ${getBiMetricLabel(nextMetric)}.`);
     } else if (legacyKind === "dimension" && legacyValue) {
-      project.quickSightConfig.groupBy = normalizeBiGroupBy(legacyValue);
+      const nextGroupBy = normalizeBiGroupBy(legacyValue);
+      if (selectedVisual) {
+        selectedVisual.groupBy = nextGroupBy;
+      }
+      project.quickSightConfig.groupBy = nextGroupBy;
     } else if (legacyKind === "metric" && legacyValue) {
-      project.quickSightConfig.metric = normalizeBiMetric(legacyValue);
+      const nextMetric = normalizeBiMetric(legacyValue);
+      if (selectedVisual) {
+        selectedVisual.metric = nextMetric;
+      }
+      project.quickSightConfig.metric = nextMetric;
     } else {
       setStatus("Campo no vinculable a dimension o metrica.");
       return;
     }
-    saveState();
-    renderQuickSightPanel(project);
+    handleQuickSightConfigChange();
+  });
+
+  els.qsFieldsList?.addEventListener("dragstart", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const item = target.closest(".qs-field-item");
+    if (!(item instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
+      return;
+    }
+    const groupBy = normalizeBiOptionalGroupBy(item.dataset.qsGroupby || "");
+    const metric = normalizeBiOptionalMetric(item.dataset.qsMetric || "");
+    if (!groupBy && !metric) {
+      event.preventDefault();
+      return;
+    }
+    const payload = {
+      groupBy,
+      metric,
+      name: trimOrFallback(item.dataset.qsFieldName, "")
+    };
+    const serialized = JSON.stringify(payload);
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("application/x-qs-field", serialized);
+    event.dataTransfer.setData("text/plain", serialized);
+    item.classList.add("is-dragging");
+  });
+
+  els.qsFieldsList?.addEventListener("dragend", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const item = target.closest(".qs-field-item");
+    if (!(item instanceof HTMLElement)) {
+      return;
+    }
+    item.classList.remove("is-dragging");
   });
 
   els.qsAddVisualButton?.addEventListener("click", () => {
@@ -1186,7 +1555,7 @@ function wireEvents() {
     const before = project.quickSightVisuals.length;
     project.quickSightVisuals = project.quickSightVisuals.filter((item) => item.id !== selectedQuickSightVisualId);
     if (project.quickSightVisuals.length === before) {
-      setStatus("No se encontró el visual seleccionado.");
+      setStatus("No se encontr? el visual seleccionado.");
       return;
     }
     selectedQuickSightVisualId = project.quickSightVisuals[0]?.id || "";
@@ -1228,6 +1597,8 @@ function wireEvents() {
         project.quickSightConfig.canvasZoom,
         step > 0 ? 1 : -1
       );
+      syncQuickSightEditMenuInputs(project);
+      updateQuickSightZoomMenuUi(project);
       saveState();
       renderQuickSightPanel(project);
       setStatus(`Zoom pizarra Quicksigth: ${project.quickSightConfig.canvasZoom}%.`);
@@ -1239,11 +1610,42 @@ function wireEvents() {
     if (!(target instanceof HTMLElement)) {
       return;
     }
-    const dragHandle = target.closest(".qs-visual-head");
-    if (!(dragHandle instanceof HTMLElement)) {
+    const resizeHandle = target.closest("[data-qs-resize-handle]");
+    if (resizeHandle instanceof HTMLElement) {
+      const handle = trimOrFallback(resizeHandle.dataset.qsResizeHandle, "").toLowerCase();
+      if (!handle) {
+        return;
+      }
+      const visualCard = resizeHandle.closest(".qs-visual-card");
+      if (!(visualCard instanceof HTMLElement)) {
+        return;
+      }
+      const visualId = trimOrFallback(visualCard.dataset.qsVisualId, "");
+      if (!visualId) {
+        return;
+      }
+      const project = getActiveProject();
+      if (!project) {
+        return;
+      }
+      ensureQuickSightState(project);
+      const visual = project.quickSightVisuals.find((item) => item.id === visualId);
+      if (!visual) {
+        return;
+      }
+      startQuickSightVisualDrag(project, visual, visualCard, event, "resize", handle);
       return;
     }
-    const visualCard = dragHandle.closest(".qs-visual-card");
+    const dragHandle = target.closest(".qs-visual-head");
+    let visualCard = dragHandle instanceof HTMLElement
+      ? dragHandle.closest(".qs-visual-card")
+      : null;
+    if (!(visualCard instanceof HTMLElement)) {
+      const fallbackCard = target.closest(".qs-visual-card");
+      if (fallbackCard instanceof HTMLElement && fallbackCard.classList.contains("no-head")) {
+        visualCard = fallbackCard;
+      }
+    }
     if (!(visualCard instanceof HTMLElement)) {
       return;
     }
@@ -1273,17 +1675,26 @@ function wireEvents() {
     }
     const visualCard = target.closest(".qs-visual-card");
     if (!(visualCard instanceof HTMLElement)) {
+      if (selectedQuickSightVisualId) {
+        selectedQuickSightVisualId = "";
+        renderQuickSightPanel(getActiveProject(), { softSelect: true, allowEmptySelection: true });
+        setStatus("Visual deseleccionado.");
+      }
       return;
     }
     const visualId = trimOrFallback(visualCard.dataset.qsVisualId, "");
     if (!visualId) {
       return;
     }
+    if (visualId === selectedQuickSightVisualId) {
+      renderQuickSightPanel(getActiveProject(), { softSelect: true });
+      return;
+    }
     selectedQuickSightVisualId = visualId;
-    renderQuickSightPanel(getActiveProject());
+    renderQuickSightPanel(getActiveProject(), { softSelect: true });
   });
 
-  els.qsPropertiesBody?.addEventListener("input", (event) => {
+  const handleQuickSightPropertiesChange = (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -1301,51 +1712,129 @@ function wireEvents() {
     if (!visual) {
       return;
     }
-    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) {
-      if (prop === "name") {
-        visual.name = trimOrFallback(target.value, visual.name).slice(0, 120);
-      } else if (prop === "layoutX" || prop === "layoutY" || prop === "layoutW" || prop === "layoutH") {
-        const currentLayout = normalizeQuickSightVisualLayout(visual.layout, 0);
-        let nextX = currentLayout.x;
-        let nextY = currentLayout.y;
-        let nextW = currentLayout.w;
-        let nextH = currentLayout.h;
-        const numeric = Number(target.value);
-        if (prop === "layoutX" && Number.isFinite(numeric)) {
-          nextX = Math.max(0, Math.round(numeric));
-        }
-        if (prop === "layoutY" && Number.isFinite(numeric)) {
-          nextY = Math.max(0, Math.round(numeric));
-        }
-        if (prop === "layoutW" && Number.isFinite(numeric)) {
-          nextW = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Math.round(numeric));
-        }
-        if (prop === "layoutH" && Number.isFinite(numeric)) {
-          nextH = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Math.round(numeric));
-        }
-        visual.layout = normalizeQuickSightVisualLayout({
-          x: nextX,
-          y: nextY,
-          w: nextW,
-          h: nextH
-        }, 0);
-        visual.layout = clampQuickSightVisualLayoutToCanvas(visual.layout, project.quickSightConfig);
-      } else if (prop === "source") {
-        visual.source = normalizeBiSource(target.value || visual.source);
-      } else if (prop === "groupBy") {
-        visual.groupBy = normalizeBiGroupBy(target.value || visual.groupBy);
-      } else if (prop === "metric") {
-        visual.metric = normalizeBiMetric(target.value || visual.metric);
-      } else if (prop === "chartType") {
-        visual.chartType = normalizeBiChartType(target.value || visual.chartType);
-      } else if (prop === "topN") {
-        visual.topN = sanitizeBiTopN(target.value || visual.topN);
-      } else if (prop === "sortMode") {
-        visual.sortMode = normalizeBiSortMode(target.value || visual.sortMode);
-      }
-      saveState();
-      renderQuickSightPanel(project);
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
+      return;
     }
+    const rawValue = target instanceof HTMLInputElement && target.type === "checkbox"
+      ? target.checked
+      : target.value;
+
+    if (prop === "name") {
+      visual.name = trimOrFallback(String(rawValue), visual.name).slice(0, 120);
+    } else if (prop === "layoutX" || prop === "layoutY" || prop === "layoutW" || prop === "layoutH") {
+      const currentLayout = normalizeQuickSightVisualLayout(visual.layout, 0);
+      let nextX = currentLayout.x;
+      let nextY = currentLayout.y;
+      let nextW = currentLayout.w;
+      let nextH = currentLayout.h;
+      const numeric = Number(rawValue);
+      if (prop === "layoutX" && Number.isFinite(numeric)) {
+        nextX = Math.max(0, Math.round(numeric));
+      }
+      if (prop === "layoutY" && Number.isFinite(numeric)) {
+        nextY = Math.max(0, Math.round(numeric));
+      }
+      if (prop === "layoutW" && Number.isFinite(numeric)) {
+        nextW = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Math.round(numeric));
+      }
+      if (prop === "layoutH" && Number.isFinite(numeric)) {
+        nextH = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Math.round(numeric));
+      }
+      visual.layout = normalizeQuickSightVisualLayout({
+        x: nextX,
+        y: nextY,
+        w: nextW,
+        h: nextH
+      }, 0);
+      visual.layout = clampQuickSightVisualLayoutToCanvas(visual.layout, project.quickSightConfig);
+    } else if (prop === "source") {
+      visual.source = normalizeBiSource(rawValue || visual.source);
+      project.quickSightConfig.source = visual.source;
+    } else if (prop === "groupBy") {
+      visual.groupBy = normalizeBiGroupBy(rawValue || visual.groupBy);
+      project.quickSightConfig.groupBy = visual.groupBy;
+      syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "breakdownDimension") {
+      visual.breakdownDimension = normalizeBiOptionalGroupBy(rawValue || "");
+      project.quickSightConfig.breakdownDimension = visual.breakdownDimension;
+      syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "metric") {
+      visual.metric = normalizeBiMetric(rawValue || visual.metric);
+      project.quickSightConfig.metric = visual.metric;
+      syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "chartType") {
+      visual.chartType = normalizeBiChartType(rawValue || visual.chartType);
+      project.quickSightConfig.chartType = visual.chartType;
+      syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "topN") {
+      visual.topN = sanitizeBiTopN(rawValue || visual.topN);
+      project.quickSightConfig.topN = visual.topN;
+    } else if (prop === "sortMode") {
+      visual.sortMode = normalizeBiSortMode(rawValue || visual.sortMode);
+      project.quickSightConfig.sortMode = visual.sortMode;
+    } else if (prop.startsWith("display:")) {
+      const key = prop.slice("display:".length);
+      const currentDisplay = normalizeQuickSightDisplaySettings(visual.display);
+      visual.display = normalizeQuickSightDisplaySettings({
+        ...currentDisplay,
+        [key]: rawValue
+      });
+      visual.subtitle = visual.display.subtitle;
+      visual.altText = visual.display.altText;
+    } else if (prop.startsWith("visual:")) {
+      const key = prop.slice("visual:".length);
+      const currentVisual = normalizeBiVisualSettings(visual.visualSettings);
+      visual.visualSettings = normalizeBiVisualSettings({
+        ...currentVisual,
+        [key]: rawValue
+      });
+    } else if (prop.startsWith("type:")) {
+      const key = prop.slice("type:".length);
+      const chartType = normalizeBiChartType(visual.chartType || "bar");
+      const currentTypeConfig = getBiSpecificChartConfigForWidget(visual, chartType);
+      setBiSpecificChartConfigForWidget(visual, chartType, {
+        ...currentTypeConfig,
+        [key]: rawValue
+      });
+    }
+
+    visual.chartConfig = normalizeBiChartConfig(visual.chartConfig, visual.chartType);
+    const safeTypeMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
+    const safeType = normalizeBiChartType(visual.chartType);
+    if (!safeTypeMap[safeType]) {
+      safeTypeMap[safeType] = normalizeBiChartTypeSpecificConfig({}, safeType);
+    }
+    visual.chartTypeConfig = safeTypeMap;
+    saveState();
+    renderQuickSightPanel(project);
+  };
+
+  els.qsPropertiesBody?.addEventListener("input", handleQuickSightPropertiesChange);
+  els.qsPropertiesBody?.addEventListener("change", handleQuickSightPropertiesChange);
+  els.qsPropertiesBody?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const stopSummaryNode = target.closest("[data-qs-stop-summary]");
+    if (stopSummaryNode instanceof HTMLElement) {
+      event.stopPropagation();
+      return;
+    }
+    const tabButton = target.closest("[data-qs-props-tab]");
+    if (!(tabButton instanceof HTMLElement)) {
+      return;
+    }
+    const nextTab = trimOrFallback(tabButton.dataset.qsPropsTab, "");
+    if (nextTab !== "visual" && nextTab !== "interactions") {
+      return;
+    }
+    if (quickSightPropsTab === nextTab) {
+      return;
+    }
+    quickSightPropsTab = nextTab;
+    const project = getActiveProject();
+    renderQuickSightPanel(project || null);
   });
 
   const handleBiConfigChange = () => {
@@ -4457,6 +4946,44 @@ function wireEvents() {
       return;
     }
 
+    if (activeTab === "quicksight") {
+      const target = event.target;
+      const isTypingTarget = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable);
+      const keyText = trimOrFallback(event.key, "").toLowerCase();
+      const project = getActiveProject();
+      if (!isTypingTarget && project && event.ctrlKey && event.altKey && !event.metaKey) {
+        ensureQuickSightState(project);
+        if (keyText === "[") {
+          event.preventDefault();
+          setQuickSightCanvasZoom(getQuickSightCanvasFitZoom(project, "all"), "Zoom ajustado a vista");
+          return;
+        }
+        if (keyText === "]") {
+          event.preventDefault();
+          setQuickSightCanvasZoom(getQuickSightCanvasFitZoom(project, "width"), "Zoom ajustado al ancho");
+          return;
+        }
+        if (keyText === "1") {
+          event.preventDefault();
+          setQuickSightCanvasZoom(100, "Zoom pizarra Quicksigth");
+          return;
+        }
+        if (keyText === "+" || keyText === "=") {
+          event.preventDefault();
+          setQuickSightCanvasZoom(getSteppedQuickSightCanvasZoom(project.quickSightConfig.canvasZoom, 1), "Zoom pizarra Quicksigth");
+          return;
+        }
+        if (keyText === "-" || keyText === "_") {
+          event.preventDefault();
+          setQuickSightCanvasZoom(getSteppedQuickSightCanvasZoom(project.quickSightConfig.canvasZoom, -1), "Zoom pizarra Quicksigth");
+          return;
+        }
+      }
+    }
+
     if (activeTab === "bi") {
       const target = event.target;
       const isTypingTarget = target instanceof HTMLInputElement
@@ -6548,7 +7075,11 @@ function getQuickSightShellColumns() {
   if (window.innerWidth <= 1180) {
     return "1fr";
   }
-  return "auto auto minmax(0, 1fr) auto";
+  const dataCol = quickSightPanelState.data ? "280px" : "0px";
+  const visualsCol = quickSightPanelState.visuals ? "230px" : "0px";
+  const canvasCol = "minmax(0, 1fr)";
+  const propsCol = quickSightPanelState.props ? "280px" : "0px";
+  return `${dataCol} ${visualsCol} ${canvasCol} ${propsCol}`;
 }
 
 function syncQuickSightEditMenuInputs(projectOrConfig) {
@@ -6565,7 +7096,7 @@ function syncQuickSightEditMenuInputs(projectOrConfig) {
     els.qsCanvasHeightInput.value = String(canvasSize.height);
   }
   if (els.qsCanvasZoomSelect instanceof HTMLSelectElement) {
-    els.qsCanvasZoomSelect.value = String(zoom);
+    syncQuickSightZoomSelectControl(els.qsCanvasZoomSelect, zoom);
   }
 }
 
@@ -6580,6 +7111,64 @@ function setQuickSightEditMenuOpen(nextOpen) {
   }
   if (els.qsEditMenu instanceof HTMLElement) {
     els.qsEditMenu.setAttribute("aria-hidden", quickSightEditMenuOpen ? "false" : "true");
+  }
+}
+
+function setQuickSightZoomMenuOpen(nextOpen) {
+  quickSightZoomMenuOpen = !!nextOpen;
+  if (els.qsCanvasZoomMenu instanceof HTMLElement) {
+    els.qsCanvasZoomMenu.classList.toggle("hidden", !quickSightZoomMenuOpen);
+  }
+  if (els.qsCanvasZoomMenuButton instanceof HTMLButtonElement) {
+    els.qsCanvasZoomMenuButton.classList.toggle("active", quickSightZoomMenuOpen);
+    els.qsCanvasZoomMenuButton.setAttribute("aria-expanded", quickSightZoomMenuOpen ? "true" : "false");
+  }
+}
+
+function setQuickSightCanvasZoom(rawZoomValue, statusPrefix = "Zoom pizarra Quicksigth") {
+  const project = getActiveProject();
+  if (!project) {
+    return;
+  }
+  ensureQuickSightState(project);
+  project.quickSightConfig.canvasZoom = sanitizeQuickSightCanvasZoom(
+    rawZoomValue,
+    project.quickSightConfig.canvasZoom
+  );
+  syncQuickSightEditMenuInputs(project);
+  updateQuickSightZoomMenuUi(project);
+  saveState();
+  renderQuickSightPanel(project);
+  setStatus(`${statusPrefix}: ${project.quickSightConfig.canvasZoom}%.`);
+}
+
+function updateQuickSightZoomMenuUi(project) {
+  const safeZoom = sanitizeQuickSightCanvasZoom(project?.quickSightConfig?.canvasZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  if (els.qsCanvasZoomMenuLabel instanceof HTMLElement) {
+    els.qsCanvasZoomMenuLabel.textContent = `Zoom (${safeZoom}%)`;
+  }
+  if (els.qsZoomFitAllLabel instanceof HTMLElement) {
+    const fitAll = getQuickSightCanvasFitZoom(project, "all");
+    els.qsZoomFitAllLabel.textContent = `Ajustar todo (${fitAll}%)`;
+  }
+  if (els.qsZoomFitWidthLabel instanceof HTMLElement) {
+    const fitWidth = getQuickSightCanvasFitZoom(project, "width");
+    els.qsZoomFitWidthLabel.textContent = `Ajustar ancho (${fitWidth}%)`;
+  }
+  if (els.qsZoomDefaultButton instanceof HTMLButtonElement) {
+    const isDefault = safeZoom === QUICKSIGHT_CANVAS_ZOOM_DEFAULT;
+    els.qsZoomDefaultButton.disabled = isDefault;
+    els.qsZoomDefaultButton.classList.toggle("active", isDefault);
+  }
+  if (els.qsCanvasZoomMenu instanceof HTMLElement) {
+    els.qsCanvasZoomMenu
+      .querySelectorAll("[data-qs-zoom-value]")
+      .forEach((node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+        node.classList.toggle("active", trimOrFallback(node.dataset.qsZoomValue, "") === String(safeZoom));
+      });
   }
 }
 
@@ -6645,6 +7234,66 @@ function getSteppedQuickSightCanvasZoom(currentZoom, direction) {
   const safeZoom = sanitizeQuickSightCanvasZoom(currentZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
   const safeDirection = direction >= 0 ? 1 : -1;
   return sanitizeQuickSightCanvasZoom(safeZoom + (QUICKSIGHT_CANVAS_ZOOM_STEP * safeDirection), safeZoom);
+}
+
+function syncQuickSightZoomSelectControl(selectNode, zoom) {
+  if (!(selectNode instanceof HTMLSelectElement)) {
+    return;
+  }
+  const safeZoom = sanitizeQuickSightCanvasZoom(zoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  const safeValue = String(safeZoom);
+  Array.from(selectNode.options).forEach((option) => {
+    if (option.dataset.dynamicZoom === "1") {
+      option.remove();
+    }
+  });
+  const hasOption = Array.from(selectNode.options).some((option) => option.value === safeValue);
+  if (!hasOption) {
+    const dynamicOption = document.createElement("option");
+    dynamicOption.value = safeValue;
+    dynamicOption.textContent = `${safeValue}%`;
+    dynamicOption.dataset.dynamicZoom = "1";
+    selectNode.insertBefore(dynamicOption, selectNode.firstChild);
+  }
+  selectNode.value = safeValue;
+}
+
+function getQuickSightCanvasUsedArea(project) {
+  const canvasSize = getQuickSightCanvasSizeFromConfig(project?.quickSightConfig);
+  const visuals = Array.isArray(project?.quickSightVisuals) ? project.quickSightVisuals : [];
+  if (visuals.length === 0) {
+    return { width: canvasSize.width, height: canvasSize.height };
+  }
+  let maxRight = 0;
+  let maxBottom = 0;
+  visuals.forEach((visual, index) => {
+    const layout = normalizeQuickSightVisualLayout(visual?.layout, index);
+    maxRight = Math.max(maxRight, layout.x + layout.w);
+    maxBottom = Math.max(maxBottom, layout.y + layout.h);
+  });
+  const paddedWidth = Math.round(maxRight + QUICKSIGHT_CANVAS_PADDING + 24);
+  const paddedHeight = Math.round(maxBottom + QUICKSIGHT_CANVAS_PADDING + 24);
+  return {
+    width: Math.max(300, Math.min(canvasSize.width, paddedWidth || canvasSize.width)),
+    height: Math.max(240, Math.min(canvasSize.height, paddedHeight || canvasSize.height))
+  };
+}
+
+function getQuickSightCanvasFitZoom(project, mode = "all") {
+  if (!project || !(els.qsCanvasBoard instanceof HTMLElement)) {
+    return QUICKSIGHT_CANVAS_ZOOM_DEFAULT;
+  }
+  const usedArea = getQuickSightCanvasUsedArea(project);
+  const viewportWidth = Math.max(120, Math.round(els.qsCanvasBoard.clientWidth - 64));
+  const viewportHeight = Math.max(120, Math.round(els.qsCanvasBoard.clientHeight - 64));
+  const widthRatio = viewportWidth / Math.max(1, usedArea.width);
+  const heightRatio = viewportHeight / Math.max(1, usedArea.height);
+  let ratio = mode === "width" ? widthRatio : Math.min(widthRatio, heightRatio);
+  if (mode !== "width" && ratio < 0.34 && widthRatio > ratio * 1.45) {
+    ratio = widthRatio;
+  }
+  const rawZoom = Math.floor(ratio * 100);
+  return sanitizeQuickSightCanvasZoom(rawZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
 }
 
 function getQuickSightCanvasSizeFromConfig(config) {
@@ -6718,7 +7367,97 @@ function applyQuickSightSurfaceSize(surfaceElement, config) {
   }
 }
 
-function startQuickSightVisualDrag(project, visual, cardElement, event) {
+function clampQuickSightInteractionValue(value, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return min;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return numeric;
+  }
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function computeQuickSightResizedLayout(layoutStart, deltaX, deltaY, resizeHandle, config) {
+  const handle = trimOrFallback(resizeHandle, "se").toLowerCase();
+  const canvasSize = getQuickSightCanvasSizeFromConfig(config);
+  const startX = Number(layoutStart?.x) || 0;
+  const startY = Number(layoutStart?.y) || 0;
+  const startW = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Number(layoutStart?.w) || QUICKSIGHT_VISUAL_MIN_WIDTH);
+  const startH = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Number(layoutStart?.h) || QUICKSIGHT_VISUAL_MIN_HEIGHT);
+  const startRight = startX + startW;
+  const startBottom = startY + startH;
+  let nextX = startX;
+  let nextY = startY;
+  let nextW = startW;
+  let nextH = startH;
+
+  if (handle.includes("e")) {
+    nextW = clampQuickSightInteractionValue(
+      startW + deltaX,
+      QUICKSIGHT_VISUAL_MIN_WIDTH,
+      canvasSize.width - startX
+    );
+  } else if (handle.includes("w")) {
+    const nextLeft = clampQuickSightInteractionValue(
+      startX + deltaX,
+      0,
+      startRight - QUICKSIGHT_VISUAL_MIN_WIDTH
+    );
+    nextX = nextLeft;
+    nextW = startRight - nextLeft;
+  }
+
+  if (handle.includes("s")) {
+    nextH = clampQuickSightInteractionValue(
+      startH + deltaY,
+      QUICKSIGHT_VISUAL_MIN_HEIGHT,
+      canvasSize.height - startY
+    );
+  } else if (handle.includes("n")) {
+    const nextTop = clampQuickSightInteractionValue(
+      startY + deltaY,
+      0,
+      startBottom - QUICKSIGHT_VISUAL_MIN_HEIGHT
+    );
+    nextY = nextTop;
+    nextH = startBottom - nextTop;
+  }
+
+  return clampQuickSightVisualLayoutToCanvas({
+    x: nextX,
+    y: nextY,
+    w: nextW,
+    h: nextH
+  }, config);
+}
+
+function repaintQuickSightVisualCanvasForCard(project, visual, cardElement) {
+  if (!project || !visual || !(cardElement instanceof HTMLElement)) {
+    return;
+  }
+  const canvasNode = cardElement.querySelector("canvas[data-qs-canvas-id]");
+  if (!(canvasNode instanceof HTMLCanvasElement)) {
+    return;
+  }
+  const snapshot = buildBiWidgetSnapshot(collectBiRows(project), visual);
+  paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+}
+
+function scheduleQuickSightResizeCanvasRepaint(interaction, project, visual) {
+  if (!interaction || !project || !visual || !(interaction.cardElement instanceof HTMLElement)) {
+    return;
+  }
+  if (interaction.resizeRepaintRafId) {
+    return;
+  }
+  interaction.resizeRepaintRafId = window.requestAnimationFrame(() => {
+    interaction.resizeRepaintRafId = 0;
+    repaintQuickSightVisualCanvasForCard(project, visual, interaction.cardElement);
+  });
+}
+
+function startQuickSightVisualDrag(project, visual, cardElement, event, mode = "drag", resizeHandle = "se") {
   if (!project || !visual || !(cardElement instanceof HTMLElement) || !(event instanceof PointerEvent)) {
     return;
   }
@@ -6735,7 +7474,11 @@ function startQuickSightVisualDrag(project, visual, cardElement, event) {
     project.quickSightConfig
   );
   visual.layout = { ...layout };
+  const previousSelectedVisualId = selectedQuickSightVisualId;
   selectedQuickSightVisualId = visual.id;
+  if (activeTab === "quicksight" && previousSelectedVisualId !== visual.id) {
+    renderQuickSightPanel(project, { softSelect: true });
+  }
   if (els.qsCanvasBoard instanceof HTMLElement) {
     els.qsCanvasBoard.querySelectorAll(".qs-visual-card.active").forEach((node) => {
       if (node instanceof HTMLElement) {
@@ -6751,6 +7494,8 @@ function startQuickSightVisualDrag(project, visual, cardElement, event) {
     startX: event.clientX,
     startY: event.clientY,
     layoutStart: { ...layout },
+    mode: mode === "resize" ? "resize" : "drag",
+    resizeHandle: trimOrFallback(resizeHandle, "se").toLowerCase(),
     zoomScale: Math.max(
       0.25,
       Math.min(
@@ -6760,9 +7505,16 @@ function startQuickSightVisualDrag(project, visual, cardElement, event) {
     ),
     moved: false,
     cardElement,
-    surfaceElement
+    surfaceElement,
+    resizeRepaintRafId: 0,
+    lastResizeRepaintAt: 0
   };
-  cardElement.classList.add("is-dragging", "active");
+  cardElement.classList.add("active");
+  if (quickSightVisualInteraction.mode === "resize") {
+    cardElement.classList.add("is-resizing");
+  } else {
+    cardElement.classList.add("is-dragging");
+  }
   if (typeof cardElement.setPointerCapture === "function") {
     try {
       cardElement.setPointerCapture(event.pointerId);
@@ -6792,18 +7544,41 @@ function handleQuickSightVisualDragMove(event) {
     return;
   }
   const zoomScale = Math.max(0.25, Math.min(3, Number(quickSightVisualInteraction.zoomScale) || 1));
-  const nextX = quickSightVisualInteraction.layoutStart.x + ((event.clientX - quickSightVisualInteraction.startX) / zoomScale);
-  const nextY = quickSightVisualInteraction.layoutStart.y + ((event.clientY - quickSightVisualInteraction.startY) / zoomScale);
-  const nextLayout = clampQuickSightVisualLayoutToCanvas({
-    x: nextX,
-    y: nextY,
-    w: visual.layout?.w ?? quickSightVisualInteraction.layoutStart.w,
-    h: visual.layout?.h ?? quickSightVisualInteraction.layoutStart.h
-  }, project.quickSightConfig);
+  const deltaX = (event.clientX - quickSightVisualInteraction.startX) / zoomScale;
+  const deltaY = (event.clientY - quickSightVisualInteraction.startY) / zoomScale;
+  const nextLayout = quickSightVisualInteraction.mode === "resize"
+    ? computeQuickSightResizedLayout(
+      quickSightVisualInteraction.layoutStart,
+      deltaX,
+      deltaY,
+      quickSightVisualInteraction.resizeHandle,
+      project.quickSightConfig
+    )
+    : clampQuickSightVisualLayoutToCanvas({
+      x: quickSightVisualInteraction.layoutStart.x + deltaX,
+      y: quickSightVisualInteraction.layoutStart.y + deltaY,
+      w: visual.layout?.w ?? quickSightVisualInteraction.layoutStart.w,
+      h: visual.layout?.h ?? quickSightVisualInteraction.layoutStart.h
+    }, project.quickSightConfig);
   visual.layout = nextLayout;
   if (quickSightVisualInteraction.cardElement instanceof HTMLElement) {
     quickSightVisualInteraction.cardElement.style.left = `${nextLayout.x}px`;
     quickSightVisualInteraction.cardElement.style.top = `${nextLayout.y}px`;
+    quickSightVisualInteraction.cardElement.style.width = `${nextLayout.w}px`;
+    quickSightVisualInteraction.cardElement.style.height = `${nextLayout.h}px`;
+    const sizeNode = quickSightVisualInteraction.cardElement.querySelector(".qs-visual-size");
+    if (sizeNode instanceof HTMLElement) {
+      sizeNode.textContent = `${nextLayout.w} x ${nextLayout.h}`;
+    }
+  }
+  if (quickSightVisualInteraction.mode === "resize") {
+    const now = (typeof performance !== "undefined" && typeof performance.now === "function")
+      ? performance.now()
+      : Date.now();
+    if ((now - (quickSightVisualInteraction.lastResizeRepaintAt || 0)) >= 40) {
+      quickSightVisualInteraction.lastResizeRepaintAt = now;
+      scheduleQuickSightResizeCanvasRepaint(quickSightVisualInteraction, project, visual);
+    }
   }
   quickSightVisualInteraction.moved = true;
   event.preventDefault();
@@ -6818,8 +7593,13 @@ function finishQuickSightVisualDrag(event, canceled) {
   }
   const interaction = quickSightVisualInteraction;
   quickSightVisualInteraction = null;
+  if (interaction.resizeRepaintRafId) {
+    window.cancelAnimationFrame(interaction.resizeRepaintRafId);
+    interaction.resizeRepaintRafId = 0;
+  }
   if (interaction.cardElement instanceof HTMLElement) {
     interaction.cardElement.classList.remove("is-dragging");
+    interaction.cardElement.classList.remove("is-resizing");
     if (typeof interaction.cardElement.releasePointerCapture === "function") {
       try {
         interaction.cardElement.releasePointerCapture(event.pointerId);
@@ -6828,11 +7608,21 @@ function finishQuickSightVisualDrag(event, canceled) {
       }
     }
   }
+  if (!canceled && interaction.moved && interaction.mode === "resize") {
+    const project = state.projects.find((item) => item.id === interaction.projectId);
+    if (project) {
+      ensureQuickSightState(project);
+      const visual = project.quickSightVisuals.find((item) => item.id === interaction.visualId);
+      if (visual) {
+        repaintQuickSightVisualCanvasForCard(project, visual, interaction.cardElement);
+      }
+    }
+  }
   if (!canceled && interaction.moved) {
     quickSightSuppressClickUntil = Date.now() + 220;
     saveState();
     if (activeTab === "quicksight") {
-      setStatus("Visual movido en pizarra libre.");
+      setStatus(interaction.mode === "resize" ? "Visual transformado en pizarra libre." : "Visual movido en pizarra libre.");
     }
   }
 }
@@ -6869,15 +7659,269 @@ function getQuickSightChartTypeOptions() {
   ];
 }
 
-function renderQuickSightPanel(project) {
+function captureQuickSightPropsSectionState() {
+  if (!els.qsPropertiesBody) {
+    return;
+  }
+  const nodes = els.qsPropertiesBody.querySelectorAll("details.qs-props-section[data-qs-props-section][data-qs-props-tab-context]");
+  nodes.forEach((node) => {
+    if (!(node instanceof HTMLDetailsElement)) {
+      return;
+    }
+    const tab = trimOrFallback(node.dataset.qsPropsTabContext, "");
+    const sectionKey = trimOrFallback(node.dataset.qsPropsSection, "");
+    if ((tab !== "visual" && tab !== "interactions") || !sectionKey) {
+      return;
+    }
+    if (!quickSightPropsSectionState[tab]) {
+      quickSightPropsSectionState[tab] = Object.create(null);
+    }
+    quickSightPropsSectionState[tab][sectionKey] = node.open;
+  });
+}
+
+function isQuickSightPropsSectionOpen(tab, sectionKey, defaultOpen = false) {
+  if ((tab !== "visual" && tab !== "interactions") || !sectionKey) {
+    return defaultOpen;
+  }
+  const byTab = quickSightPropsSectionState[tab];
+  if (!byTab || typeof byTab[sectionKey] !== "boolean") {
+    return defaultOpen;
+  }
+  return byTab[sectionKey];
+}
+
+function getQuickSightPropsSectionOpenAttr(tab, sectionKey, defaultOpen = false) {
+  return isQuickSightPropsSectionOpen(tab, sectionKey, defaultOpen) ? " open" : "";
+}
+
+function buildQuickSightSpecificConfigFieldHtml(field, value) {
+  const propToken = `type:${field.key}`;
+  if (field.type === "checkbox") {
+    return `<label class="qs-props-check"><input type="checkbox" data-qs-prop="${escapeAttribute(propToken)}"${value ? " checked" : ""}><span>${escapeHtml(field.label)}</span></label>`;
+  }
+  if (field.type === "select") {
+    const options = (field.options || [])
+      .map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label)}</option>`)
+      .join("");
+    return `<label class="qs-props-row">${escapeHtml(field.label)}<select data-qs-prop="${escapeAttribute(propToken)}">${options}</select></label>`;
+  }
+  if (field.type === "color") {
+    return `<label class="qs-props-row">${escapeHtml(field.label)}<input data-qs-prop="${escapeAttribute(propToken)}" type="color" value="${escapeAttribute(String(value || "#1f2f44"))}"></label>`;
+  }
+  if (field.type === "text") {
+    const maxLengthAttr = Number.isInteger(field.maxLength) ? ` maxlength="${field.maxLength}"` : "";
+    return `<label class="qs-props-row">${escapeHtml(field.label)}<input data-qs-prop="${escapeAttribute(propToken)}" type="text"${maxLengthAttr} value="${escapeAttribute(String(value || ""))}"></label>`;
+  }
+  const minAttr = Number.isFinite(field.min) ? ` min="${field.min}"` : "";
+  const maxAttr = Number.isFinite(field.max) ? ` max="${field.max}"` : "";
+  const stepAttr = Number.isFinite(field.step) ? ` step="${field.step}"` : "";
+  return `<label class="qs-props-row">${escapeHtml(field.label)}<input data-qs-prop="${escapeAttribute(propToken)}" type="number"${minAttr}${maxAttr}${stepAttr} value="${escapeAttribute(String(value ?? ""))}"></label>`;
+}
+
+function bindQuickSightCanvasHover(canvas) {
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+  if (canvas.__qsHoverBound === true) {
+    return;
+  }
+  canvas.__qsHoverBound = true;
+
+  const redrawHoverState = (state, highlightIndex) => {
+    if (!state) {
+      return;
+    }
+    state.model = drawBiWidgetChart(
+      canvas,
+      state.chartType,
+      state.labels,
+      state.values,
+      highlightIndex,
+      state.colors,
+      state.visualSettings,
+      state.labelOffsets,
+      state.polarLayout,
+      state.rows,
+      state.chartConfig,
+      state.labelLayoutV2,
+      state.typeConfigMap
+    );
+  };
+  let dragState = null;
+
+  canvas.addEventListener("mousemove", (event) => {
+    const state = canvas.__qsHoverState;
+    if (!state || !Array.isArray(state.rows) || state.rows.length === 0) {
+      canvas.style.cursor = "default";
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (dragState) {
+      canvas.style.cursor = "grabbing";
+      return;
+    }
+    const model = state.model || { type: "none", items: [] };
+    let cursor = "default";
+    const labelHoverIndex = resolveBiLabelDragIndex(model, x, y);
+    if (labelHoverIndex >= 0) {
+      cursor = "grab";
+    } else {
+      const hoverIndexProbe = resolveBiHoverIndex(model, x, y);
+      if (hoverIndexProbe >= 0) {
+        cursor = "pointer";
+      }
+    }
+    canvas.style.cursor = cursor;
+    const hoverIndex = resolveBiHoverIndex(model, x, y);
+    if (hoverIndex === state.hoverIndex) {
+      return;
+    }
+    state.hoverIndex = hoverIndex;
+    redrawHoverState(state, hoverIndex);
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const state = canvas.__qsHoverState;
+    if (!state || !state.visual || !Array.isArray(state.rows) || state.rows.length === 0) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const model = state.model || { type: "none", items: [] };
+    const labelIndex = resolveBiLabelDragIndex(model, x, y);
+    if (labelIndex < 0 || labelIndex >= state.rows.length) {
+      return;
+    }
+    const labelItem = Array.isArray(model.labelItems)
+      ? (model.labelItems.find((entry) => entry?.index === labelIndex) || null)
+      : null;
+    const row = state.rows[labelIndex] || null;
+    const rowKey = trimOrFallback(row?.rowKey || labelItem?.rowKey, "");
+    const rowLabel = trimOrFallback(row?.label || labelItem?.rowLabel || state.labels[labelIndex] || "", "");
+    const currentPlacement = getBiLabelPlacement(state.visual, rowKey, rowLabel);
+    const safeOffsets = normalizeBiLabelOffsets(state.labelOffsets);
+    const currentLegacy = safeOffsets[String(labelIndex)] || { x: 0, y: 0 };
+    const plotWidth = Math.max(1, Number.isFinite(labelItem?.plotWidth) ? labelItem.plotWidth : canvas.clientWidth || 1);
+    const plotHeight = Math.max(1, Number.isFinite(labelItem?.plotHeight) ? labelItem.plotHeight : canvas.clientHeight || 1);
+    dragState = {
+      pointerId: event.pointerId,
+      index: labelIndex,
+      rowKey,
+      rowLabel,
+      plotWidth,
+      plotHeight,
+      startX: x,
+      startY: y,
+      startOffsetX: Number.isFinite(currentLegacy.x) ? currentLegacy.x : 0,
+      startOffsetY: Number.isFinite(currentLegacy.y) ? currentLegacy.y : 0,
+      startDxPct: Number.isFinite(currentPlacement?.dxPct)
+        ? currentPlacement.dxPct
+        : ((Number.isFinite(currentLegacy.x) ? currentLegacy.x : 0) / plotWidth),
+      startDyPct: Number.isFinite(currentPlacement?.dyPct)
+        ? currentPlacement.dyPct
+        : ((Number.isFinite(currentLegacy.y) ? currentLegacy.y : 0) / plotHeight),
+      moved: false
+    };
+    state.labelOffsets = safeOffsets;
+    state.visual.labelOffsets = safeOffsets;
+    state.hoverIndex = labelIndex;
+    event.preventDefault();
+    event.stopPropagation();
+    canvas.setPointerCapture?.(event.pointerId);
+    canvas.style.cursor = "grabbing";
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return;
+    }
+    const state = canvas.__qsHoverState;
+    if (!state || !state.visual) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const nextX = dragState.startOffsetX + (x - dragState.startX);
+    const nextY = dragState.startOffsetY + (y - dragState.startY);
+    const safeOffsets = normalizeBiLabelOffsets(state.labelOffsets);
+    safeOffsets[String(dragState.index)] = {
+      x: Math.max(-400, Math.min(400, Math.round(nextX))),
+      y: Math.max(-220, Math.min(220, Math.round(nextY)))
+    };
+    state.labelOffsets = safeOffsets;
+    state.visual.labelOffsets = safeOffsets;
+    upsertBiLabelPlacement(state.visual, dragState.rowKey, {
+      anchorXPct: 0.5,
+      anchorYPct: 0.5,
+      dxPct: Math.max(-1.5, Math.min(1.5, dragState.startDxPct + ((x - dragState.startX) / Math.max(1, dragState.plotWidth)))),
+      dyPct: Math.max(-1.5, Math.min(1.5, dragState.startDyPct + ((y - dragState.startY) / Math.max(1, dragState.plotHeight)))),
+      scope: "plot"
+    }, dragState.rowLabel);
+    state.labelLayoutV2 = normalizeBiLabelLayoutV2(state.visual.labelLayoutV2);
+    state.hoverIndex = dragState.index;
+    redrawHoverState(state, dragState.index);
+    dragState.moved = Math.abs(x - dragState.startX) > 1 || Math.abs(y - dragState.startY) > 1;
+    event.preventDefault();
+    event.stopPropagation();
+    canvas.style.cursor = "grabbing";
+  });
+
+  const finishDrag = (event, canceled = false) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return;
+    }
+    const moved = dragState.moved;
+    dragState = null;
+    canvas.releasePointerCapture?.(event.pointerId);
+    if (!canceled && moved) {
+      quickSightSuppressClickUntil = Date.now() + 260;
+      saveState();
+      if (activeTab === "quicksight") {
+        setStatus("Posicion de labels guardada.");
+      }
+    }
+    canvas.style.cursor = "default";
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  canvas.addEventListener("pointerup", (event) => {
+    finishDrag(event, false);
+  });
+
+  canvas.addEventListener("pointercancel", (event) => {
+    finishDrag(event, true);
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    const state = canvas.__qsHoverState;
+    canvas.style.cursor = "default";
+    if (!state || state.hoverIndex < 0 || dragState) {
+      return;
+    }
+    state.hoverIndex = -1;
+    redrawHoverState(state, -1);
+  });
+}
+
+function renderQuickSightPanel(project, options = {}) {
   if (!els.qsCanvasBoard || !els.qsFieldsList || !els.qsPropertiesBody) {
     return;
   }
+  const softSelect = !!options.softSelect;
+  const allowEmptySelection = !!options.allowEmptySelection;
   if (project && activeTab !== "quicksight") {
     return;
   }
+  captureQuickSightPropsSectionState();
   applyQuickSightPanelVisibility("");
   if (!project) {
+    updateQuickSightZoomMenuUi(null);
     if (els.qsDataSummaryText) {
       els.qsDataSummaryText.textContent = "";
     }
@@ -6887,6 +7931,15 @@ function renderQuickSightPanel(project) {
     if (els.qsSheetTitle) {
       els.qsSheetTitle.textContent = "Hoja 1";
     }
+    if (els.qsRoleDimensionList) {
+      els.qsRoleDimensionList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin dimension</span>";
+    }
+    if (els.qsRoleMetricList) {
+      els.qsRoleMetricList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>";
+    }
+    if (els.qsRoleBreakdownList) {
+      els.qsRoleBreakdownList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>";
+    }
     els.qsFieldsList.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsCanvasBoard.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Sin proyecto activo.</p>";
@@ -6895,21 +7948,30 @@ function renderQuickSightPanel(project) {
 
   ensureQuickSightState(project);
   if (!project.quickSightVisuals.some((item) => item.id === selectedQuickSightVisualId)) {
-    selectedQuickSightVisualId = project.quickSightVisuals[0]?.id || "";
+    selectedQuickSightVisualId = allowEmptySelection ? "" : (project.quickSightVisuals[0]?.id || "");
   }
+  const activeVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
 
   const allRows = collectBiRows(project);
-  const selectedSource = normalizeBiSource(project.quickSightConfig.source || "all");
+  const selectedSource = normalizeBiSource(activeVisual?.source || project.quickSightConfig.source || "all");
   const sourceRows = selectedSource === "all"
     ? allRows
     : allRows.filter((row) => row.source === selectedSource);
   const groupOptions = getBiGroupByOptions(project);
   const metricOptions = getQuickSightMetricOptions();
   const chartOptions = getQuickSightChartTypeOptions();
-  const safeGroupBy = normalizeBiGroupBy(project.quickSightConfig.groupBy || "disciplina");
-  const safeMetric = normalizeBiMetric(project.quickSightConfig.metric || "count");
-  const safeChartType = normalizeBiChartType(project.quickSightConfig.chartType || "bar");
+  const safeGroupBy = normalizeBiGroupBy(activeVisual?.groupBy || project.quickSightConfig.groupBy || "disciplina");
+  const safeBreakdown = normalizeBiOptionalGroupBy(
+    activeVisual?.breakdownDimension
+    || activeVisual?.dataRoles?.breakdownDimension
+    || project.quickSightConfig.breakdownDimension
+    || ""
+  );
+  const safeMetric = normalizeBiMetric(activeVisual?.metric || project.quickSightConfig.metric || "count");
+  const safeChartType = normalizeBiChartType(activeVisual?.chartType || project.quickSightConfig.chartType || "bar");
+  const safeTopN = sanitizeBiTopN(activeVisual?.topN ?? project.quickSightConfig.topN ?? 12);
   const catalogFields = getBiCatalogFields(project, selectedSource);
+  const breakdownOptions = [{ value: "", label: "(sin grupo/color)" }, ...groupOptions];
 
   if (els.qsSourceSelect) {
     els.qsSourceSelect.value = selectedSource;
@@ -6920,6 +7982,13 @@ function renderQuickSightPanel(project) {
       .join("");
     const hasGroup = groupOptions.some((option) => option.value === safeGroupBy);
     els.qsGroupBySelect.value = hasGroup ? safeGroupBy : (groupOptions[0]?.value || "disciplina");
+  }
+  if (els.qsBreakdownSelect) {
+    els.qsBreakdownSelect.innerHTML = breakdownOptions
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    const hasBreakdown = breakdownOptions.some((option) => option.value === safeBreakdown);
+    els.qsBreakdownSelect.value = hasBreakdown ? safeBreakdown : "";
   }
   if (els.qsMetricSelect) {
     els.qsMetricSelect.innerHTML = metricOptions
@@ -6937,17 +8006,42 @@ function renderQuickSightPanel(project) {
       ? safeChartType
       : "bar";
   }
+  const resolvedGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || safeGroupBy);
+  const resolvedBreakdown = normalizeBiOptionalGroupBy(els.qsBreakdownSelect?.value || safeBreakdown);
+  const resolvedMetric = normalizeBiMetric(els.qsMetricSelect?.value || safeMetric);
+  const resolvedChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || safeChartType);
   if (els.qsChartTypeGrid) {
     els.qsChartTypeGrid.querySelectorAll("[data-qs-chart-type]").forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
       }
       const chartToken = normalizeBiChartType(node.dataset.qsChartType || "");
-      node.classList.toggle("active", chartToken === safeChartType);
+      node.classList.toggle("active", chartToken === resolvedChartType);
     });
   }
+  if (els.qsRoleDimensionList) {
+    if (resolvedGroupBy) {
+      els.qsRoleDimensionList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-dimension" data-qs-groupby="${escapeAttribute(resolvedGroupBy)}">${escapeHtml(getBiGroupLabel(resolvedGroupBy, project))}</button>`;
+    } else {
+      els.qsRoleDimensionList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin dimension</span>";
+    }
+  }
+  if (els.qsRoleMetricList) {
+    if (resolvedMetric) {
+      els.qsRoleMetricList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-metric="${escapeAttribute(resolvedMetric)}">${escapeHtml(getBiMetricLabel(resolvedMetric))}</button>`;
+    } else {
+      els.qsRoleMetricList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>";
+    }
+  }
+  if (els.qsRoleBreakdownList) {
+    if (resolvedBreakdown) {
+      els.qsRoleBreakdownList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-breakdown" data-qs-breakdown="${escapeAttribute(resolvedBreakdown)}">${escapeHtml(getBiGroupLabel(resolvedBreakdown, project))}</button>`;
+    } else {
+      els.qsRoleBreakdownList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>";
+    }
+  }
   if (els.qsTopNInput) {
-    els.qsTopNInput.value = String(sanitizeBiTopN(project.quickSightConfig.topN));
+    els.qsTopNInput.value = String(safeTopN);
   }
   if (els.qsFieldsSearchInput) {
     els.qsFieldsSearchInput.value = trimOrFallback(project.quickSightConfig.fieldsSearch, "");
@@ -6961,6 +8055,7 @@ function renderQuickSightPanel(project) {
   const scaledCanvasWidth = Math.max(1, Math.round(canvasSize.width * canvasZoomScale));
   const scaledCanvasHeight = Math.max(1, Math.round(canvasSize.height * canvasZoomScale));
   syncQuickSightEditMenuInputs(project);
+  updateQuickSightZoomMenuUi(project);
   if (els.qsCanvasMetaText) {
     els.qsCanvasMetaText.textContent = `Visuales: ${project.quickSightVisuals.length} | Filas: ${sourceRows.length} | Pizarra: ${canvasSize.width} x ${canvasSize.height}px | Zoom: ${canvasZoom}%`;
   }
@@ -6980,10 +8075,11 @@ function renderQuickSightPanel(project) {
       const metric = trimOrFallback(field.metric, "");
       const token = getBiCatalogFieldTypeToken(field.type);
       const roleText = groupBy ? "Dimension" : (metric ? "Metrica" : "No vinculable");
-      const activeClass = (groupBy && groupBy === safeGroupBy) || (metric && metric === safeMetric)
+      const activeClass = (groupBy && (groupBy === resolvedGroupBy || groupBy === resolvedBreakdown)) || (metric && metric === resolvedMetric)
         ? " active"
         : "";
-      return `<button type="button" class="qs-field-item${activeClass}" data-qs-groupby="${escapeAttribute(groupBy)}" data-qs-metric="${escapeAttribute(metric)}">
+      const draggableAttr = (groupBy || metric) ? " draggable=\"true\"" : "";
+      return `<button type="button" class="qs-field-item${activeClass}" data-qs-groupby="${escapeAttribute(groupBy)}" data-qs-metric="${escapeAttribute(metric)}" data-qs-field-name="${escapeAttribute(field.name)}"${draggableAttr}>
         <span class="qs-field-kind">${escapeHtml(token)}</span>
         <span class="qs-field-name">${escapeHtml(field.name)}</span>
         <span class="qs-field-source">${escapeHtml(`${field.source} | ${roleText}`)}</span>
@@ -6998,128 +8094,541 @@ function renderQuickSightPanel(project) {
     );
   });
 
-  if (project.quickSightVisuals.length === 0) {
-    els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
-      <div class="qs-canvas-surface qs-canvas-surface-empty" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">
-        <div class="qs-empty">AutoGraph: agrega un visual para empezar.</div>
-      </div>
-    </div>`;
-  } else {
-    const visualCardsHtml = project.quickSightVisuals.map((visual, index) => {
-      const activeClass = visual.id === selectedQuickSightVisualId ? " active" : "";
-      const layout = normalizeQuickSightVisualLayout(visual.layout, index);
-      visual.layout = layout;
-      return `<article class="qs-visual-card${activeClass}" data-qs-visual-id="${escapeAttribute(visual.id)}" style="left:${layout.x}px;top:${layout.y}px;width:${layout.w}px;height:${layout.h}px;">
-        <div class="qs-visual-head" data-qs-drag-visual="${escapeAttribute(visual.id)}">
-          <div>
-            <h4 class="qs-visual-title">${escapeHtml(visual.name)}</h4>
-            <p class="qs-visual-meta">${escapeHtml(getBiSourceLabel(visual.source))} | ${escapeHtml(getBiGroupLabel(visual.groupBy, project))} | ${escapeHtml(getBiMetricLabel(visual.metric))}</p>
-          </div>
-          <div class="qs-visual-head-right">
-            <span class="qs-visual-size">${layout.w} x ${layout.h}</span>
-          </div>
+  if (!softSelect) {
+    if (project.quickSightVisuals.length === 0) {
+      els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
+        <div class="qs-canvas-surface qs-canvas-surface-empty" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">
+          <div class="qs-empty">AutoGraph: agrega un visual para empezar.</div>
         </div>
-        <div class="qs-visual-canvas-wrap">
-          <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
-        </div>
-      </article>`;
-    }).join("");
-    els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
-      <div class="qs-canvas-surface" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">${visualCardsHtml}</div>
-    </div>`;
-  }
+      </div>`;
+    } else {
+      const visualCardsHtml = project.quickSightVisuals.map((visual, index) => {
+        const activeClass = visual.id === selectedQuickSightVisualId ? "active" : "";
+        const layout = normalizeQuickSightVisualLayout(visual.layout, index);
+        visual.layout = layout;
+        const display = normalizeQuickSightDisplaySettings(visual.display);
+        const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
+        visual.display = display;
+        visual.visualSettings = visualSettings;
+        visual.chartConfig = normalizeBiChartConfig(visual.chartConfig, visual.chartType);
+        const typeMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
+        const safeChartType = normalizeBiChartType(visual.chartType || "bar");
+        if (!typeMap[safeChartType]) {
+          typeMap[safeChartType] = normalizeBiChartTypeSpecificConfig({}, safeChartType);
+        }
+        visual.chartTypeConfig = typeMap;
+        visual.labelLayoutV2 = normalizeBiLabelLayoutV2(visual.labelLayoutV2);
+        visual.polarLayout = normalizeBiCircularLayout(visual.polarLayout);
+        const subtitle = trimOrFallback(display.subtitle, "")
+          || `${getBiSourceLabel(visual.source)} | ${getBiGroupLabel(visual.groupBy, project)} | ${getBiMetricLabel(visual.metric)}`;
+        const showHead = display.showTitle || display.showSubtitle;
+        const backgroundColor = display.showBackground
+          ? hexToRgba(display.backgroundColor, Math.max(0, Math.min(1, display.backgroundOpacity / 100)), "rgba(255,255,255,1)")
+          : "transparent";
+        const borderColor = display.showBorder
+          ? hexToRgba(display.borderColor, Math.max(0, Math.min(1, display.borderOpacity / 100)), "rgba(183,201,223,1)")
+          : "transparent";
+        const borderWidth = display.showBorder ? display.borderWidth : 0;
+        const selectionColor = hexToRgba(
+          display.selectionColor,
+          Math.max(0.04, Math.min(1, display.selectionOpacity / 100)),
+          "rgba(20,149,191,0.18)"
+        );
+        const cardClasses = [
+          "qs-visual-card",
+          activeClass ? "active" : "",
+          showHead ? "" : "no-head",
+          display.loadAnimation ? "qs-load-anim" : ""
+        ].filter(Boolean).join(" ");
+        return `<article class="${cardClasses}" data-qs-visual-id="${escapeAttribute(visual.id)}" style="left:${layout.x}px;top:${layout.y}px;width:${layout.w}px;height:${layout.h}px;--qs-card-padding:${display.padding}px;--qs-card-bg:${backgroundColor};--qs-card-border-color:${borderColor};--qs-card-border-width:${borderWidth}px;--qs-card-select-color:${selectionColor};--qs-head-height:${showHead ? 39 : 0}px;--qs-title-font-family:'${escapeAttribute(display.titleFontFamily)}';--qs-title-font-size:${display.titleFontSize}px;--qs-title-color:${escapeAttribute(display.titleColor)};--qs-subtitle-font-family:'${escapeAttribute(display.subtitleFontFamily)}';--qs-subtitle-font-size:${display.subtitleFontSize}px;--qs-subtitle-color:${escapeAttribute(display.subtitleColor)};">
+          <div class="qs-visual-head${showHead ? "" : " hidden"}" data-qs-drag-visual="${escapeAttribute(visual.id)}">
+            <div>
+              ${display.showTitle ? `<h4 class="qs-visual-title">${escapeHtml(visual.name)}</h4>` : ""}
+              ${display.showSubtitle ? `<p class="qs-visual-meta">${escapeHtml(subtitle)}</p>` : ""}
+            </div>
+            <div class="qs-visual-head-right">
+              <span class="qs-visual-size">${layout.w} x ${layout.h}</span>
+            </div>
+          </div>
+          <div class="qs-visual-canvas-wrap">
+            <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
+          </div>
+          <div class="qs-visual-transform-box" aria-hidden="true">
+            <span class="qs-transform-handle" data-qs-resize-handle="nw"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="n"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="ne"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="e"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="se"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="s"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="sw"></span>
+            <span class="qs-transform-handle" data-qs-resize-handle="w"></span>
+          </div>
+        </article>`;
+      }).join("");
+      els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
+        <div class="qs-canvas-surface" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">${visualCardsHtml}</div>
+      </div>`;
+    }
 
-  if (project.quickSightVisuals.length > 0) {
-    const canvases = els.qsCanvasBoard.querySelectorAll("canvas[data-qs-canvas-id]");
-    canvases.forEach((canvasNode) => {
-      if (!(canvasNode instanceof HTMLCanvasElement)) {
+    if (project.quickSightVisuals.length > 0) {
+      const canvases = els.qsCanvasBoard.querySelectorAll("canvas[data-qs-canvas-id]");
+      canvases.forEach((canvasNode) => {
+        if (!(canvasNode instanceof HTMLCanvasElement)) {
+          return;
+        }
+        const visualId = trimOrFallback(canvasNode.dataset.qsCanvasId, "");
+        const visual = project.quickSightVisuals.find((item) => item.id === visualId);
+        if (!visual) {
+          return;
+        }
+        const snapshot = buildBiWidgetSnapshot(allRows, visual);
+        paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+      });
+    }
+  } else if (els.qsCanvasBoard instanceof HTMLElement) {
+    const selectedId = trimOrFallback(selectedQuickSightVisualId, "");
+    els.qsCanvasBoard.querySelectorAll(".qs-visual-card").forEach((node) => {
+      if (!(node instanceof HTMLElement)) {
         return;
       }
-      const visualId = trimOrFallback(canvasNode.dataset.qsCanvasId, "");
-      const visual = project.quickSightVisuals.find((item) => item.id === visualId);
-      if (!visual) {
-        return;
-      }
-      const snapshot = buildBiWidgetSnapshot(allRows, visual);
-      paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+      node.classList.toggle("active", trimOrFallback(node.dataset.qsVisualId, "") === selectedId);
     });
   }
 
-  const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+  const selectedVisual = activeVisual;
   if (!selectedVisual) {
-    els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Selecciona un visual para editar propiedades.</p>";
+    els.qsPropertiesBody.innerHTML = `
+      <div class="qs-props-tabs">
+        <button type="button" class="qs-props-tab-btn${quickSightPropsTab === "visual" ? " active" : ""}" data-qs-props-tab="visual">Elemento visual</button>
+        <button type="button" class="qs-props-tab-btn${quickSightPropsTab === "interactions" ? " active" : ""}" data-qs-props-tab="interactions">Interacciones</button>
+      </div>
+      <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? " hidden" : ""}" data-qs-props-tab-panel="visual">
+        <p class="muted">Selecciona un visual para editar propiedades.</p>
+      </div>
+      <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? "" : " hidden"}" data-qs-props-tab-panel="interactions">
+        <p class="muted">Selecciona un visual para configurar interacciones.</p>
+      </div>
+    `;
   } else {
     const selectedLayout = clampQuickSightVisualLayoutToCanvas(
       normalizeQuickSightVisualLayout(selectedVisual.layout, 0),
       project.quickSightConfig
     );
     selectedVisual.layout = selectedLayout;
-    const sourceOptions = [
-      { value: "all", label: "MIFA/TODAS_LAS_VISTAS" },
-      { value: "deliverable", label: "MIFA/VISTA_MIDP" },
-      { value: "package", label: "MIFA/VISTA_PAQUETES" },
-      { value: "review-control", label: "MIFA/VISTA_FLUJOS" }
+    const selectedDisplay = normalizeQuickSightDisplaySettings({
+      ...selectedVisual.display,
+      subtitle: selectedVisual.display?.subtitle ?? selectedVisual.subtitle,
+      altText: selectedVisual.display?.altText ?? selectedVisual.altText
+    });
+    selectedVisual.display = selectedDisplay;
+    selectedVisual.subtitle = selectedDisplay.subtitle;
+    selectedVisual.altText = selectedDisplay.altText;
+    const selectedVisualSettings = normalizeBiVisualSettings(selectedVisual.visualSettings);
+    selectedVisual.visualSettings = selectedVisualSettings;
+    selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
+    const selectedChartType = normalizeBiChartType(selectedVisual.chartType || "bar");
+    const selectedTypeMap = normalizeBiChartTypeConfigMap(selectedVisual.chartTypeConfig);
+    if (!selectedTypeMap[selectedChartType]) {
+      selectedTypeMap[selectedChartType] = normalizeBiChartTypeSpecificConfig({}, selectedChartType);
+    }
+    selectedVisual.chartTypeConfig = selectedTypeMap;
+    const selectedTypeConfig = getBiSpecificChartConfigForWidget(selectedVisual, selectedChartType);
+    const selectedCapabilities = getBiChartCapabilities(selectedChartType);
+    const selectedTypeSchema = getBiSpecificConfigSchema("chart", selectedChartType);
+    const fontFamilyOptions = Array.from(BI_ALLOWED_FONT_FAMILIES);
+    const markerStyleOptions = [
+      { value: "circle", label: "Circulo" },
+      { value: "square", label: "Cuadrado" },
+      { value: "diamond", label: "Rombo" },
+      { value: "triangle", label: "Triangulo" },
+      { value: "none", label: "Sin marcador" }
     ];
+    const lineStyleOptions = [
+      { value: "solid", label: "Solida" },
+      { value: "dashed", label: "Discontinua" },
+      { value: "dotted", label: "Punteada" }
+    ];
+    const isLineLike = new Set(["line", "timeseries", "area", "combo", "radar", "pareto"]).has(selectedChartType);
+    const isMarkerLike = new Set(["line", "timeseries", "area", "combo", "scatter", "bubble", "radar", "pareto"]).has(selectedChartType);
+    const isAreaLike = new Set(["area", "combo"]).has(selectedChartType);
+    const isBarLike = new Set(["bar", "combo", "waterfall", "pareto", "bullet"]).has(selectedChartType);
+    const showBreakdownInSeries = !!selectedCapabilities.supportsBreakdown;
+    const showSortInSeries = !!selectedCapabilities.supportsSortMode;
+    const showReferenceLines = !!selectedCapabilities.supportsReferenceLine;
+    const showDataLabelsSection = !!selectedCapabilities.supportsDataLabels;
+    const specificFieldsHtml = Array.isArray(selectedTypeSchema.fields) && selectedTypeSchema.fields.length > 0
+      ? selectedTypeSchema.fields.map((field) => buildQuickSightSpecificConfigFieldHtml(field, selectedTypeConfig[field.key])).join("")
+      : "<p class=\"muted\">Sin configuración adicional para este tipo.</p>";
+
     els.qsPropertiesBody.innerHTML = `
-      <label class="qs-props-row">
-        Nombre
-        <input data-qs-prop="name" type="text" maxlength="120" value="${escapeAttribute(selectedVisual.name)}">
-      </label>
-      <div class="qs-props-layout-grid">
-        <label class="qs-props-row">
-          X (px)
-          <input data-qs-prop="layoutX" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.x))}">
-        </label>
-        <label class="qs-props-row">
-          Y (px)
-          <input data-qs-prop="layoutY" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.y))}">
-        </label>
-        <label class="qs-props-row">
-          Ancho (px)
-          <input data-qs-prop="layoutW" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_WIDTH))}" step="1" value="${escapeAttribute(String(selectedLayout.w))}">
-        </label>
-        <label class="qs-props-row">
-          Alto (px)
-          <input data-qs-prop="layoutH" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_HEIGHT))}" step="1" value="${escapeAttribute(String(selectedLayout.h))}">
-        </label>
+      <div class="qs-props-tabs">
+        <button type="button" class="qs-props-tab-btn${quickSightPropsTab === "visual" ? " active" : ""}" data-qs-props-tab="visual">Elemento visual</button>
+        <button type="button" class="qs-props-tab-btn${quickSightPropsTab === "interactions" ? " active" : ""}" data-qs-props-tab="interactions">Interacciones</button>
       </div>
-      <label class="qs-props-row">
-        Fuente
-        <select data-qs-prop="source">
-          ${sourceOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.source ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="qs-props-row">
-        Dimension
-        <select data-qs-prop="groupBy">
-          ${groupOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.groupBy ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="qs-props-row">
-        Metrica
-        <select data-qs-prop="metric">
-          ${metricOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.metric ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="qs-props-row">
-        Tipo de grafico
-        <select data-qs-prop="chartType">
-          ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.chartType ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="qs-props-row">
-        Top N
-        <input data-qs-prop="topN" type="number" min="1" max="60" step="1" value="${escapeAttribute(String(selectedVisual.topN))}">
-      </label>
-      <label class="qs-props-row">
-        Orden
-        <select data-qs-prop="sortMode">
-          <option value="value_desc"${selectedVisual.sortMode === "value_desc" ? " selected" : ""}>Valor: mayor a menor</option>
-          <option value="value_asc"${selectedVisual.sortMode === "value_asc" ? " selected" : ""}>Valor: menor a mayor</option>
-          <option value="label_asc"${selectedVisual.sortMode === "label_asc" ? " selected" : ""}>Etiqueta: A-Z</option>
-          <option value="label_desc"${selectedVisual.sortMode === "label_desc" ? " selected" : ""}>Etiqueta: Z-A</option>
-        </select>
-      </label>
+
+      <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? " hidden" : ""}" data-qs-props-tab-panel="visual">
+      <details class="qs-props-section" data-qs-props-section="display" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "display", true)}>
+        <summary>Configuración de pantalla</summary>
+        <div class="qs-props-section-body">
+          <label class="qs-props-row">
+            Editar titulo
+            <input data-qs-prop="name" type="text" maxlength="120" value="${escapeAttribute(selectedVisual.name)}">
+          </label>
+          <label class="qs-props-row">
+            Editar subtitulo
+            <input data-qs-prop="display:subtitle" type="text" maxlength="140" value="${escapeAttribute(selectedDisplay.subtitle)}" placeholder="Subtitulo del grafico">
+          </label>
+          <label class="qs-props-row">
+            Texto alternativo
+            <textarea data-qs-prop="display:altText" maxlength="260" rows="3" placeholder="Descripcion accesible del visual">${escapeHtml(selectedDisplay.altText)}</textarea>
+          </label>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Fuente titulo
+              <select data-qs-prop="display:titleFontFamily">
+                ${fontFamilyOptions.map((font) => `<option value="${escapeAttribute(font)}"${font === selectedDisplay.titleFontFamily ? " selected" : ""}>${escapeHtml(font)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Tamano titulo
+              <input data-qs-prop="display:titleFontSize" type="number" min="10" max="24" step="1" value="${escapeAttribute(String(selectedDisplay.titleFontSize))}">
+            </label>
+            <label class="qs-props-row">
+              Color titulo
+              <input data-qs-prop="display:titleColor" type="color" value="${escapeAttribute(selectedDisplay.titleColor)}">
+            </label>
+            <label class="qs-props-row">
+              Fuente subtitulo
+              <select data-qs-prop="display:subtitleFontFamily">
+                ${fontFamilyOptions.map((font) => `<option value="${escapeAttribute(font)}"${font === selectedDisplay.subtitleFontFamily ? " selected" : ""}>${escapeHtml(font)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Tamano subtitulo
+              <input data-qs-prop="display:subtitleFontSize" type="number" min="8" max="18" step="1" value="${escapeAttribute(String(selectedDisplay.subtitleFontSize))}">
+            </label>
+            <label class="qs-props-row">
+              Color subtitulo
+              <input data-qs-prop="display:subtitleColor" type="color" value="${escapeAttribute(selectedDisplay.subtitleColor)}">
+            </label>
+          </div>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              X (px)
+              <input data-qs-prop="layoutX" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.x))}">
+            </label>
+            <label class="qs-props-row">
+              Y (px)
+              <input data-qs-prop="layoutY" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.y))}">
+            </label>
+            <label class="qs-props-row">
+              Ancho (px)
+              <input data-qs-prop="layoutW" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_WIDTH))}" step="1" value="${escapeAttribute(String(selectedLayout.w))}">
+            </label>
+            <label class="qs-props-row">
+              Alto (px)
+              <input data-qs-prop="layoutH" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_HEIGHT))}" step="1" value="${escapeAttribute(String(selectedLayout.h))}">
+            </label>
+          </div>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Relleno (px)
+              <input data-qs-prop="display:padding" type="number" min="0" max="24" step="1" value="${escapeAttribute(String(selectedDisplay.padding))}">
+            </label>
+            <label class="qs-props-row">
+              Tipo de grafico
+              <select data-qs-prop="chartType">
+                ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedChartType ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+          <div class="qs-props-check-grid">
+            <label class="qs-props-check"><input data-qs-prop="display:showTitle" type="checkbox"${selectedDisplay.showTitle ? " checked" : ""}><span>Mostrar titulo</span></label>
+            <label class="qs-props-check"><input data-qs-prop="display:showSubtitle" type="checkbox"${selectedDisplay.showSubtitle ? " checked" : ""}><span>Mostrar subtitulo</span></label>
+            <label class="qs-props-check"><input data-qs-prop="display:showBackground" type="checkbox"${selectedDisplay.showBackground ? " checked" : ""}><span>Mostrar fondo</span></label>
+            <label class="qs-props-check"><input data-qs-prop="display:showBorder" type="checkbox"${selectedDisplay.showBorder ? " checked" : ""}><span>Mostrar borde</span></label>
+            <label class="qs-props-check"><input data-qs-prop="display:loadAnimation" type="checkbox"${selectedDisplay.loadAnimation ? " checked" : ""}><span>Animacion de carga</span></label>
+          </div>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Color fondo
+              <input data-qs-prop="display:backgroundColor" type="color" value="${escapeAttribute(selectedDisplay.backgroundColor)}">
+            </label>
+            <label class="qs-props-row">
+              Opacidad fondo (%)
+              <input data-qs-prop="display:backgroundOpacity" type="number" min="0" max="100" step="1" value="${escapeAttribute(String(selectedDisplay.backgroundOpacity))}">
+            </label>
+            <label class="qs-props-row">
+              Color borde
+              <input data-qs-prop="display:borderColor" type="color" value="${escapeAttribute(selectedDisplay.borderColor)}">
+            </label>
+            <label class="qs-props-row">
+              Opacidad borde (%)
+              <input data-qs-prop="display:borderOpacity" type="number" min="0" max="100" step="1" value="${escapeAttribute(String(selectedDisplay.borderOpacity))}">
+            </label>
+            <label class="qs-props-row">
+              Grosor borde (px)
+              <input data-qs-prop="display:borderWidth" type="number" min="0" max="6" step="1" value="${escapeAttribute(String(selectedDisplay.borderWidth))}">
+            </label>
+            <label class="qs-props-row">
+              Color seleccion
+              <input data-qs-prop="display:selectionColor" type="color" value="${escapeAttribute(selectedDisplay.selectionColor)}">
+            </label>
+            <label class="qs-props-row">
+              Opacidad seleccion (%)
+              <input data-qs-prop="display:selectionOpacity" type="number" min="0" max="100" step="1" value="${escapeAttribute(String(selectedDisplay.selectionOpacity))}">
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <details class="qs-props-section" data-qs-props-section="series" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "series", true)}>
+        <summary>Serie de datos</summary>
+        <div class="qs-props-section-body">
+          <div class="qs-props-layout-grid">
+            ${showBreakdownInSeries ? `<label class="qs-props-row">
+              Grupo/Color
+              <select data-qs-prop="breakdownDimension">
+                ${breakdownOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === resolvedBreakdown ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+              </select>
+            </label>` : ""}
+            <label class="qs-props-row">
+              Top N
+              <input data-qs-prop="topN" type="number" min="1" max="60" step="1" value="${escapeAttribute(String(selectedVisual.topN))}">
+            </label>
+            ${showSortInSeries ? `<label class="qs-props-row">
+              Orden
+              <select data-qs-prop="sortMode">
+                <option value="value_desc"${selectedVisual.sortMode === "value_desc" ? " selected" : ""}>Valor: mayor a menor</option>
+                <option value="value_asc"${selectedVisual.sortMode === "value_asc" ? " selected" : ""}>Valor: menor a mayor</option>
+                <option value="label_asc"${selectedVisual.sortMode === "label_asc" ? " selected" : ""}>Etiqueta: A-Z</option>
+                <option value="label_desc"${selectedVisual.sortMode === "label_desc" ? " selected" : ""}>Etiqueta: Z-A</option>
+              </select>
+            </label>` : ""}
+          </div>
+          ${isLineLike ? `<div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Grosor de linea
+              <input data-qs-prop="visual:lineWidth" type="number" min="1" max="6" step="1" value="${escapeAttribute(String(selectedVisualSettings.lineWidth))}">
+            </label>
+            <label class="qs-props-row">
+              Estilo de linea
+              <select data-qs-prop="visual:seriesLineStyle">
+                ${lineStyleOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisualSettings.seriesLineStyle ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+              </select>
+            </label>
+          </div>` : ""}
+          ${isMarkerLike ? `<div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Marcador
+              <select data-qs-prop="visual:seriesMarkerStyle">
+                ${markerStyleOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisualSettings.seriesMarkerStyle ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Tamano marcador
+              <input data-qs-prop="visual:seriesMarkerSize" type="number" min="0" max="16" step="1" value="${escapeAttribute(String(selectedVisualSettings.seriesMarkerSize))}">
+            </label>
+          </div>` : ""}
+          ${isAreaLike ? `<label class="qs-props-row">Opacidad de area<input data-qs-prop="visual:areaOpacity" type="number" min="0.05" max="0.8" step="0.01" value="${escapeAttribute(String(selectedVisualSettings.areaOpacity))}"></label>` : ""}
+          ${isBarLike ? `<label class="qs-props-row">Ancho relativo de barra<input data-qs-prop="visual:barWidthRatio" type="number" min="0.2" max="0.9" step="0.01" value="${escapeAttribute(String(selectedVisualSettings.barWidthRatio))}"></label>` : ""}
+          ${selectedCapabilities.supportsStack ? `<label class="qs-props-row">Stacking<select data-qs-prop="visual:stackMode"><option value="none"${selectedVisualSettings.stackMode === "none" ? " selected" : ""}>Ninguno</option><option value="normal"${selectedVisualSettings.stackMode === "normal" ? " selected" : ""}>Normal</option><option value="percent"${selectedVisualSettings.stackMode === "percent" ? " selected" : ""}>100%</option></select></label>` : ""}
+          ${isLineLike ? `<label class="qs-props-check"><input data-qs-prop="visual:smoothLines" type="checkbox"${selectedVisualSettings.smoothLines ? " checked" : ""}><span>Suavizar lineas</span></label>` : ""}
+        </div>
+      </details>
+
+      ${selectedCapabilities.supportsLegend ? `<details class="qs-props-section" data-qs-props-section="legend" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "legend", false)}>
+        <summary>
+          <span class="qs-props-summary-title">Leyenda</span>
+          <label class="qs-props-summary-switch" data-qs-stop-summary>
+            <input data-qs-prop="visual:showLegend" type="checkbox"${selectedVisualSettings.showLegend ? " checked" : ""}>
+            <span class="qs-props-switch-track"><span class="qs-props-switch-thumb"></span></span>
+          </label>
+        </summary>
+        <div class="qs-props-section-body">
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Posicion
+              <select data-qs-prop="visual:legendPosition">
+                <option value="right"${selectedVisualSettings.legendPosition === "right" ? " selected" : ""}>Derecha</option>
+                <option value="left"${selectedVisualSettings.legendPosition === "left" ? " selected" : ""}>Izquierda</option>
+                <option value="top"${selectedVisualSettings.legendPosition === "top" ? " selected" : ""}>Arriba</option>
+                <option value="bottom"${selectedVisualSettings.legendPosition === "bottom" ? " selected" : ""}>Abajo</option>
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Maximo items
+              <input data-qs-prop="visual:legendMaxItems" type="number" min="3" max="20" step="1" value="${escapeAttribute(String(selectedVisualSettings.legendMaxItems))}">
+            </label>
+          </div>
+        </div>
+      </details>` : ""}
+
+      ${selectedCapabilities.usesAxes ? `<details class="qs-props-section" data-qs-props-section="axisY" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "axisY", false)}>
+        <summary>Eje Y</summary>
+        <div class="qs-props-section-body">
+          <label class="qs-props-check"><input data-qs-prop="visual:showAxisLabels" type="checkbox"${selectedVisualSettings.showAxisLabels ? " checked" : ""}><span>Mostrar ejes y etiquetas</span></label>
+          <label class="qs-props-row">
+            Titulo eje Y
+            <input data-qs-prop="visual:axisYLabel" type="text" maxlength="40" value="${escapeAttribute(selectedVisualSettings.axisYLabel)}">
+          </label>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Escala
+              <select data-qs-prop="visual:axisScale">
+                <option value="linear"${selectedVisualSettings.axisScale === "linear" ? " selected" : ""}>Lineal</option>
+                <option value="log"${selectedVisualSettings.axisScale === "log" ? " selected" : ""}>Logaritmica</option>
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Min Y
+              <input data-qs-prop="visual:axisMin" type="number" step="0.1" value="${escapeAttribute(selectedVisualSettings.axisMin ?? "")}">
+            </label>
+            <label class="qs-props-row">
+              Max Y
+              <input data-qs-prop="visual:axisMax" type="number" step="0.1" value="${escapeAttribute(selectedVisualSettings.axisMax ?? "")}">
+            </label>
+            <label class="qs-props-row">
+              Fuente eje
+              <select data-qs-prop="visual:fontFamilyAxis">
+                ${fontFamilyOptions.map((font) => `<option value="${escapeAttribute(font)}"${font === selectedVisualSettings.fontFamilyAxis ? " selected" : ""}>${escapeHtml(font)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Tamano texto eje
+              <input data-qs-prop="visual:fontSizeAxis" type="number" min="8" max="20" step="1" value="${escapeAttribute(String(selectedVisualSettings.fontSizeAxis))}">
+            </label>
+          </div>
+        </div>
+      </details>
+      <details class="qs-props-section" data-qs-props-section="axisX" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "axisX", false)}>
+        <summary>Eje X</summary>
+        <div class="qs-props-section-body">
+          <label class="qs-props-row">
+            Titulo eje X
+            <input data-qs-prop="visual:axisXLabel" type="text" maxlength="40" value="${escapeAttribute(selectedVisualSettings.axisXLabel)}">
+          </label>
+          ${selectedCapabilities.supportsGrid ? `<label class="qs-props-check"><input data-qs-prop="visual:showGrid" type="checkbox"${selectedVisualSettings.showGrid ? " checked" : ""}><span>Lineas de cuadricula</span></label>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Opacidad cuadricula
+              <input data-qs-prop="visual:gridOpacity" type="number" min="0.1" max="1" step="0.05" value="${escapeAttribute(String(selectedVisualSettings.gridOpacity))}">
+            </label>
+            <label class="qs-props-row">
+              Patron cuadricula
+              <input data-qs-prop="visual:gridDash" type="number" min="0" max="12" step="1" value="${escapeAttribute(String(selectedVisualSettings.gridDash))}">
+            </label>
+          </div>` : ""}
+        </div>
+      </details>` : ""}
+
+      ${showReferenceLines ? `<details class="qs-props-section" data-qs-props-section="reference" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "reference", false)}>
+        <summary>Lineas de referencia</summary>
+        <div class="qs-props-section-body">
+          <label class="qs-props-check"><input data-qs-prop="visual:showTargetLine" type="checkbox"${selectedVisualSettings.showTargetLine ? " checked" : ""}><span>Mostrar linea de referencia</span></label>
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Valor
+              <input data-qs-prop="visual:targetLineValue" type="number" step="0.1" value="${escapeAttribute(selectedVisualSettings.targetLineValue ?? "")}">
+            </label>
+            <label class="qs-props-row">
+              Etiqueta
+              <input data-qs-prop="visual:targetLineLabel" type="text" maxlength="24" value="${escapeAttribute(selectedVisualSettings.targetLineLabel)}">
+            </label>
+            <label class="qs-props-row">
+              Color
+              <input data-qs-prop="visual:targetLineColor" type="color" value="${escapeAttribute(selectedVisualSettings.targetLineColor)}">
+            </label>
+          </div>
+        </div>
+      </details>` : ""}
+
+      ${showDataLabelsSection ? `<details class="qs-props-section" data-qs-props-section="labels" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "labels", false)}>
+        <summary>
+          <span class="qs-props-summary-title">Etiquetas de datos</span>
+          <label class="qs-props-summary-switch" data-qs-stop-summary>
+            <input data-qs-prop="visual:showDataLabels" type="checkbox"${selectedVisualSettings.showDataLabels ? " checked" : ""}>
+            <span class="qs-props-switch-track"><span class="qs-props-switch-thumb"></span></span>
+          </label>
+        </summary>
+        <div class="qs-props-section-body">
+          <div class="qs-props-layout-grid">
+            <label class="qs-props-row">
+              Maximo caracteres
+              <input data-qs-prop="visual:labelMaxChars" type="number" min="4" max="40" step="1" value="${escapeAttribute(String(selectedVisualSettings.labelMaxChars))}">
+            </label>
+            <label class="qs-props-row">
+              Decimales
+              <input data-qs-prop="visual:valueDecimals" type="number" min="0" max="4" step="1" value="${escapeAttribute(String(selectedVisualSettings.valueDecimals))}">
+            </label>
+            <label class="qs-props-row">
+              Formato numero
+              <select data-qs-prop="visual:numberFormat">
+                <option value="auto"${selectedVisualSettings.numberFormat === "auto" ? " selected" : ""}>Automatico</option>
+                <option value="number"${selectedVisualSettings.numberFormat === "number" ? " selected" : ""}>Numero</option>
+                <option value="percent"${selectedVisualSettings.numberFormat === "percent" ? " selected" : ""}>Porcentaje</option>
+                <option value="currency_pen"${selectedVisualSettings.numberFormat === "currency_pen" ? " selected" : ""}>Moneda PEN</option>
+                <option value="hours"${selectedVisualSettings.numberFormat === "hours" ? " selected" : ""}>Horas</option>
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Prefijo
+              <input data-qs-prop="visual:valuePrefix" type="text" maxlength="8" value="${escapeAttribute(selectedVisualSettings.valuePrefix)}">
+            </label>
+            <label class="qs-props-row">
+              Sufijo
+              <input data-qs-prop="visual:valueSuffix" type="text" maxlength="8" value="${escapeAttribute(selectedVisualSettings.valueSuffix)}">
+            </label>
+            <label class="qs-props-row">
+              Fuente labels
+              <select data-qs-prop="visual:fontFamilyLabel">
+                ${fontFamilyOptions.map((font) => `<option value="${escapeAttribute(font)}"${font === selectedVisualSettings.fontFamilyLabel ? " selected" : ""}>${escapeHtml(font)}</option>`).join("")}
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Tamano labels
+              <input data-qs-prop="visual:fontSizeLabels" type="number" min="8" max="22" step="1" value="${escapeAttribute(String(selectedVisualSettings.fontSizeLabels))}">
+            </label>
+            <label class="qs-props-row">
+              Color labels
+              <select data-qs-prop="visual:labelColorMode">
+                <option value="auto"${selectedVisualSettings.labelColorMode === "auto" ? " selected" : ""}>Automatico</option>
+                <option value="manual"${selectedVisualSettings.labelColorMode === "manual" ? " selected" : ""}>Manual</option>
+              </select>
+            </label>
+            <label class="qs-props-row">
+              Color manual
+              <input data-qs-prop="visual:labelColor" type="color" value="${escapeAttribute(selectedVisualSettings.labelColor)}"${selectedVisualSettings.labelColorMode === "manual" ? "" : " disabled"}>
+            </label>
+            <label class="qs-props-row">
+              Tooltip
+              <select data-qs-prop="visual:tooltipMode">
+                <option value="full"${selectedVisualSettings.tooltipMode === "full" ? " selected" : ""}>Completo</option>
+                <option value="compact"${selectedVisualSettings.tooltipMode === "compact" ? " selected" : ""}>Compacto</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </details>` : ""}
+
+      <details class="qs-props-section" data-qs-props-section="specific" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "specific", false)}>
+        <summary>Configuración específica (${escapeHtml(selectedTypeSchema.title)})</summary>
+        <div class="qs-props-section-body">
+          ${specificFieldsHtml}
+        </div>
+      </details>
+
+      </div>
+
+      <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? "" : " hidden"}" data-qs-props-tab-panel="interactions">
+        <details class="qs-props-section" data-qs-props-section="interactions" data-qs-props-tab-context="interactions"${getQuickSightPropsSectionOpenAttr("interactions", "interactions", true)}>
+          <summary>Interacciones</summary>
+          <div class="qs-props-section-body">
+            <p class="muted">Configura aqu? el comportamiento entre visuales y filtros.</p>
+            <p class="muted">La configuración avanzada de interacciones se ampliará en la siguiente fase.</p>
+          </div>
+        </details>
+      </div>
     `;
   }
 }
@@ -7145,31 +8654,63 @@ function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
-  const visualSettings = createDefaultBiVisualSettings();
-  visualSettings.showDataLabels = true;
-  visualSettings.labelMaxChars = 16;
   const chartType = normalizeBiChartType(visual.chartType || "bar");
+  const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
+  visual.visualSettings = visualSettings;
+  const chartConfig = normalizeBiChartConfig(visual.chartConfig, chartType);
+  visual.chartConfig = chartConfig;
+  const typeConfigMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
+  if (!typeConfigMap[chartType]) {
+    typeConfigMap[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+  }
+  visual.chartTypeConfig = typeConfigMap;
+  const safeLabelLayout = normalizeBiLabelLayoutV2(visual.labelLayoutV2);
+  const safeLabelOffsets = normalizeBiLabelOffsets(visual.labelOffsets);
+  const safePolarLayout = normalizeBiCircularLayout(visual.polarLayout);
+  visual.labelLayoutV2 = safeLabelLayout;
+  visual.labelOffsets = safeLabelOffsets;
+  visual.polarLayout = safePolarLayout;
   if (!snapshot || !Array.isArray(snapshot.rows) || snapshot.rows.length === 0) {
+    canvas.__qsHoverState = null;
+    canvas.style.cursor = "default";
     drawBiWidgetFallbackPreview(ctx, snapshot || null, width, height, true);
     return;
   }
 
-  const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
-  drawBiWidgetChart(
+  const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
+  const labels = snapshot.rows.map((row) => row.label);
+  const values = snapshot.rows.map((row) => row.value);
+  const initialModel = drawBiWidgetChart(
     canvas,
     chartType,
-    snapshot.rows.map((row) => row.label),
-    snapshot.rows.map((row) => row.value),
+    labels,
+    values,
     -1,
     seriesColors,
     visualSettings,
-    null,
-    null,
+    safeLabelOffsets,
+    safePolarLayout,
     snapshot.rows,
-    null,
-    null,
-    null
+    chartConfig,
+    safeLabelLayout,
+    typeConfigMap
   );
+  canvas.__qsHoverState = {
+    chartType,
+    labels,
+    values,
+    rows: snapshot.rows,
+    colors: seriesColors,
+    visualSettings,
+    labelOffsets: safeLabelOffsets,
+    polarLayout: safePolarLayout,
+    chartConfig,
+    labelLayoutV2: safeLabelLayout,
+    typeConfigMap,
+    model: initialModel,
+    hoverIndex: -1
+  };
+  bindQuickSightCanvasHover(canvas);
 }
 
 function syncBiInputs(config) {
@@ -8128,22 +9669,41 @@ function normalizeBiDateRole(value) {
   return "";
 }
 
+function normalizeBiOptionalGroupBy(value) {
+  const token = trimOrFallback(value, "");
+  if (!token) {
+    return "";
+  }
+  return normalizeBiGroupBy(token);
+}
+
 function getBiChartCapabilities(chartType) {
   const type = normalizeBiChartType(chartType || "bar");
   const noAxisTypes = new Set(["pie", "donut", "treemap", "funnel", "gauge", "scorecard", "table", "pivot", "sankey", "timeline"]);
-  const legendlessTypes = new Set(["table", "pivot", "scorecard", "sankey", "timeline"]);
+  const legendTypes = new Set(["pie", "donut"]);
   const stackTypes = new Set(["bar", "area", "combo"]);
-  const breakdownTypes = new Set(["pivot", "sankey", "scatter", "bubble", "treemap", "funnel"]);
+  const breakdownTypes = new Set([
+    "bar", "line", "timeseries", "area", "combo",
+    "pie", "donut", "scatter", "bubble",
+    "treemap", "funnel", "waterfall", "radar", "pareto",
+    "pivot", "sankey"
+  ]);
   const optionalMetricTypes = new Set(["scatter", "bubble", "bullet", "candlestick", "boxplot"]);
   const dateRequiredTypes = new Set(["timeseries", "timeline", "candlestick"]);
+  const referenceLineTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pareto", "bullet"]);
+  const dataLabelTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto"]);
+  const sortModeTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto", "gauge", "bullet", "boxplot", "candlestick", "scorecard", "table"]);
   return {
     type,
     usesAxes: !noAxisTypes.has(type),
-    supportsLegend: !legendlessTypes.has(type),
+    supportsLegend: legendTypes.has(type),
     supportsGrid: !noAxisTypes.has(type),
     supportsStack: stackTypes.has(type),
     supportsBreakdown: breakdownTypes.has(type),
     supportsOptionalMetric: optionalMetricTypes.has(type),
+    supportsReferenceLine: referenceLineTypes.has(type),
+    supportsDataLabels: dataLabelTypes.has(type),
+    supportsSortMode: sortModeTypes.has(type),
     supportsDateDimension: dateRequiredTypes.has(type) || type === "line" || type === "area" || type === "combo",
     requiresDateDimension: dateRequiredTypes.has(type)
   };
@@ -8159,7 +9719,7 @@ function buildBiDataRolesFromBuilderInput(project, sourceWidget = null) {
   const optionalMetricRaw = normalizeBiOptionalMetric(els.biWidgetOptionalMetricSelect?.value || sourceWidget?.dataRoles?.optionalMetrics?.[0] || "");
   const dateRaw = normalizeBiDateRole(els.biWidgetDateDimensionSelect?.value || sourceWidget?.dataRoles?.dateDimension || "");
   const breakdownDimension = capabilities.supportsBreakdown
-    ? (breakdownRaw || defaults.breakdownDimension || "fuente")
+    ? (breakdownRaw || defaults.breakdownDimension || "")
     : null;
   const optionalMetrics = capabilities.supportsOptionalMetric && optionalMetricRaw
     ? [optionalMetricRaw]
@@ -8390,7 +9950,7 @@ function createBiChartProfile(chartType) {
   if (type === "gauge" || type === "bullet") {
     addControls(["biShowDataLabelsCheckbox"]);
     addSections(["series"]);
-    return { controls: all, sections, description: "Configuracion para medidor/viñeta (sin ejes/rejilla)." };
+    return { controls: all, sections, description: "Configuración para medidor/viñeta (sin ejes/rejilla)." };
   }
   if (type === "boxplot" || type === "candlestick") {
     addControls(axes);
@@ -8470,7 +10030,7 @@ function getBiSpecificConfigSchema(kind, chartType) {
   if (safeType === "pie") {
     base.fields = [
       { key: "labelMinPercent", label: "Label mínimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
-      { key: "startAngle", label: "Ángulo inicial", type: "number", min: -360, max: 360, step: 1 }
+      { key: "startAngle", label: "?ngulo inicial", type: "number", min: -360, max: 360, step: 1 }
     ];
     return base;
   }
@@ -8507,7 +10067,7 @@ function getBiSpecificConfigSchema(kind, chartType) {
   if (safeType === "table") {
     base.fields = [
       { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
-      { key: "showIndex", label: "Mostrar índice", type: "checkbox" },
+      { key: "showIndex", label: "Mostrar ?ndice", type: "checkbox" },
       { key: "compact", label: "Modo compacto", type: "checkbox" }
     ];
     return base;
@@ -10085,6 +11645,13 @@ function getBiSeriesColors(project, groupBy, labels) {
     return [];
   }
   return labels.map((label, index) => getBiColorFromConfig(project, groupBy, label, index));
+}
+
+function getBiSnapshotSeriesColors(project, snapshot) {
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const colorDimension = normalizeBiGroupBy(snapshot?.colorByDimension || snapshot?.groupBy || "disciplina");
+  const colorLabels = rows.map((row) => trimOrFallback(row?.colorKey, row?.label || ""));
+  return getBiSeriesColors(project, colorDimension, colorLabels);
 }
 
 function hexToRgba(color, alpha, fallback = "rgba(47, 126, 216, 0.2)") {
@@ -12515,7 +14082,39 @@ function resolveBiHoverIndex(model, x, y) {
         bestIndex = item.index;
       }
     });
-    return bestDistance <= 24 ? bestIndex : -1;
+    if (bestDistance <= 24) {
+      return bestIndex;
+    }
+    if (model.type === "radar") {
+      return -1;
+    }
+    let segmentDistance = Number.POSITIVE_INFINITY;
+    let segmentIndex = -1;
+    for (let i = 0; i < model.items.length - 1; i += 1) {
+      const start = model.items[i];
+      const end = model.items[i + 1];
+      if (!start || !end) {
+        continue;
+      }
+      const vx = end.x - start.x;
+      const vy = end.y - start.y;
+      const len2 = (vx * vx) + (vy * vy);
+      if (len2 <= 0.0001) {
+        continue;
+      }
+      const tRaw = (((x - start.x) * vx) + ((y - start.y) * vy)) / len2;
+      const t = Math.max(0, Math.min(1, tRaw));
+      const px = start.x + (vx * t);
+      const py = start.y + (vy * t);
+      const dx = x - px;
+      const dy = y - py;
+      const distance = Math.sqrt((dx * dx) + (dy * dy));
+      if (distance < segmentDistance) {
+        segmentDistance = distance;
+        segmentIndex = t < 0.5 ? start.index : end.index;
+      }
+    }
+    return segmentDistance <= 10 ? segmentIndex : -1;
   }
 
   for (const item of model.items) {
@@ -13188,26 +14787,59 @@ function buildBiWidgetSnapshot(rows, widget) {
   const groupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || widget?.groupBy || "disciplina");
   const metric = normalizeBiMetric(dataRoles.metrics?.[0] || widget?.metric || "count");
   const optionalMetric = normalizeBiMetric(dataRoles.optionalMetrics?.[0] || "baseunits");
-  const breakdownDimension = normalizeBiGroupBy(dataRoles.breakdownDimension || "fuente");
+  const breakdownDimension = normalizeBiOptionalGroupBy(dataRoles.breakdownDimension || "");
+  const effectiveBreakdownDimension = breakdownDimension || "fuente";
   const dateDimension = normalizeBiDateDimension(dataRoles.dateDimension || "startDate");
   const sourceRows = source === "all"
     ? rows.slice()
     : rows.filter((row) => row.source === source);
-  const groupedRaw = buildBiGroupedRows(sourceRows, groupBy);
-  const rowsByGroupLabel = new Map();
+  const canUseBreakdownSeries = !!breakdownDimension && new Set([
+    "bar", "line", "timeseries", "area", "combo", "pie", "donut",
+    "scatter", "bubble", "radar", "waterfall", "pareto", "treemap", "funnel"
+  ]).has(chartType);
+  const rowsBySnapshotLabel = new Map();
   sourceRows.forEach((row) => {
-    const label = getBiRowGroupValue(row, groupBy);
-    if (!rowsByGroupLabel.has(label)) {
-      rowsByGroupLabel.set(label, []);
+    const groupLabel = getBiRowGroupValue(row, groupBy);
+    const breakdownLabel = canUseBreakdownSeries ? getBiRowGroupValue(row, breakdownDimension) : "";
+    const label = canUseBreakdownSeries
+      ? `${groupLabel} | ${breakdownLabel}`
+      : groupLabel;
+    if (!rowsBySnapshotLabel.has(label)) {
+      rowsBySnapshotLabel.set(label, {
+        rows: [],
+        groupLabel,
+        breakdownLabel
+      });
     }
-    rowsByGroupLabel.get(label).push(row);
+    rowsBySnapshotLabel.get(label).rows.push(row);
+  });
+  const groupedRaw = Array.from(rowsBySnapshotLabel.entries()).map(([label, bucket]) => {
+    const groupedBucket = buildBiGroupedRows(bucket.rows, groupBy);
+    const aggregate = groupedBucket[0] || {
+      label,
+      rows: bucket.rows.slice(),
+      count: bucket.rows.length,
+      baseUnits: 0,
+      realAvg: 0,
+      programmedAvg: 0,
+      weightedReal: 0,
+      weightedProgrammed: 0,
+      invalidDates: 0
+    };
+    return {
+      ...aggregate,
+      label,
+      groupLabel: bucket.groupLabel,
+      breakdownLabel: bucket.breakdownLabel,
+      colorKey: canUseBreakdownSeries ? bucket.breakdownLabel : bucket.groupLabel
+    };
   });
 
   const grouped = groupedRaw
     .map((group) => {
       const value = getBiMetricValue(group, metric);
       const safeValue = Number.isFinite(value) ? value : 0;
-      const sourceGroupRows = rowsByGroupLabel.get(group.label) || [];
+      const sourceGroupRows = rowsBySnapshotLabel.get(group.label)?.rows || [];
       const sourceGroupMetricValues = sourceGroupRows
         .map((row) => getBiRowMetricValue(row, metric))
         .filter((item) => Number.isFinite(item));
@@ -13227,9 +14859,16 @@ function buildBiWidgetSnapshot(rows, widget) {
         });
       const open = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[0], metric) : safeValue;
       const close = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[orderedByDate.length - 1], metric) : safeValue;
-      const rowKey = buildBiRowKey(source, groupBy, group.label);
+      const rowKey = buildBiRowKey(
+        source,
+        canUseBreakdownSeries ? `${groupBy}_${breakdownDimension}` : groupBy,
+        group.label
+      );
       return {
         label: group.label,
+        groupLabel: trimOrFallback(group.groupLabel, group.label),
+        breakdownLabel: trimOrFallback(group.breakdownLabel, ""),
+        colorKey: trimOrFallback(group.colorKey, group.label),
         rowKey,
         value: safeValue,
         valueText: formatBiMetricValue(metric, safeValue),
@@ -13253,7 +14892,7 @@ function buildBiWidgetSnapshot(rows, widget) {
   const pivotMap = new Map();
   sourceRows.forEach((row) => {
     const rowLabel = getBiRowGroupValue(row, groupBy);
-    const colLabel = getBiRowGroupValue(row, breakdownDimension);
+    const colLabel = getBiRowGroupValue(row, effectiveBreakdownDimension);
     const cellValue = getBiRowMetricValue(row, metric);
     pivotColumnsSet.add(colLabel);
     if (!pivotMap.has(rowLabel)) {
@@ -13267,7 +14906,7 @@ function buildBiWidgetSnapshot(rows, widget) {
     const cells = pivotColumns.map((columnLabel) => {
       const value = rowBucket.get(columnLabel) || 0;
       return {
-        key: buildBiRowKey(source, `${groupBy}_${breakdownDimension}`, `${rowLabel}|${columnLabel}`),
+        key: buildBiRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${rowLabel}|${columnLabel}`),
         label: columnLabel,
         value
       };
@@ -13284,7 +14923,7 @@ function buildBiWidgetSnapshot(rows, widget) {
   const sankeyMap = new Map();
   sourceRows.forEach((row) => {
     const fromLabel = getBiRowGroupValue(row, groupBy);
-    const toLabel = getBiRowGroupValue(row, breakdownDimension);
+    const toLabel = getBiRowGroupValue(row, effectiveBreakdownDimension);
     const key = `${fromLabel}__${toLabel}`;
     const value = getBiRowMetricValue(row, metric);
     sankeyMap.set(key, (sankeyMap.get(key) || 0) + value);
@@ -13293,7 +14932,7 @@ function buildBiWidgetSnapshot(rows, widget) {
     .map(([key, value]) => {
       const [from, to] = key.split("__");
       return {
-        rowKey: buildBiRowKey(source, `${groupBy}_${breakdownDimension}`, `${from}->${to}`),
+        rowKey: buildBiRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${from}->${to}`),
         from,
         to,
         value
@@ -13349,18 +14988,20 @@ function buildBiWidgetSnapshot(rows, widget) {
     sourceRowsCount: sourceRows.length,
     groupCount: grouped.length,
     dataRoles,
-    breakdownDimension,
+    breakdownDimension: effectiveBreakdownDimension,
+    hasBreakdownSeries: canUseBreakdownSeries,
+    colorByDimension: canUseBreakdownSeries ? breakdownDimension : groupBy,
     dateDimension,
     rows: trimmed,
     pivot: {
       rowDimension: groupBy,
-      colDimension: breakdownDimension,
+      colDimension: effectiveBreakdownDimension,
       columns: pivotColumns,
       rows: pivotRows
     },
     sankey: {
       fromDimension: groupBy,
-      toDimension: breakdownDimension,
+      toDimension: effectiveBreakdownDimension,
       links: sankeyLinks
     },
     timeline: {
@@ -13643,7 +15284,7 @@ function renderBiWidgets(project, rows) {
       if (contentTarget instanceof HTMLElement) {
         contentTarget.innerHTML = "";
       }
-      const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
+      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
       const effectiveVisual = getBiEffectiveVisualSettings(project, normalizedWidget);
       const hoverModel = drawBiWidgetChart(
         canvas,
@@ -14902,7 +16543,7 @@ async function exportBiWidgetPng(project, widgetId) {
     );
   } else {
     if (snapshot && snapshot.rows.length > 0) {
-      const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
+      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
       drawBiWidgetChart(
         chartCanvas,
         chartType,
@@ -15056,7 +16697,7 @@ async function exportBiBoardPng(project) {
         getBiSpecificChartConfigForWidget(widget, chartType)
       );
     } else if (snapshot && snapshot.rows.length > 0) {
-      const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
+      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
       drawBiWidgetChart(
         chartCanvas,
         chartType,
@@ -15927,6 +17568,9 @@ function renderTabState() {
   quickSightPanel.classList.toggle("hidden", activeTab !== "quicksight");
   if (activeTab !== "quicksight" && quickSightEditMenuOpen) {
     setQuickSightEditMenuOpen(false);
+  }
+  if (activeTab !== "quicksight" && quickSightZoomMenuOpen) {
+    setQuickSightZoomMenuOpen(false);
   }
 
   tabButtons.forEach((button) => {
@@ -17725,6 +19369,7 @@ function createDefaultQuickSightConfig() {
   return {
     source: "all",
     groupBy: "disciplina",
+    breakdownDimension: "",
     metric: "count",
     chartType: "bar",
     topN: 12,
@@ -17736,12 +19381,69 @@ function createDefaultQuickSightConfig() {
   };
 }
 
+function createDefaultQuickSightDisplaySettings() {
+  return {
+    showTitle: true,
+    showSubtitle: true,
+    subtitle: "",
+    altText: "",
+    titleFontFamily: "Segoe UI",
+    titleFontSize: 12,
+    titleColor: "#1f2f44",
+    subtitleFontFamily: "Segoe UI",
+    subtitleFontSize: 10,
+    subtitleColor: "#6c819d",
+    showBackground: true,
+    backgroundColor: "#ffffff",
+    backgroundOpacity: 100,
+    showBorder: true,
+    borderColor: "#b7c9df",
+    borderOpacity: 100,
+    borderWidth: 1,
+    selectionColor: "#1495bf",
+    selectionOpacity: 35,
+    loadAnimation: true,
+    padding: 8
+  };
+}
+
+function normalizeQuickSightDisplaySettings(rawSettings) {
+  const defaults = createDefaultQuickSightDisplaySettings();
+  const source = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+    ? rawSettings
+    : {};
+  return {
+    showTitle: normalizeBiToggle(source.showTitle, defaults.showTitle),
+    showSubtitle: normalizeBiToggle(source.showSubtitle, defaults.showSubtitle),
+    subtitle: trimOrFallback(source.subtitle || source.subtitulo, defaults.subtitle).slice(0, 140),
+    altText: trimOrFallback(source.altText || source.textoAlternativo, defaults.altText).slice(0, 260),
+    titleFontFamily: sanitizeBiFontFamily(source.titleFontFamily || source.fuenteTitulo || "", defaults.titleFontFamily),
+    titleFontSize: sanitizeBiInteger(source.titleFontSize ?? source.tamanoTitulo, defaults.titleFontSize, 10, 24),
+    titleColor: normalizeBiColorHex(source.titleColor || source.colorTitulo, defaults.titleColor),
+    subtitleFontFamily: sanitizeBiFontFamily(source.subtitleFontFamily || source.fuenteSubtitulo || "", defaults.subtitleFontFamily),
+    subtitleFontSize: sanitizeBiInteger(source.subtitleFontSize ?? source.tamanoSubtitulo, defaults.subtitleFontSize, 8, 18),
+    subtitleColor: normalizeBiColorHex(source.subtitleColor || source.colorSubtitulo, defaults.subtitleColor),
+    showBackground: normalizeBiToggle(source.showBackground ?? source.fondo, defaults.showBackground),
+    backgroundColor: normalizeBiColorHex(source.backgroundColor || source.colorFondo, defaults.backgroundColor),
+    backgroundOpacity: sanitizeBiInteger(source.backgroundOpacity ?? source.opacidadFondo, defaults.backgroundOpacity, 0, 100),
+    showBorder: normalizeBiToggle(source.showBorder ?? source.borde, defaults.showBorder),
+    borderColor: normalizeBiColorHex(source.borderColor || source.colorBorde, defaults.borderColor),
+    borderOpacity: sanitizeBiInteger(source.borderOpacity ?? source.opacidadBorde, defaults.borderOpacity, 0, 100),
+    borderWidth: sanitizeBiInteger(source.borderWidth ?? source.grosorBorde, defaults.borderWidth, 0, 6),
+    selectionColor: normalizeBiColorHex(source.selectionColor || source.colorSeleccion, defaults.selectionColor),
+    selectionOpacity: sanitizeBiInteger(source.selectionOpacity ?? source.opacidadSeleccion, defaults.selectionOpacity, 0, 100),
+    loadAnimation: normalizeBiToggle(source.loadAnimation ?? source.animacionCarga, defaults.loadAnimation),
+    padding: sanitizeBiInteger(source.padding ?? source.relleno, defaults.padding, 0, 24)
+  };
+}
+
 function normalizeQuickSightConfig(rawConfig) {
   const base = rawConfig || {};
   const defaults = createDefaultQuickSightConfig();
   return {
     source: normalizeBiSource(base.source || base.fuente || defaults.source),
     groupBy: normalizeBiGroupBy(base.groupBy || base.dimension || defaults.groupBy),
+    breakdownDimension: normalizeBiOptionalGroupBy(base.breakdownDimension || base.grupoColor || base.dimensionColor || defaults.breakdownDimension),
     metric: normalizeBiMetric(base.metric || base.metrica || defaults.metric),
     chartType: normalizeBiChartType(base.chartType || base.chart || defaults.chartType),
     topN: sanitizeBiTopN(base.topN ?? base.top ?? defaults.topN),
@@ -17763,20 +19465,96 @@ function normalizeQuickSightConfig(rawConfig) {
   };
 }
 
+function syncQuickSightVisualDataRoles(visual, configLike = null) {
+  if (!visual || typeof visual !== "object") {
+    return;
+  }
+  const fallback = configLike && typeof configLike === "object" ? configLike : {};
+  const groupBy = normalizeBiGroupBy(visual.groupBy || fallback.groupBy || "disciplina");
+  const metric = normalizeBiMetric(visual.metric || fallback.metric || "count");
+  const chartType = normalizeBiChartType(visual.chartType || fallback.chartType || "bar");
+  const breakdownDimension = normalizeBiOptionalGroupBy(
+    visual.breakdownDimension
+    || visual.dataRoles?.breakdownDimension
+    || fallback.breakdownDimension
+    || ""
+  );
+  visual.groupBy = groupBy;
+  visual.metric = metric;
+  visual.chartType = chartType;
+  visual.breakdownDimension = breakdownDimension;
+  visual.dataRoles = normalizeBiDataRoles({
+    ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+    dimensions: [groupBy],
+    metrics: [metric],
+    breakdownDimension: breakdownDimension || null
+  }, { groupBy, metric, chartType });
+  if (!breakdownDimension) {
+    visual.dataRoles.breakdownDimension = null;
+  }
+}
+
 function normalizeQuickSightVisual(rawVisual, index = 0) {
   const source = rawVisual || {};
-  return {
+  const chartType = normalizeBiChartType(source.chartType || source.chart || "bar");
+  const chartTypeConfig = normalizeBiChartTypeConfigMap(source.chartTypeConfig ?? source.configTipoGrafico);
+  if (!chartTypeConfig[chartType]) {
+    chartTypeConfig[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+  }
+  const displaySource = {
+    showTitle: source.showTitle,
+    showSubtitle: source.showSubtitle,
+    subtitle: source.subtitle ?? source.subtitulo,
+    altText: source.altText ?? source.textoAlternativo,
+    titleFontFamily: source.titleFontFamily ?? source.fuenteTitulo,
+    titleFontSize: source.titleFontSize ?? source.tamanoTitulo,
+    titleColor: source.titleColor ?? source.colorTitulo,
+    subtitleFontFamily: source.subtitleFontFamily ?? source.fuenteSubtitulo,
+    subtitleFontSize: source.subtitleFontSize ?? source.tamanoSubtitulo,
+    subtitleColor: source.subtitleColor ?? source.colorSubtitulo,
+    showBackground: source.showBackground,
+    backgroundColor: source.backgroundColor,
+    backgroundOpacity: source.backgroundOpacity,
+    showBorder: source.showBorder,
+    borderColor: source.borderColor,
+    borderOpacity: source.borderOpacity,
+    borderWidth: source.borderWidth,
+    selectionColor: source.selectionColor,
+    selectionOpacity: source.selectionOpacity,
+    loadAnimation: source.loadAnimation,
+    padding: source.padding,
+    ...(source.display ?? source.estiloTarjeta ?? {})
+  };
+  const normalizedDisplay = normalizeQuickSightDisplaySettings(displaySource);
+  const normalizedVisual = {
     id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : uid(),
     name: trimOrFallback(source.name, `Visual ${index + 1}`).slice(0, 120),
     source: normalizeBiSource(source.source || "all"),
     groupBy: normalizeBiGroupBy(source.groupBy || source.dimension || "disciplina"),
+    breakdownDimension: normalizeBiOptionalGroupBy(source.breakdownDimension || source.grupoColor || source.dimensionColor || source.dataRoles?.breakdownDimension || ""),
     metric: normalizeBiMetric(source.metric || source.metrica || "count"),
-    chartType: normalizeBiChartType(source.chartType || source.chart || "bar"),
+    chartType,
     topN: sanitizeBiTopN(source.topN ?? source.top ?? 12),
     sortMode: normalizeBiSortMode(source.sortMode || source.orden || "value_desc"),
+    subtitle: normalizedDisplay.subtitle,
+    altText: normalizedDisplay.altText,
+    display: normalizedDisplay,
+    visualSettings: normalizeBiVisualSettings(source.visualSettings ?? source.visual ?? source.estiloVisual),
+    chartConfig: normalizeBiChartConfig(source.chartConfig ?? source.configGrafico, chartType),
+    chartTypeConfig,
+    dataRoles: normalizeBiDataRoles(source.dataRoles ?? source.rolesDatos, {
+      groupBy: source.groupBy || source.dimension || "disciplina",
+      metric: source.metric || source.metrica || "count",
+      chartType
+    }),
+    labelOffsets: normalizeBiLabelOffsets(source.labelOffsets ?? source.posicionLabels ?? source.desplazamientoLabels),
+    labelLayoutV2: normalizeBiLabelLayoutV2(source.labelLayoutV2 ?? source.layoutLabels),
+    polarLayout: normalizeBiCircularLayout(source.polarLayout ?? source.layoutPolar),
     createdAt: trimOrFallback(source.createdAt, new Date().toISOString()),
     layout: normalizeQuickSightVisualLayout(source.layout ?? source.posicion, index)
   };
+  syncQuickSightVisualDataRoles(normalizedVisual);
+  return normalizedVisual;
 }
 
 function normalizeQuickSightVisuals(rawVisuals) {
@@ -17802,16 +19580,19 @@ function ensureQuickSightState(project) {
 
 function createQuickSightVisualFromConfig(config, index = 0) {
   const safe = normalizeQuickSightConfig(config);
-  return normalizeQuickSightVisual({
+  const visual = normalizeQuickSightVisual({
     id: uid(),
     name: `${getBiGroupLabel(safe.groupBy)} | ${getBiMetricLabel(safe.metric)}`,
     source: safe.source,
     groupBy: safe.groupBy,
+    breakdownDimension: safe.breakdownDimension,
     metric: safe.metric,
     chartType: safe.chartType,
     topN: safe.topN,
     sortMode: safe.sortMode
   }, index);
+  syncQuickSightVisualDataRoles(visual, safe);
+  return visual;
 }
 
 function normalizeBiChartType(value) {
@@ -19723,6 +21504,8 @@ function trimOrFallback(value, fallback) {
 function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
+
+
 
 
 

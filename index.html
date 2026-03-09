@@ -979,12 +979,6 @@
               <button type="button" class="qs-link-button">Configuracion</button>
             </header>
 
-            <div class="qs-breadcrumb-row">
-              <span>Insight</span>
-              <span>/</span>
-              <span>Insight Builder</span>
-            </div>
-
             <div class="qs-menu-row">
               <nav class="qs-menu">
                 <button type="button">Archivo</button>
@@ -1050,22 +1044,54 @@
 
             <div class="qs-toolbar-row">
               <div class="qs-toolbar-left">
-                <button type="button" class="qs-tool-btn" title="Deshacer"><-</button>
-                <button type="button" class="qs-tool-btn" title="Rehacer">-></button>
+                <button type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Deshacer" aria-label="Deshacer">
+                  <span class="qs-tool-icon qs-tool-icon-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" class="qs-tool-icon-svg">
+                      <path d="M9 14L4 9l5-5"></path>
+                      <path d="M20 20a8 8 0 0 0-8-8H4"></path>
+                    </svg>
+                  </span>
+                </button>
+                <button type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Rehacer" aria-label="Rehacer">
+                  <span class="qs-tool-icon qs-tool-icon-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" class="qs-tool-icon-svg">
+                      <path d="m15 14 5-5-5-5"></path>
+                      <path d="M4 20a8 8 0 0 1 8-8h8"></path>
+                    </svg>
+                  </span>
+                </button>
                 <button id="qsToggleDataButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Datos" aria-pressed="true">
                   <span class="qs-tool-icon qs-tool-icon-db" aria-hidden="true"></span>
-                  <span class="qs-tool-text">DB</span>
                 </button>
                 <button id="qsToggleVisualsButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Elementos visuales" aria-pressed="true">
                   <span class="qs-tool-icon qs-tool-icon-vis" aria-hidden="true"></span>
-                  <span class="qs-tool-text">VIS</span>
                 </button>
                 <button id="qsTogglePropsButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Filtros/Propiedades" aria-pressed="true">
-                  <span class="qs-tool-icon qs-tool-icon-flt" aria-hidden="true"></span>
-                  <span class="qs-tool-text">FLT</span>
+                  <span class="qs-tool-icon qs-tool-icon-gear" aria-hidden="true"></span>
                 </button>
                 <span class="qs-toolbar-label">AGREGAR:</span>
                 <button id="qsAddVisualButton" type="button" class="qs-tool-pill">Visual</button>
+                <div id="qsZoomMenuWrap" class="qs-zoom-controls">
+                  <button id="qsCanvasZoomMenuButton" type="button" class="qs-tool-btn qs-tool-btn-zoom" title="Zoom de hoja" aria-expanded="false">
+                    <span class="qs-tool-icon qs-tool-icon-zoom" aria-hidden="true"></span>
+                    <span id="qsCanvasZoomMenuLabel" class="qs-tool-text">Zoom (100%)</span>
+                    <span class="qs-tool-caret" aria-hidden="true">v</span>
+                  </button>
+                  <div id="qsCanvasZoomMenu" class="qs-zoom-menu hidden">
+                    <button id="qsZoomFitAllButton" type="button" data-qs-zoom-action="fit-all"><span id="qsZoomFitAllLabel">Ajustar todo (100%)</span><span class="qs-zoom-shortcut">Ctrl+Alt+[</span></button>
+                    <button id="qsZoomFitWidthButton" type="button" data-qs-zoom-action="fit-width"><span id="qsZoomFitWidthLabel">Ajustar ancho (100%)</span><span class="qs-zoom-shortcut">Ctrl+Alt+]</span></button>
+                    <button id="qsZoomDefaultButton" type="button" data-qs-zoom-value="100"><span>Predeterminado (100%)</span><span class="qs-zoom-shortcut">Ctrl+Alt+1</span></button>
+                    <div class="qs-zoom-menu-sep"></div>
+                    <button type="button" data-qs-zoom-value="25"><span>25%</span></button>
+                    <button type="button" data-qs-zoom-value="50"><span>50%</span></button>
+                    <button type="button" data-qs-zoom-value="75"><span>75%</span></button>
+                    <button type="button" data-qs-zoom-value="100"><span>100%</span></button>
+                    <button type="button" data-qs-zoom-value="200"><span>200%</span></button>
+                    <div class="qs-zoom-menu-sep"></div>
+                    <button type="button" data-qs-zoom-action="in"><span>Zoom in</span><span class="qs-zoom-shortcut">Ctrl+Alt++</span></button>
+                    <button type="button" data-qs-zoom-action="out"><span>Zoom out</span><span class="qs-zoom-shortcut">Ctrl+Alt+-</span></button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1095,6 +1121,7 @@
                 <div class="qs-panel-head">
                   <h3>Elementos visuales</h3>
                 </div>
+                <p class="qs-panel-caption">CAMBIAR EL TIPO DE ELEMENTO VISUAL</p>
                 <div id="qsChartTypeGrid" class="qs-chart-type-grid">
                   <button type="button" data-qs-chart-type="line" title="Linea">LIN</button>
                   <button type="button" data-qs-chart-type="bar" title="Barras">BAR</button>
@@ -1109,46 +1136,66 @@
                   <button type="button" data-qs-chart-type="waterfall" title="Waterfall">WFL</button>
                   <button type="button" data-qs-chart-type="radar" title="Radar">RDR</button>
                 </div>
-                <label>
-                  Tipo de grafico
-                  <select id="qsChartTypeSelect">
-                    <option value="bar">Barras</option>
-                    <option value="line">Lineas</option>
-                    <option value="area">Area</option>
-                    <option value="combo">Combinado</option>
-                    <option value="pie">Circular</option>
-                    <option value="donut">Dona</option>
-                    <option value="treemap">Treemap</option>
-                    <option value="funnel">Embudo</option>
-                    <option value="scatter">Dispersion</option>
-                    <option value="bubble">Burbujas</option>
-                    <option value="waterfall">Waterfall</option>
-                    <option value="radar">Radar</option>
-                    <option value="pareto">Pareto</option>
-                  </select>
-                </label>
-                <label>
-                  Dimension
-                  <select id="qsGroupBySelect"></select>
-                </label>
-                <label>
-                  Metrica
-                  <select id="qsMetricSelect">
-                    <option value="count">Cantidad de filas</option>
-                    <option value="baseunits">UP Base total</option>
-                    <option value="baseavg">UP Base promedio</option>
-                    <option value="realavg">Avance real promedio (%)</option>
-                    <option value="programmedavg">Avance programado promedio (%)</option>
-                    <option value="weightedreal">Avance real proyecto (%)</option>
-                    <option value="weightedprogrammed">Avance programado proyecto (%)</option>
-                    <option value="weightedgap">Brecha real - programado (%)</option>
-                    <option value="invaliddates">Fechas invertidas</option>
-                  </select>
-                </label>
-                <label>
-                  Top N
-                  <input id="qsTopNInput" type="number" min="1" max="60" step="1" value="12">
-                </label>
+                <div class="qs-role-block">
+                  <p class="qs-role-label">EJE Y</p>
+                  <div id="qsRoleDimensionList" class="qs-role-list"></div>
+                </div>
+                <div class="qs-role-block">
+                  <p class="qs-role-label">VALOR</p>
+                  <div id="qsRoleMetricList" class="qs-role-list"></div>
+                  <button type="button" id="qsAddMetricGhostButton" class="qs-role-ghost">Agregar una medida</button>
+                </div>
+                <div class="qs-role-block">
+                  <p class="qs-role-label">GRUPO/COLOR</p>
+                  <div id="qsRoleBreakdownList" class="qs-role-list"></div>
+                  <button type="button" id="qsAddBreakdownGhostButton" class="qs-role-ghost">Agregar una dimensión</button>
+                </div>
+                <div class="qs-hidden-controls" aria-hidden="true">
+                  <label>
+                    Tipo de grafico
+                    <select id="qsChartTypeSelect">
+                      <option value="bar">Barras</option>
+                      <option value="line">Lineas</option>
+                      <option value="area">Area</option>
+                      <option value="combo">Combinado</option>
+                      <option value="pie">Circular</option>
+                      <option value="donut">Dona</option>
+                      <option value="treemap">Treemap</option>
+                      <option value="funnel">Embudo</option>
+                      <option value="scatter">Dispersion</option>
+                      <option value="bubble">Burbujas</option>
+                      <option value="waterfall">Waterfall</option>
+                      <option value="radar">Radar</option>
+                      <option value="pareto">Pareto</option>
+                    </select>
+                  </label>
+                  <label>
+                    Dimension
+                    <select id="qsGroupBySelect"></select>
+                  </label>
+                  <label>
+                    Grupo/Color
+                    <select id="qsBreakdownSelect"></select>
+                  </label>
+                  <label>
+                    Metrica
+                    <select id="qsMetricSelect">
+                      <option value="count">Cantidad de filas</option>
+                      <option value="baseunits">UP Base total</option>
+                      <option value="baseavg">UP Base promedio</option>
+                      <option value="realavg">Avance real promedio (%)</option>
+                      <option value="programmedavg">Avance programado promedio (%)</option>
+                      <option value="weightedreal">Avance real proyecto (%)</option>
+                      <option value="weightedprogrammed">Avance programado proyecto (%)</option>
+                      <option value="weightedgap">Brecha real - programado (%)</option>
+                      <option value="invaliddates">Fechas invertidas</option>
+                    </select>
+                  </label>
+                  <label>
+                    Top N
+                    <input id="qsTopNInput" type="number" min="1" max="60" step="1" value="12">
+                  </label>
+                </div>
                 <div class="inline-actions">
                   <button id="qsDeleteVisualButton" type="button" class="secondary">Eliminar visual</button>
                 </div>

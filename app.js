@@ -21,6 +21,23 @@ const BI_CANVAS_SURFACE_MIN_EDIT_WIDTH = 760;
 const BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT = 420;
 const BI_CANVAS_SURFACE_MAX_EDIT_WIDTH = 6000;
 const BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT = 4000;
+const BI_CANVAS_AUTO_EXPAND_MARGIN = 120;
+const BI_CANVAS_AUTO_EXPAND_STEP = 240;
+const QUICKSIGHT_CANVAS_MIN_WIDTH = 1200;
+const QUICKSIGHT_CANVAS_MIN_HEIGHT = 760;
+const QUICKSIGHT_CANVAS_DEFAULT_WIDTH = 1800;
+const QUICKSIGHT_CANVAS_DEFAULT_HEIGHT = 1100;
+const QUICKSIGHT_CANVAS_ZOOM_DEFAULT = 100;
+const QUICKSIGHT_CANVAS_ZOOM_MIN = 25;
+const QUICKSIGHT_CANVAS_ZOOM_MAX = 300;
+const QUICKSIGHT_CANVAS_ZOOM_STEP = 10;
+const QUICKSIGHT_VISUAL_MIN_WIDTH = 320;
+const QUICKSIGHT_VISUAL_MIN_HEIGHT = 220;
+const QUICKSIGHT_VISUAL_DEFAULT_WIDTH = 420;
+const QUICKSIGHT_VISUAL_DEFAULT_HEIGHT = 280;
+const QUICKSIGHT_VISUAL_GAP_X = 24;
+const QUICKSIGHT_VISUAL_GAP_Y = 24;
+const QUICKSIGHT_CANVAS_PADDING = 20;
 const BI_CANVAS_ZOOM_DEFAULT = 100;
 const BI_CANVAS_ZOOM_MIN = 25;
 const BI_CANVAS_ZOOM_MAX = 300;
@@ -223,6 +240,17 @@ let biStudioPanelResize = null;
 let biFilterFocusTimer = null;
 let biVisualScopeMode = "widget";
 let selectedBiWidgetId = "";
+let selectedQuickSightVisualId = "";
+let quickSightVisualInteraction = null;
+let quickSightSuppressClickUntil = 0;
+let quickSightWheelZoomRafId = 0;
+let quickSightPendingWheelZoomStep = 0;
+const quickSightPanelState = {
+  data: true,
+  visuals: true,
+  props: true
+};
+let quickSightEditMenuOpen = false;
 let biPendingImageWidgetId = "";
 let biCommandPaletteOpen = false;
 let biCommandPaletteSelection = 0;
@@ -230,6 +258,8 @@ let biCommandVisibleIds = [];
 let biPendingRenderRafId = 0;
 const biWidgetSnapshotsByProject = {};
 let biCanvasInteraction = null;
+let biWheelZoomRafId = 0;
+let biPendingWheelZoomStep = 0;
 const pendingRealAdvanceLogs = [];
 const pendingPackageRealAdvanceLogs = [];
 const pendingReviewControlRealAdvanceLogs = [];
@@ -282,6 +312,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (biStudioPanelResize && event.pointerId === biStudioPanelResize.pointerId) {
       stopBiStudioPanelResize();
     }
+  });
+  document.addEventListener("pointermove", (event) => {
+    handleQuickSightVisualDragMove(event);
+  });
+  document.addEventListener("pointerup", (event) => {
+    finishQuickSightVisualDrag(event, false);
+  });
+  document.addEventListener("pointercancel", (event) => {
+    finishQuickSightVisualDrag(event, true);
   });
 
   if (state.projects.length > 1) {
@@ -485,6 +524,37 @@ function bindElements() {
   els.reviewControlsMetaText = document.getElementById("reviewControlsMetaText");
   els.reviewControlsHeader = document.getElementById("reviewControlsHeader");
   els.reviewControlsBody = document.getElementById("reviewControlsBody");
+  els.qsAddVisualButton = document.getElementById("qsAddVisualButton");
+  els.qsRefreshButton = document.getElementById("qsRefreshButton");
+  els.qsToggleDataButton = document.getElementById("qsToggleDataButton");
+  els.qsToggleVisualsButton = document.getElementById("qsToggleVisualsButton");
+  els.qsTogglePropsButton = document.getElementById("qsTogglePropsButton");
+  els.qsEditMenuWrap = document.getElementById("qsEditMenuWrap");
+  els.qsEditMenuButton = document.getElementById("qsEditMenuButton");
+  els.qsEditMenu = document.getElementById("qsEditMenu");
+  els.qsCanvasWidthInput = document.getElementById("qsCanvasWidthInput");
+  els.qsCanvasHeightInput = document.getElementById("qsCanvasHeightInput");
+  els.qsCanvasZoomSelect = document.getElementById("qsCanvasZoomSelect");
+  els.qsApplyCanvasSizeButton = document.getElementById("qsApplyCanvasSizeButton");
+  els.qsResetCanvasSizeButton = document.getElementById("qsResetCanvasSizeButton");
+  els.qsDataSummaryText = document.getElementById("qsDataSummaryText");
+  els.qsSourceSelect = document.getElementById("qsSourceSelect");
+  els.qsFieldsSearchInput = document.getElementById("qsFieldsSearchInput");
+  els.qsFieldsList = document.getElementById("qsFieldsList");
+  els.qsChartTypeSelect = document.getElementById("qsChartTypeSelect");
+  els.qsChartTypeGrid = document.getElementById("qsChartTypeGrid");
+  els.qsGroupBySelect = document.getElementById("qsGroupBySelect");
+  els.qsMetricSelect = document.getElementById("qsMetricSelect");
+  els.qsTopNInput = document.getElementById("qsTopNInput");
+  els.qsDeleteVisualButton = document.getElementById("qsDeleteVisualButton");
+  els.qsSheetTitle = document.getElementById("qsSheetTitle");
+  els.qsCanvasMetaText = document.getElementById("qsCanvasMetaText");
+  els.qsCanvasBoard = document.getElementById("qsCanvasBoard");
+  els.qsPropertiesBody = document.getElementById("qsPropertiesBody");
+  els.qsShell = document.getElementById("qsShell");
+  els.qsDataPanel = document.getElementById("qsDataPanel");
+  els.qsVisualsPanel = document.getElementById("qsVisualsPanel");
+  els.qsPropsPanel = document.getElementById("qsPropsPanel");
   els.biRefreshButton = document.getElementById("biRefreshButton");
   els.biOpenCommandPaletteButton = document.getElementById("biOpenCommandPaletteButton");
   els.biExportBoardPngButton = document.getElementById("biExportBoardPngButton");
@@ -769,6 +839,7 @@ function wireEvents() {
     renderReviewFlowPanel(getActiveProject());
     renderReviewControlsPanel(getActiveProject());
     renderBiPanel(getActiveProject());
+    renderQuickSightPanel(getActiveProject());
     setStatus("Cambios guardados localmente.");
   });
 
@@ -787,6 +858,7 @@ function wireEvents() {
       renderReviewFlowPanel(getActiveProject());
       renderReviewControlsPanel(getActiveProject());
       renderBiPanel(getActiveProject());
+      renderQuickSightPanel(getActiveProject());
     }, SEARCH_DEBOUNCE_MS);
   });
 
@@ -837,6 +909,443 @@ function wireEvents() {
     button.addEventListener("click", () => {
       switchTab(button.dataset.tab || "fields");
     });
+  });
+
+  const handleQuickSightConfigChange = () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    project.quickSightConfig.source = normalizeBiSource(els.qsSourceSelect?.value || project.quickSightConfig.source || "all");
+    project.quickSightConfig.groupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
+    project.quickSightConfig.metric = normalizeBiMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
+    project.quickSightConfig.chartType = normalizeBiChartType(els.qsChartTypeSelect?.value || project.quickSightConfig.chartType || "bar");
+    project.quickSightConfig.topN = sanitizeBiTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
+    project.quickSightConfig.fieldsSearch = trimOrFallback(els.qsFieldsSearchInput?.value, "").slice(0, 80);
+    saveState();
+    renderQuickSightPanel(project);
+  };
+
+  [els.qsSourceSelect, els.qsGroupBySelect, els.qsMetricSelect, els.qsChartTypeSelect, els.qsTopNInput, els.qsFieldsSearchInput]
+    .forEach((node) => {
+      if (!node) {
+        return;
+      }
+      node.addEventListener("input", handleQuickSightConfigChange);
+      node.addEventListener("change", handleQuickSightConfigChange);
+    });
+
+  els.qsChartTypeGrid?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("[data-qs-chart-type]");
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+    const nextType = normalizeBiChartType(button.dataset.qsChartType || "");
+    if (els.qsChartTypeSelect instanceof HTMLSelectElement) {
+      els.qsChartTypeSelect.value = nextType;
+    }
+    handleQuickSightConfigChange();
+  });
+
+  const toggleQuickSightPanel = (panelKey) => {
+    quickSightPanelState[panelKey] = !quickSightPanelState[panelKey];
+    if (panelKey === "data") {
+      applyQuickSightPanelVisibility(quickSightPanelState[panelKey] ? "Panel Datos mostrado." : "Panel Datos oculto.", panelKey);
+    } else if (panelKey === "visuals") {
+      applyQuickSightPanelVisibility(quickSightPanelState[panelKey] ? "Panel Elementos visuales mostrado." : "Panel Elementos visuales oculto.", panelKey);
+    } else if (panelKey === "props") {
+      applyQuickSightPanelVisibility(quickSightPanelState[panelKey] ? "Panel Propiedades mostrado." : "Panel Propiedades oculto.", panelKey);
+    } else {
+      applyQuickSightPanelVisibility("");
+    }
+  };
+
+  const bindQuickSightToggleButton = (buttonNode, panelKey) => {
+    if (!(buttonNode instanceof HTMLElement)) {
+      return;
+    }
+    buttonNode.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleQuickSightPanel(panelKey);
+    });
+  };
+  bindQuickSightToggleButton(els.qsToggleDataButton, "data");
+  bindQuickSightToggleButton(els.qsToggleVisualsButton, "visuals");
+  bindQuickSightToggleButton(els.qsTogglePropsButton, "props");
+
+  const applyQuickSightCanvasFromEditMenu = (mode = "apply") => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const defaults = createDefaultQuickSightConfig();
+    if (mode === "reset") {
+      project.quickSightConfig.canvasWidth = defaults.canvasWidth;
+      project.quickSightConfig.canvasHeight = defaults.canvasHeight;
+      project.quickSightConfig.canvasZoom = defaults.canvasZoom;
+    } else {
+      project.quickSightConfig.canvasWidth = sanitizeBiCanvasDimension(
+        els.qsCanvasWidthInput?.value,
+        project.quickSightConfig.canvasWidth,
+        QUICKSIGHT_CANVAS_MIN_WIDTH,
+        BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+      );
+      project.quickSightConfig.canvasHeight = sanitizeBiCanvasDimension(
+        els.qsCanvasHeightInput?.value,
+        project.quickSightConfig.canvasHeight,
+        QUICKSIGHT_CANVAS_MIN_HEIGHT,
+        BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+      );
+      project.quickSightConfig.canvasZoom = sanitizeQuickSightCanvasZoom(
+        els.qsCanvasZoomSelect?.value,
+        project.quickSightConfig.canvasZoom
+      );
+    }
+    project.quickSightVisuals = project.quickSightVisuals.map((visual, index) => ({
+      ...visual,
+      layout: clampQuickSightVisualLayoutToCanvas(
+        normalizeQuickSightVisualLayout(visual.layout, index),
+        project.quickSightConfig
+      )
+    }));
+    syncQuickSightEditMenuInputs(project);
+    saveState();
+    renderQuickSightPanel(project);
+    setStatus(
+      `Hoja Quicksigth ${mode === "reset" ? "restablecida" : "actualizada"}: ` +
+      `${project.quickSightConfig.canvasWidth} x ${project.quickSightConfig.canvasHeight}px | Zoom ${project.quickSightConfig.canvasZoom}%.`
+    );
+  };
+
+  els.qsEditMenuButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeTab !== "quicksight") {
+      return;
+    }
+    const project = getActiveProject();
+    if (project) {
+      syncQuickSightEditMenuInputs(project);
+    }
+    setQuickSightEditMenuOpen(!quickSightEditMenuOpen);
+  });
+
+  els.qsApplyCanvasSizeButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightCanvasFromEditMenu("apply");
+  });
+
+  els.qsResetCanvasSizeButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightCanvasFromEditMenu("reset");
+  });
+
+  els.qsEditMenu?.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  els.qsCanvasWidthInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    applyQuickSightCanvasFromEditMenu("apply");
+  });
+
+  els.qsCanvasHeightInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    applyQuickSightCanvasFromEditMenu("apply");
+  });
+
+  els.qsCanvasZoomSelect?.addEventListener("change", () => {
+    applyQuickSightCanvasFromEditMenu("apply");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && quickSightEditMenuOpen) {
+      setQuickSightEditMenuOpen(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!quickSightEditMenuOpen) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      setQuickSightEditMenuOpen(false);
+      return;
+    }
+    if (target.closest("#qsEditMenuWrap")) {
+      return;
+    }
+    setQuickSightEditMenuOpen(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (activeTab !== "quicksight") {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const toggleButton = target.closest("#qsToggleDataButton, #qsToggleVisualsButton, #qsTogglePropsButton");
+    if (!(toggleButton instanceof HTMLElement)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (toggleButton.id === "qsToggleDataButton") {
+      toggleQuickSightPanel("data");
+    } else if (toggleButton.id === "qsToggleVisualsButton") {
+      toggleQuickSightPanel("visuals");
+    } else if (toggleButton.id === "qsTogglePropsButton") {
+      toggleQuickSightPanel("props");
+    }
+  });
+
+  els.qsFieldsList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const item = target.closest(".qs-field-item");
+    if (!(item instanceof HTMLElement)) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const groupByValue = trimOrFallback(item.dataset.qsGroupby || "", "");
+    const metricValue = trimOrFallback(item.dataset.qsMetric || "", "");
+    const legacyKind = item.dataset.qsKind;
+    const legacyValue = trimOrFallback(item.dataset.qsValue || "", "");
+    if (groupByValue) {
+      project.quickSightConfig.groupBy = normalizeBiGroupBy(groupByValue);
+      if (els.qsGroupBySelect) {
+        els.qsGroupBySelect.value = project.quickSightConfig.groupBy;
+      }
+      setStatus(`Dimension seleccionada: ${getBiGroupLabel(project.quickSightConfig.groupBy, project)}.`);
+    } else if (metricValue) {
+      project.quickSightConfig.metric = normalizeBiMetric(metricValue);
+      if (els.qsMetricSelect) {
+        els.qsMetricSelect.value = project.quickSightConfig.metric;
+      }
+      setStatus(`Metrica seleccionada: ${getBiMetricLabel(project.quickSightConfig.metric)}.`);
+    } else if (legacyKind === "dimension" && legacyValue) {
+      project.quickSightConfig.groupBy = normalizeBiGroupBy(legacyValue);
+    } else if (legacyKind === "metric" && legacyValue) {
+      project.quickSightConfig.metric = normalizeBiMetric(legacyValue);
+    } else {
+      setStatus("Campo no vinculable a dimension o metrica.");
+      return;
+    }
+    saveState();
+    renderQuickSightPanel(project);
+  });
+
+  els.qsAddVisualButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const visual = createQuickSightVisualFromConfig(project.quickSightConfig, project.quickSightVisuals.length);
+    project.quickSightVisuals.unshift(visual);
+    selectedQuickSightVisualId = visual.id;
+    saveState();
+    renderQuickSightPanel(project);
+    setStatus(`Visual agregado: ${visual.name}.`);
+  });
+
+  els.qsDeleteVisualButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    if (!selectedQuickSightVisualId) {
+      setStatus("Selecciona un visual para eliminar.");
+      return;
+    }
+    const before = project.quickSightVisuals.length;
+    project.quickSightVisuals = project.quickSightVisuals.filter((item) => item.id !== selectedQuickSightVisualId);
+    if (project.quickSightVisuals.length === before) {
+      setStatus("No se encontró el visual seleccionado.");
+      return;
+    }
+    selectedQuickSightVisualId = project.quickSightVisuals[0]?.id || "";
+    saveState();
+    renderQuickSightPanel(project);
+    setStatus("Visual eliminado.");
+  });
+
+  els.qsRefreshButton?.addEventListener("click", () => {
+    renderQuickSightPanel(getActiveProject());
+    setStatus("Dechini Quicksigth actualizado.");
+  });
+
+  els.qsCanvasBoard?.addEventListener("wheel", (event) => {
+    if (activeTab !== "quicksight") {
+      return;
+    }
+    if (!(event.ctrlKey || event.metaKey)) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    event.preventDefault();
+    ensureQuickSightState(project);
+    quickSightPendingWheelZoomStep += event.deltaY < 0 ? 1 : -1;
+    if (quickSightWheelZoomRafId) {
+      return;
+    }
+    quickSightWheelZoomRafId = window.requestAnimationFrame(() => {
+      quickSightWheelZoomRafId = 0;
+      const step = quickSightPendingWheelZoomStep;
+      quickSightPendingWheelZoomStep = 0;
+      if (!step) {
+        return;
+      }
+      project.quickSightConfig.canvasZoom = getSteppedQuickSightCanvasZoom(
+        project.quickSightConfig.canvasZoom,
+        step > 0 ? 1 : -1
+      );
+      saveState();
+      renderQuickSightPanel(project);
+      setStatus(`Zoom pizarra Quicksigth: ${project.quickSightConfig.canvasZoom}%.`);
+    });
+  }, { passive: false });
+
+  els.qsCanvasBoard?.addEventListener("pointerdown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const dragHandle = target.closest(".qs-visual-head");
+    if (!(dragHandle instanceof HTMLElement)) {
+      return;
+    }
+    const visualCard = dragHandle.closest(".qs-visual-card");
+    if (!(visualCard instanceof HTMLElement)) {
+      return;
+    }
+    const visualId = trimOrFallback(visualCard.dataset.qsVisualId, "");
+    if (!visualId) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const visual = project.quickSightVisuals.find((item) => item.id === visualId);
+    if (!visual) {
+      return;
+    }
+    startQuickSightVisualDrag(project, visual, visualCard, event);
+  });
+
+  els.qsCanvasBoard?.addEventListener("click", (event) => {
+    if (Date.now() < quickSightSuppressClickUntil) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const visualCard = target.closest(".qs-visual-card");
+    if (!(visualCard instanceof HTMLElement)) {
+      return;
+    }
+    const visualId = trimOrFallback(visualCard.dataset.qsVisualId, "");
+    if (!visualId) {
+      return;
+    }
+    selectedQuickSightVisualId = visualId;
+    renderQuickSightPanel(getActiveProject());
+  });
+
+  els.qsPropertiesBody?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const prop = trimOrFallback(target.dataset.qsProp, "");
+    if (!prop) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const visual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId);
+    if (!visual) {
+      return;
+    }
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) {
+      if (prop === "name") {
+        visual.name = trimOrFallback(target.value, visual.name).slice(0, 120);
+      } else if (prop === "layoutX" || prop === "layoutY" || prop === "layoutW" || prop === "layoutH") {
+        const currentLayout = normalizeQuickSightVisualLayout(visual.layout, 0);
+        let nextX = currentLayout.x;
+        let nextY = currentLayout.y;
+        let nextW = currentLayout.w;
+        let nextH = currentLayout.h;
+        const numeric = Number(target.value);
+        if (prop === "layoutX" && Number.isFinite(numeric)) {
+          nextX = Math.max(0, Math.round(numeric));
+        }
+        if (prop === "layoutY" && Number.isFinite(numeric)) {
+          nextY = Math.max(0, Math.round(numeric));
+        }
+        if (prop === "layoutW" && Number.isFinite(numeric)) {
+          nextW = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Math.round(numeric));
+        }
+        if (prop === "layoutH" && Number.isFinite(numeric)) {
+          nextH = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Math.round(numeric));
+        }
+        visual.layout = normalizeQuickSightVisualLayout({
+          x: nextX,
+          y: nextY,
+          w: nextW,
+          h: nextH
+        }, 0);
+        visual.layout = clampQuickSightVisualLayoutToCanvas(visual.layout, project.quickSightConfig);
+      } else if (prop === "source") {
+        visual.source = normalizeBiSource(target.value || visual.source);
+      } else if (prop === "groupBy") {
+        visual.groupBy = normalizeBiGroupBy(target.value || visual.groupBy);
+      } else if (prop === "metric") {
+        visual.metric = normalizeBiMetric(target.value || visual.metric);
+      } else if (prop === "chartType") {
+        visual.chartType = normalizeBiChartType(target.value || visual.chartType);
+      } else if (prop === "topN") {
+        visual.topN = sanitizeBiTopN(target.value || visual.topN);
+      } else if (prop === "sortMode") {
+        visual.sortMode = normalizeBiSortMode(target.value || visual.sortMode);
+      }
+      saveState();
+      renderQuickSightPanel(project);
+    }
   });
 
   const handleBiConfigChange = () => {
@@ -1421,6 +1930,35 @@ function wireEvents() {
     }
     closeBiZoomMenu();
   });
+
+  els.biWidgetsGrid?.addEventListener("wheel", (event) => {
+    if (activeTab !== "bi") {
+      return;
+    }
+    if (!(event.ctrlKey || event.metaKey)) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    event.preventDefault();
+    const step = event.deltaY < 0 ? 1 : -1;
+    biPendingWheelZoomStep += step;
+    if (biWheelZoomRafId) {
+      return;
+    }
+    biWheelZoomRafId = window.requestAnimationFrame(() => {
+      biWheelZoomRafId = 0;
+      const accumulated = biPendingWheelZoomStep;
+      biPendingWheelZoomStep = 0;
+      if (!accumulated) {
+        return;
+      }
+      const nextZoom = getBiSteppedCanvasZoom(project.biConfig.canvasZoom, accumulated > 0 ? 1 : -1);
+      applyBiCanvasZoom(nextZoom, "Zoom de pizarra");
+    });
+  }, { passive: false });
 
   const handleBiBoardGridSettingsChange = () => {
     const project = getActiveProject();
@@ -4107,6 +4645,7 @@ function renderAll() {
   renderDeliverablesPanel(project);
   renderReviewFlowPanel(project);
   renderReviewControlsPanel(project);
+  renderQuickSightPanel(project);
   renderProjectChooser(project);
   renderTabState();
   if (activeTab === "bi") {
@@ -6003,6 +6542,634 @@ function renderBiPanel(project) {
   renderBiPerformancePanel(project, filteredRows);
   refreshBiStudioPanelsUi();
   updateBiStudioOverlayOffset();
+}
+
+function getQuickSightShellColumns() {
+  if (window.innerWidth <= 1180) {
+    return "1fr";
+  }
+  return "auto auto minmax(0, 1fr) auto";
+}
+
+function syncQuickSightEditMenuInputs(projectOrConfig) {
+  if (!projectOrConfig) {
+    return;
+  }
+  const config = projectOrConfig.quickSightConfig ? projectOrConfig.quickSightConfig : projectOrConfig;
+  const canvasSize = getQuickSightCanvasSizeFromConfig(config);
+  const zoom = sanitizeQuickSightCanvasZoom(config?.canvasZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  if (els.qsCanvasWidthInput instanceof HTMLInputElement) {
+    els.qsCanvasWidthInput.value = String(canvasSize.width);
+  }
+  if (els.qsCanvasHeightInput instanceof HTMLInputElement) {
+    els.qsCanvasHeightInput.value = String(canvasSize.height);
+  }
+  if (els.qsCanvasZoomSelect instanceof HTMLSelectElement) {
+    els.qsCanvasZoomSelect.value = String(zoom);
+  }
+}
+
+function setQuickSightEditMenuOpen(nextOpen) {
+  quickSightEditMenuOpen = !!nextOpen;
+  if (els.qsEditMenuWrap instanceof HTMLElement) {
+    els.qsEditMenuWrap.classList.toggle("open", quickSightEditMenuOpen);
+  }
+  if (els.qsEditMenuButton instanceof HTMLElement) {
+    els.qsEditMenuButton.classList.toggle("active", quickSightEditMenuOpen);
+    els.qsEditMenuButton.setAttribute("aria-expanded", quickSightEditMenuOpen ? "true" : "false");
+  }
+  if (els.qsEditMenu instanceof HTMLElement) {
+    els.qsEditMenu.setAttribute("aria-hidden", quickSightEditMenuOpen ? "false" : "true");
+  }
+}
+
+function applyQuickSightPanelVisibility(announceMessage = "", animatedPanelKey = "") {
+  const syncPanelStateClass = (panelNode, isVisible) => {
+    if (!(panelNode instanceof HTMLElement)) {
+      return;
+    }
+    panelNode.classList.toggle("qs-collapsed", !isVisible);
+    panelNode.setAttribute("aria-hidden", isVisible ? "false" : "true");
+  };
+
+  syncPanelStateClass(els.qsDataPanel, quickSightPanelState.data);
+  syncPanelStateClass(els.qsVisualsPanel, quickSightPanelState.visuals);
+  syncPanelStateClass(els.qsPropsPanel, quickSightPanelState.props);
+  if (els.qsShell instanceof HTMLElement) {
+    els.qsShell.style.gridTemplateColumns = getQuickSightShellColumns();
+  }
+
+  const buttonStates = [
+    [els.qsToggleDataButton, quickSightPanelState.data],
+    [els.qsToggleVisualsButton, quickSightPanelState.visuals],
+    [els.qsTogglePropsButton, quickSightPanelState.props]
+  ];
+  buttonStates.forEach(([button, isVisible]) => {
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+    button.classList.toggle("active", !!isVisible);
+    button.setAttribute("aria-pressed", isVisible ? "true" : "false");
+  });
+  if (announceMessage && activeTab === "quicksight") {
+    setStatus(announceMessage);
+  }
+}
+
+function getDefaultQuickSightVisualLayout(index = 0) {
+  const safeIndex = Math.max(0, Math.round(index || 0));
+  const columns = 3;
+  const column = safeIndex % columns;
+  const row = Math.floor(safeIndex / columns);
+  return {
+    x: QUICKSIGHT_CANVAS_PADDING + (column * (QUICKSIGHT_VISUAL_DEFAULT_WIDTH + QUICKSIGHT_VISUAL_GAP_X)),
+    y: QUICKSIGHT_CANVAS_PADDING + (row * (QUICKSIGHT_VISUAL_DEFAULT_HEIGHT + QUICKSIGHT_VISUAL_GAP_Y)),
+    w: QUICKSIGHT_VISUAL_DEFAULT_WIDTH,
+    h: QUICKSIGHT_VISUAL_DEFAULT_HEIGHT
+  };
+}
+
+function sanitizeQuickSightCanvasZoom(value, fallback = QUICKSIGHT_CANVAS_ZOOM_DEFAULT) {
+  const numeric = Math.round(Number(value));
+  const fallbackNumeric = Math.round(Number(fallback));
+  const safeFallback = Number.isFinite(fallbackNumeric)
+    ? Math.max(QUICKSIGHT_CANVAS_ZOOM_MIN, Math.min(QUICKSIGHT_CANVAS_ZOOM_MAX, fallbackNumeric))
+    : QUICKSIGHT_CANVAS_ZOOM_DEFAULT;
+  if (!Number.isFinite(numeric)) {
+    return safeFallback;
+  }
+  return Math.max(QUICKSIGHT_CANVAS_ZOOM_MIN, Math.min(QUICKSIGHT_CANVAS_ZOOM_MAX, numeric));
+}
+
+function getSteppedQuickSightCanvasZoom(currentZoom, direction) {
+  const safeZoom = sanitizeQuickSightCanvasZoom(currentZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  const safeDirection = direction >= 0 ? 1 : -1;
+  return sanitizeQuickSightCanvasZoom(safeZoom + (QUICKSIGHT_CANVAS_ZOOM_STEP * safeDirection), safeZoom);
+}
+
+function getQuickSightCanvasSizeFromConfig(config) {
+  const width = sanitizeBiCanvasDimension(
+    config?.canvasWidth,
+    QUICKSIGHT_CANVAS_DEFAULT_WIDTH,
+    QUICKSIGHT_CANVAS_MIN_WIDTH,
+    BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+  );
+  const height = sanitizeBiCanvasDimension(
+    config?.canvasHeight,
+    QUICKSIGHT_CANVAS_DEFAULT_HEIGHT,
+    QUICKSIGHT_CANVAS_MIN_HEIGHT,
+    BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+  );
+  return { width, height };
+}
+
+function clampQuickSightVisualLayoutToCanvas(layoutInput, config) {
+  const canvasSize = getQuickSightCanvasSizeFromConfig(config);
+  const normalized = normalizeQuickSightVisualLayout(layoutInput, 0);
+  const width = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Math.min(canvasSize.width, normalized.w));
+  const height = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Math.min(canvasSize.height, normalized.h));
+  const maxX = Math.max(0, canvasSize.width - width);
+  const maxY = Math.max(0, canvasSize.height - height);
+  const x = Math.max(0, Math.min(maxX, normalized.x));
+  const y = Math.max(0, Math.min(maxY, normalized.y));
+  return { x, y, w: width, h: height };
+}
+
+function normalizeQuickSightVisualLayout(rawLayout, index = 0) {
+  const fallback = getDefaultQuickSightVisualLayout(index);
+  const source = rawLayout && typeof rawLayout === "object" && !Array.isArray(rawLayout)
+    ? rawLayout
+    : {};
+  const x = Number.isFinite(source.x) ? Math.max(0, Math.round(source.x)) : fallback.x;
+  const y = Number.isFinite(source.y) ? Math.max(0, Math.round(source.y)) : fallback.y;
+  const w = Number.isFinite(source.w)
+    ? Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, Math.round(source.w))
+    : fallback.w;
+  const h = Number.isFinite(source.h)
+    ? Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, Math.round(source.h))
+    : fallback.h;
+  return { x, y, w, h };
+}
+
+function computeQuickSightSurfaceSize(visuals, config) {
+  return getQuickSightCanvasSizeFromConfig(config);
+}
+
+function applyQuickSightSurfaceSize(surfaceElement, config) {
+  if (!(surfaceElement instanceof HTMLElement)) {
+    return;
+  }
+  const size = computeQuickSightSurfaceSize([], config);
+  const zoomPercent = sanitizeQuickSightCanvasZoom(config?.canvasZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  const zoomScale = Math.max(0.25, Math.min(3, zoomPercent / 100));
+  surfaceElement.style.width = `${size.width}px`;
+  surfaceElement.style.height = `${size.height}px`;
+  surfaceElement.style.minWidth = `${size.width}px`;
+  surfaceElement.style.minHeight = `${size.height}px`;
+  surfaceElement.style.transform = `scale(${zoomScale})`;
+  surfaceElement.style.transformOrigin = "top left";
+  surfaceElement.dataset.qsCanvasWidth = String(size.width);
+  surfaceElement.dataset.qsCanvasHeight = String(size.height);
+  surfaceElement.dataset.qsCanvasZoom = String(zoomPercent);
+  const wrap = surfaceElement.parentElement;
+  if (wrap instanceof HTMLElement && wrap.classList.contains("qs-canvas-zoom-wrap")) {
+    wrap.style.width = `${Math.max(1, Math.round(size.width * zoomScale))}px`;
+    wrap.style.height = `${Math.max(1, Math.round(size.height * zoomScale))}px`;
+  }
+}
+
+function startQuickSightVisualDrag(project, visual, cardElement, event) {
+  if (!project || !visual || !(cardElement instanceof HTMLElement) || !(event instanceof PointerEvent)) {
+    return;
+  }
+  if (event.button !== 0) {
+    return;
+  }
+  const surfaceElement = cardElement.closest(".qs-canvas-surface");
+  if (!(surfaceElement instanceof HTMLElement)) {
+    return;
+  }
+  const visualIndex = Math.max(0, project.quickSightVisuals.findIndex((item) => item.id === visual.id));
+  const layout = clampQuickSightVisualLayoutToCanvas(
+    normalizeQuickSightVisualLayout(visual.layout, visualIndex),
+    project.quickSightConfig
+  );
+  visual.layout = { ...layout };
+  selectedQuickSightVisualId = visual.id;
+  if (els.qsCanvasBoard instanceof HTMLElement) {
+    els.qsCanvasBoard.querySelectorAll(".qs-visual-card.active").forEach((node) => {
+      if (node instanceof HTMLElement) {
+        node.classList.remove("active");
+      }
+    });
+  }
+
+  quickSightVisualInteraction = {
+    pointerId: event.pointerId,
+    projectId: project.id,
+    visualId: visual.id,
+    startX: event.clientX,
+    startY: event.clientY,
+    layoutStart: { ...layout },
+    zoomScale: Math.max(
+      0.25,
+      Math.min(
+        3,
+        sanitizeQuickSightCanvasZoom(surfaceElement.dataset.qsCanvasZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT) / 100
+      )
+    ),
+    moved: false,
+    cardElement,
+    surfaceElement
+  };
+  cardElement.classList.add("is-dragging", "active");
+  if (typeof cardElement.setPointerCapture === "function") {
+    try {
+      cardElement.setPointerCapture(event.pointerId);
+    } catch {
+      // Ignore unsupported capture scenarios.
+    }
+  }
+  event.preventDefault();
+}
+
+function handleQuickSightVisualDragMove(event) {
+  if (!quickSightVisualInteraction || !(event instanceof PointerEvent)) {
+    return;
+  }
+  if (event.pointerId !== quickSightVisualInteraction.pointerId) {
+    return;
+  }
+  const project = state.projects.find((item) => item.id === quickSightVisualInteraction.projectId);
+  if (!project) {
+    finishQuickSightVisualDrag(event, true);
+    return;
+  }
+  ensureQuickSightState(project);
+  const visual = project.quickSightVisuals.find((item) => item.id === quickSightVisualInteraction.visualId);
+  if (!visual) {
+    finishQuickSightVisualDrag(event, true);
+    return;
+  }
+  const zoomScale = Math.max(0.25, Math.min(3, Number(quickSightVisualInteraction.zoomScale) || 1));
+  const nextX = quickSightVisualInteraction.layoutStart.x + ((event.clientX - quickSightVisualInteraction.startX) / zoomScale);
+  const nextY = quickSightVisualInteraction.layoutStart.y + ((event.clientY - quickSightVisualInteraction.startY) / zoomScale);
+  const nextLayout = clampQuickSightVisualLayoutToCanvas({
+    x: nextX,
+    y: nextY,
+    w: visual.layout?.w ?? quickSightVisualInteraction.layoutStart.w,
+    h: visual.layout?.h ?? quickSightVisualInteraction.layoutStart.h
+  }, project.quickSightConfig);
+  visual.layout = nextLayout;
+  if (quickSightVisualInteraction.cardElement instanceof HTMLElement) {
+    quickSightVisualInteraction.cardElement.style.left = `${nextLayout.x}px`;
+    quickSightVisualInteraction.cardElement.style.top = `${nextLayout.y}px`;
+  }
+  quickSightVisualInteraction.moved = true;
+  event.preventDefault();
+}
+
+function finishQuickSightVisualDrag(event, canceled) {
+  if (!quickSightVisualInteraction || !(event instanceof PointerEvent)) {
+    return;
+  }
+  if (event.pointerId !== quickSightVisualInteraction.pointerId) {
+    return;
+  }
+  const interaction = quickSightVisualInteraction;
+  quickSightVisualInteraction = null;
+  if (interaction.cardElement instanceof HTMLElement) {
+    interaction.cardElement.classList.remove("is-dragging");
+    if (typeof interaction.cardElement.releasePointerCapture === "function") {
+      try {
+        interaction.cardElement.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore unsupported capture scenarios.
+      }
+    }
+  }
+  if (!canceled && interaction.moved) {
+    quickSightSuppressClickUntil = Date.now() + 220;
+    saveState();
+    if (activeTab === "quicksight") {
+      setStatus("Visual movido en pizarra libre.");
+    }
+  }
+}
+
+function getQuickSightMetricOptions() {
+  return [
+    { value: "count", label: "Cantidad de filas" },
+    { value: "baseunits", label: "UP Base total" },
+    { value: "baseavg", label: "UP Base promedio" },
+    { value: "realavg", label: "Avance real promedio (%)" },
+    { value: "programmedavg", label: "Avance programado promedio (%)" },
+    { value: "weightedreal", label: "Avance real proyecto (%)" },
+    { value: "weightedprogrammed", label: "Avance programado proyecto (%)" },
+    { value: "weightedgap", label: "Brecha real - programado (%)" },
+    { value: "invaliddates", label: "Fechas invertidas" }
+  ];
+}
+
+function getQuickSightChartTypeOptions() {
+  return [
+    { value: "bar", label: "Barras" },
+    { value: "line", label: "Lineas" },
+    { value: "area", label: "Area" },
+    { value: "combo", label: "Combinado" },
+    { value: "pie", label: "Circular" },
+    { value: "donut", label: "Dona" },
+    { value: "treemap", label: "Treemap" },
+    { value: "funnel", label: "Embudo" },
+    { value: "scatter", label: "Dispersion" },
+    { value: "bubble", label: "Burbujas" },
+    { value: "waterfall", label: "Waterfall" },
+    { value: "radar", label: "Radar" },
+    { value: "pareto", label: "Pareto" }
+  ];
+}
+
+function renderQuickSightPanel(project) {
+  if (!els.qsCanvasBoard || !els.qsFieldsList || !els.qsPropertiesBody) {
+    return;
+  }
+  if (project && activeTab !== "quicksight") {
+    return;
+  }
+  applyQuickSightPanelVisibility("");
+  if (!project) {
+    if (els.qsDataSummaryText) {
+      els.qsDataSummaryText.textContent = "";
+    }
+    if (els.qsCanvasMetaText) {
+      els.qsCanvasMetaText.textContent = "";
+    }
+    if (els.qsSheetTitle) {
+      els.qsSheetTitle.textContent = "Hoja 1";
+    }
+    els.qsFieldsList.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
+    els.qsCanvasBoard.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
+    els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Sin proyecto activo.</p>";
+    return;
+  }
+
+  ensureQuickSightState(project);
+  if (!project.quickSightVisuals.some((item) => item.id === selectedQuickSightVisualId)) {
+    selectedQuickSightVisualId = project.quickSightVisuals[0]?.id || "";
+  }
+
+  const allRows = collectBiRows(project);
+  const selectedSource = normalizeBiSource(project.quickSightConfig.source || "all");
+  const sourceRows = selectedSource === "all"
+    ? allRows
+    : allRows.filter((row) => row.source === selectedSource);
+  const groupOptions = getBiGroupByOptions(project);
+  const metricOptions = getQuickSightMetricOptions();
+  const chartOptions = getQuickSightChartTypeOptions();
+  const safeGroupBy = normalizeBiGroupBy(project.quickSightConfig.groupBy || "disciplina");
+  const safeMetric = normalizeBiMetric(project.quickSightConfig.metric || "count");
+  const safeChartType = normalizeBiChartType(project.quickSightConfig.chartType || "bar");
+  const catalogFields = getBiCatalogFields(project, selectedSource);
+
+  if (els.qsSourceSelect) {
+    els.qsSourceSelect.value = selectedSource;
+  }
+  if (els.qsGroupBySelect) {
+    els.qsGroupBySelect.innerHTML = groupOptions
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    const hasGroup = groupOptions.some((option) => option.value === safeGroupBy);
+    els.qsGroupBySelect.value = hasGroup ? safeGroupBy : (groupOptions[0]?.value || "disciplina");
+  }
+  if (els.qsMetricSelect) {
+    els.qsMetricSelect.innerHTML = metricOptions
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    els.qsMetricSelect.value = metricOptions.some((option) => option.value === safeMetric)
+      ? safeMetric
+      : "count";
+  }
+  if (els.qsChartTypeSelect) {
+    els.qsChartTypeSelect.innerHTML = chartOptions
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    els.qsChartTypeSelect.value = chartOptions.some((option) => option.value === safeChartType)
+      ? safeChartType
+      : "bar";
+  }
+  if (els.qsChartTypeGrid) {
+    els.qsChartTypeGrid.querySelectorAll("[data-qs-chart-type]").forEach((node) => {
+      if (!(node instanceof HTMLElement)) {
+        return;
+      }
+      const chartToken = normalizeBiChartType(node.dataset.qsChartType || "");
+      node.classList.toggle("active", chartToken === safeChartType);
+    });
+  }
+  if (els.qsTopNInput) {
+    els.qsTopNInput.value = String(sanitizeBiTopN(project.quickSightConfig.topN));
+  }
+  if (els.qsFieldsSearchInput) {
+    els.qsFieldsSearchInput.value = trimOrFallback(project.quickSightConfig.fieldsSearch, "");
+  }
+  if (els.qsSheetTitle) {
+    els.qsSheetTitle.textContent = `Hoja 1 | ${project.name}`;
+  }
+  const canvasSize = getQuickSightCanvasSizeFromConfig(project.quickSightConfig);
+  const canvasZoom = sanitizeQuickSightCanvasZoom(project.quickSightConfig.canvasZoom, QUICKSIGHT_CANVAS_ZOOM_DEFAULT);
+  const canvasZoomScale = Math.max(0.25, Math.min(3, canvasZoom / 100));
+  const scaledCanvasWidth = Math.max(1, Math.round(canvasSize.width * canvasZoomScale));
+  const scaledCanvasHeight = Math.max(1, Math.round(canvasSize.height * canvasZoomScale));
+  syncQuickSightEditMenuInputs(project);
+  if (els.qsCanvasMetaText) {
+    els.qsCanvasMetaText.textContent = `Visuales: ${project.quickSightVisuals.length} | Filas: ${sourceRows.length} | Pizarra: ${canvasSize.width} x ${canvasSize.height}px | Zoom: ${canvasZoom}%`;
+  }
+
+  const searchToken = normalizeLookup(project.quickSightConfig.fieldsSearch || "");
+  const filteredCatalogFields = searchToken
+    ? catalogFields.filter((field) => normalizeLookup(`${field.source} ${field.name}`).includes(searchToken))
+    : catalogFields;
+
+  if (els.qsDataSummaryText) {
+    els.qsDataSummaryText.textContent = `${getBiSourceLabel(selectedSource)} | Campos ${filteredCatalogFields.length}/${catalogFields.length}`;
+  }
+
+  els.qsFieldsList.innerHTML = filteredCatalogFields
+    .map((field) => {
+      const groupBy = trimOrFallback(field.groupBy, "");
+      const metric = trimOrFallback(field.metric, "");
+      const token = getBiCatalogFieldTypeToken(field.type);
+      const roleText = groupBy ? "Dimension" : (metric ? "Metrica" : "No vinculable");
+      const activeClass = (groupBy && groupBy === safeGroupBy) || (metric && metric === safeMetric)
+        ? " active"
+        : "";
+      return `<button type="button" class="qs-field-item${activeClass}" data-qs-groupby="${escapeAttribute(groupBy)}" data-qs-metric="${escapeAttribute(metric)}">
+        <span class="qs-field-kind">${escapeHtml(token)}</span>
+        <span class="qs-field-name">${escapeHtml(field.name)}</span>
+        <span class="qs-field-source">${escapeHtml(`${field.source} | ${roleText}`)}</span>
+      </button>`;
+    })
+    .join("") || "<div class=\"qs-empty\">No hay campos que coincidan.</div>";
+
+  project.quickSightVisuals.forEach((visual, index) => {
+    visual.layout = clampQuickSightVisualLayoutToCanvas(
+      normalizeQuickSightVisualLayout(visual.layout, index),
+      project.quickSightConfig
+    );
+  });
+
+  if (project.quickSightVisuals.length === 0) {
+    els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
+      <div class="qs-canvas-surface qs-canvas-surface-empty" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">
+        <div class="qs-empty">AutoGraph: agrega un visual para empezar.</div>
+      </div>
+    </div>`;
+  } else {
+    const visualCardsHtml = project.quickSightVisuals.map((visual, index) => {
+      const activeClass = visual.id === selectedQuickSightVisualId ? " active" : "";
+      const layout = normalizeQuickSightVisualLayout(visual.layout, index);
+      visual.layout = layout;
+      return `<article class="qs-visual-card${activeClass}" data-qs-visual-id="${escapeAttribute(visual.id)}" style="left:${layout.x}px;top:${layout.y}px;width:${layout.w}px;height:${layout.h}px;">
+        <div class="qs-visual-head" data-qs-drag-visual="${escapeAttribute(visual.id)}">
+          <div>
+            <h4 class="qs-visual-title">${escapeHtml(visual.name)}</h4>
+            <p class="qs-visual-meta">${escapeHtml(getBiSourceLabel(visual.source))} | ${escapeHtml(getBiGroupLabel(visual.groupBy, project))} | ${escapeHtml(getBiMetricLabel(visual.metric))}</p>
+          </div>
+          <div class="qs-visual-head-right">
+            <span class="qs-visual-size">${layout.w} x ${layout.h}</span>
+          </div>
+        </div>
+        <div class="qs-visual-canvas-wrap">
+          <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
+        </div>
+      </article>`;
+    }).join("");
+    els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
+      <div class="qs-canvas-surface" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">${visualCardsHtml}</div>
+    </div>`;
+  }
+
+  if (project.quickSightVisuals.length > 0) {
+    const canvases = els.qsCanvasBoard.querySelectorAll("canvas[data-qs-canvas-id]");
+    canvases.forEach((canvasNode) => {
+      if (!(canvasNode instanceof HTMLCanvasElement)) {
+        return;
+      }
+      const visualId = trimOrFallback(canvasNode.dataset.qsCanvasId, "");
+      const visual = project.quickSightVisuals.find((item) => item.id === visualId);
+      if (!visual) {
+        return;
+      }
+      const snapshot = buildBiWidgetSnapshot(allRows, visual);
+      paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+    });
+  }
+
+  const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+  if (!selectedVisual) {
+    els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Selecciona un visual para editar propiedades.</p>";
+  } else {
+    const selectedLayout = clampQuickSightVisualLayoutToCanvas(
+      normalizeQuickSightVisualLayout(selectedVisual.layout, 0),
+      project.quickSightConfig
+    );
+    selectedVisual.layout = selectedLayout;
+    const sourceOptions = [
+      { value: "all", label: "MIFA/TODAS_LAS_VISTAS" },
+      { value: "deliverable", label: "MIFA/VISTA_MIDP" },
+      { value: "package", label: "MIFA/VISTA_PAQUETES" },
+      { value: "review-control", label: "MIFA/VISTA_FLUJOS" }
+    ];
+    els.qsPropertiesBody.innerHTML = `
+      <label class="qs-props-row">
+        Nombre
+        <input data-qs-prop="name" type="text" maxlength="120" value="${escapeAttribute(selectedVisual.name)}">
+      </label>
+      <div class="qs-props-layout-grid">
+        <label class="qs-props-row">
+          X (px)
+          <input data-qs-prop="layoutX" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.x))}">
+        </label>
+        <label class="qs-props-row">
+          Y (px)
+          <input data-qs-prop="layoutY" type="number" min="0" step="1" value="${escapeAttribute(String(selectedLayout.y))}">
+        </label>
+        <label class="qs-props-row">
+          Ancho (px)
+          <input data-qs-prop="layoutW" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_WIDTH))}" step="1" value="${escapeAttribute(String(selectedLayout.w))}">
+        </label>
+        <label class="qs-props-row">
+          Alto (px)
+          <input data-qs-prop="layoutH" type="number" min="${escapeAttribute(String(QUICKSIGHT_VISUAL_MIN_HEIGHT))}" step="1" value="${escapeAttribute(String(selectedLayout.h))}">
+        </label>
+      </div>
+      <label class="qs-props-row">
+        Fuente
+        <select data-qs-prop="source">
+          ${sourceOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.source ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="qs-props-row">
+        Dimension
+        <select data-qs-prop="groupBy">
+          ${groupOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.groupBy ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="qs-props-row">
+        Metrica
+        <select data-qs-prop="metric">
+          ${metricOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.metric ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="qs-props-row">
+        Tipo de grafico
+        <select data-qs-prop="chartType">
+          ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedVisual.chartType ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="qs-props-row">
+        Top N
+        <input data-qs-prop="topN" type="number" min="1" max="60" step="1" value="${escapeAttribute(String(selectedVisual.topN))}">
+      </label>
+      <label class="qs-props-row">
+        Orden
+        <select data-qs-prop="sortMode">
+          <option value="value_desc"${selectedVisual.sortMode === "value_desc" ? " selected" : ""}>Valor: mayor a menor</option>
+          <option value="value_asc"${selectedVisual.sortMode === "value_asc" ? " selected" : ""}>Valor: menor a mayor</option>
+          <option value="label_asc"${selectedVisual.sortMode === "label_asc" ? " selected" : ""}>Etiqueta: A-Z</option>
+          <option value="label_desc"${selectedVisual.sortMode === "label_desc" ? " selected" : ""}>Etiqueta: Z-A</option>
+        </select>
+      </label>
+    `;
+  }
+}
+
+function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return;
+  }
+  const width = Math.max(220, Math.round(canvas.clientWidth || 420));
+  const height = Math.max(180, Math.round(canvas.clientHeight || 260));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.dataset.biRenderWidth = String(width);
+  canvas.dataset.biRenderHeight = String(height);
+  canvas.dataset.biDpr = String(dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  const visualSettings = createDefaultBiVisualSettings();
+  visualSettings.showDataLabels = true;
+  visualSettings.labelMaxChars = 16;
+  const chartType = normalizeBiChartType(visual.chartType || "bar");
+  if (!snapshot || !Array.isArray(snapshot.rows) || snapshot.rows.length === 0) {
+    drawBiWidgetFallbackPreview(ctx, snapshot || null, width, height, true);
+    return;
+  }
+
+  const seriesColors = getBiSeriesColors(project, snapshot.groupBy, snapshot.rows.map((row) => row.label));
+  drawBiWidgetChart(
+    canvas,
+    chartType,
+    snapshot.rows.map((row) => row.label),
+    snapshot.rows.map((row) => row.value),
+    -1,
+    seriesColors,
+    visualSettings,
+    null,
+    null,
+    snapshot.rows,
+    null,
+    null,
+    null
+  );
 }
 
 function syncBiInputs(config) {
@@ -12807,6 +13974,55 @@ function clampBiWidgetLayout(layout, surface, minSize) {
   return clampBiWidgetLayoutToCanvas(layout, width, height, minSize);
 }
 
+function updateBiSurfaceDimensionsInDom(surface, width, height) {
+  if (!(surface instanceof HTMLElement)) {
+    return;
+  }
+  const safeWidth = sanitizeBiCanvasDimension(width, BI_CANVAS_SURFACE_MIN_WIDTH, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const safeHeight = sanitizeBiCanvasDimension(height, BI_CANVAS_SURFACE_HEIGHT, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  surface.dataset.biCanvasWidth = String(safeWidth);
+  surface.dataset.biCanvasHeight = String(safeHeight);
+  surface.style.width = `${safeWidth}px`;
+  surface.style.height = `${safeHeight}px`;
+  surface.style.minWidth = `${safeWidth}px`;
+  surface.style.minHeight = `${safeHeight}px`;
+  const zoomPercent = sanitizeBiCanvasZoom(surface.dataset.biCanvasZoom, BI_CANVAS_ZOOM_DEFAULT);
+  const zoomScale = Math.max(0.25, Math.min(2, zoomPercent / 100));
+  const zoomWrap = surface.parentElement;
+  if (zoomWrap instanceof HTMLElement && zoomWrap.classList.contains("bi-canvas-zoom-wrap")) {
+    zoomWrap.style.width = `${Math.max(1, Math.round(safeWidth * zoomScale))}px`;
+    zoomWrap.style.height = `${Math.max(1, Math.round(safeHeight * zoomScale))}px`;
+  }
+}
+
+function ensureBiCanvasHasDragSpace(project, interaction, layoutCandidate) {
+  if (!project || !interaction || !(interaction.surface instanceof HTMLElement) || !layoutCandidate) {
+    return;
+  }
+  const rawWidth = Number(interaction.surface.dataset.biCanvasWidth || 0);
+  const rawHeight = Number(interaction.surface.dataset.biCanvasHeight || 0);
+  const currentWidth = sanitizeBiCanvasDimension(rawWidth, BI_CANVAS_SURFACE_MIN_WIDTH, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const currentHeight = sanitizeBiCanvasDimension(rawHeight, BI_CANVAS_SURFACE_HEIGHT, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  const targetRight = Math.max(0, Math.round(layoutCandidate.x + layoutCandidate.w + BI_CANVAS_AUTO_EXPAND_MARGIN));
+  const targetBottom = Math.max(0, Math.round(layoutCandidate.y + layoutCandidate.h + BI_CANVAS_AUTO_EXPAND_MARGIN));
+  const requiredWidth = Math.max(currentWidth, Math.ceil(targetRight / BI_CANVAS_AUTO_EXPAND_STEP) * BI_CANVAS_AUTO_EXPAND_STEP);
+  const requiredHeight = Math.max(currentHeight, Math.ceil(targetBottom / BI_CANVAS_AUTO_EXPAND_STEP) * BI_CANVAS_AUTO_EXPAND_STEP);
+  const nextWidth = sanitizeBiCanvasDimension(requiredWidth, currentWidth, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const nextHeight = sanitizeBiCanvasDimension(requiredHeight, currentHeight, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  if (nextWidth === currentWidth && nextHeight === currentHeight) {
+    return;
+  }
+  project.biConfig.canvasWidth = nextWidth;
+  project.biConfig.canvasHeight = nextHeight;
+  updateBiSurfaceDimensionsInDom(interaction.surface, nextWidth, nextHeight);
+  if (els.biCanvasWidthInput instanceof HTMLInputElement) {
+    els.biCanvasWidthInput.value = String(nextWidth);
+  }
+  if (els.biCanvasHeightInput instanceof HTMLInputElement) {
+    els.biCanvasHeightInput.value = String(nextHeight);
+  }
+}
+
 function getBiGridSettings(project) {
   return {
     enabled: normalizeBiToggle(project?.biConfig?.snapToGrid, true),
@@ -12864,6 +14080,7 @@ function updateBiWidgetInteraction(pointerEvent) {
   const snapped = gridSettings.enabled
     ? snapBiWidgetLayout(next, biCanvasInteraction.mode, gridSettings.size, biCanvasInteraction.minSize)
     : next;
+  ensureBiCanvasHasDragSpace(project, biCanvasInteraction, snapped);
   const clamped = clampBiWidgetLayout(snapped, biCanvasInteraction.surface, biCanvasInteraction.minSize);
   biCanvasInteraction.layoutLive = clamped;
   biCanvasInteraction.element.style.left = `${clamped.x}px`;
@@ -14693,6 +15910,7 @@ function renderTabState() {
   const reviewFlowPanel = document.getElementById("tab-review-flow");
   const reviewControlsPanel = document.getElementById("tab-review-controls");
   const biPanel = document.getElementById("tab-bi");
+  const quickSightPanel = document.getElementById("tab-quicksight");
   const tabButtons = document.querySelectorAll(".tab-button");
   const packagesTabButton = document.querySelector(".tab-button[data-tab=\"packages\"]");
 
@@ -14706,6 +15924,10 @@ function renderTabState() {
   reviewFlowPanel.classList.toggle("hidden", activeTab !== "review-flow");
   reviewControlsPanel.classList.toggle("hidden", activeTab !== "review-controls");
   biPanel.classList.toggle("hidden", activeTab !== "bi");
+  quickSightPanel.classList.toggle("hidden", activeTab !== "quicksight");
+  if (activeTab !== "quicksight" && quickSightEditMenuOpen) {
+    setQuickSightEditMenuOpen(false);
+  }
 
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tab === activeTab;
@@ -14725,6 +15947,8 @@ function renderTabState() {
       els.currentViewLabel.textContent = "CONTROL FLUJOS REVISION";
     } else if (activeTab === "bi") {
       els.currentViewLabel.textContent = "DECHINI BI";
+    } else if (activeTab === "quicksight") {
+      els.currentViewLabel.textContent = "DECHINI QUICKSIGTH";
     } else {
       els.currentViewLabel.textContent = "MIDP";
     }
@@ -14741,6 +15965,8 @@ function renderTabState() {
       els.globalSearchInput.placeholder = "Buscar en control de flujos de revision";
     } else if (activeTab === "bi") {
       els.globalSearchInput.placeholder = "Buscar en Dechini BI";
+    } else if (activeTab === "quicksight") {
+      els.globalSearchInput.placeholder = "Buscar en Dechini Quicksigth";
     } else {
       els.globalSearchInput.placeholder = "Buscar en entregables";
     }
@@ -14758,7 +15984,7 @@ function switchTab(tab) {
   const packageTabEnabled = getProjectProgressControlMode(project) === "package";
   if (tab === "packages") {
     activeTab = packageTabEnabled ? "packages" : "deliverables";
-  } else if (tab === "deliverables" || tab === "fields" || tab === "review-flow" || tab === "review-controls" || tab === "bi") {
+  } else if (tab === "deliverables" || tab === "fields" || tab === "review-flow" || tab === "review-controls" || tab === "bi" || tab === "quicksight") {
     activeTab = tab;
   } else {
     activeTab = "fields";
@@ -14791,6 +16017,8 @@ function switchTab(tab) {
       biPendingRenderRafId = 0;
       renderBiPanel(getActiveProject());
     });
+  } else if (activeTab === "quicksight") {
+    renderQuickSightPanel(getActiveProject());
   }
 }
 
@@ -16227,6 +17455,14 @@ function normalizeProject(rawProject, index) {
   const packageControls = normalizePackageControls(rawProject?.packageControls ?? rawProject?.controlPaquetes);
   const biConfig = normalizeBiConfig(rawProject?.biConfig ?? rawProject?.dechiniBIConfig);
   const biWidgets = normalizeBiWidgets(rawProject?.biWidgets ?? rawProject?.dechiniBIWidgets);
+  const quickSightConfig = normalizeQuickSightConfig(
+    rawProject?.quickSightConfig
+    ?? rawProject?.dechiniQuickSightConfig
+    ?? rawProject?.dechiniQuicksigthConfig);
+  const quickSightVisuals = normalizeQuickSightVisuals(
+    rawProject?.quickSightVisuals
+    ?? rawProject?.dechiniQuickSightVisuals
+    ?? rawProject?.dechiniQuicksigthVisuals);
   const demoSeeded = !!rawProject?.demoSeeded;
   const progressControlMode = normalizeProgressControlMode(
     rawProject?.progressControlMode ?? rawProject?.controlAvance ?? rawProject?.modoControlAvance);
@@ -16245,6 +17481,8 @@ function normalizeProject(rawProject, index) {
     packageControls,
     biConfig,
     biWidgets,
+    quickSightConfig,
+    quickSightVisuals,
     demoSeeded,
     progressControlMode,
     showMidpAdvanceDetails
@@ -16481,6 +17719,99 @@ function normalizeBiSortMode(value) {
     "label_desc"
   ]);
   return allowed.has(token) ? token : "value_desc";
+}
+
+function createDefaultQuickSightConfig() {
+  return {
+    source: "all",
+    groupBy: "disciplina",
+    metric: "count",
+    chartType: "bar",
+    topN: 12,
+    sortMode: "value_desc",
+    fieldsSearch: "",
+    canvasWidth: QUICKSIGHT_CANVAS_DEFAULT_WIDTH,
+    canvasHeight: QUICKSIGHT_CANVAS_DEFAULT_HEIGHT,
+    canvasZoom: QUICKSIGHT_CANVAS_ZOOM_DEFAULT
+  };
+}
+
+function normalizeQuickSightConfig(rawConfig) {
+  const base = rawConfig || {};
+  const defaults = createDefaultQuickSightConfig();
+  return {
+    source: normalizeBiSource(base.source || base.fuente || defaults.source),
+    groupBy: normalizeBiGroupBy(base.groupBy || base.dimension || defaults.groupBy),
+    metric: normalizeBiMetric(base.metric || base.metrica || defaults.metric),
+    chartType: normalizeBiChartType(base.chartType || base.chart || defaults.chartType),
+    topN: sanitizeBiTopN(base.topN ?? base.top ?? defaults.topN),
+    sortMode: normalizeBiSortMode(base.sortMode || base.orden || defaults.sortMode),
+    fieldsSearch: trimOrFallback(base.fieldsSearch || base.busquedaCampos || "", "").slice(0, 80),
+    canvasWidth: sanitizeBiCanvasDimension(
+      base.canvasWidth ?? base.anchoPizarra ?? defaults.canvasWidth,
+      defaults.canvasWidth,
+      QUICKSIGHT_CANVAS_MIN_WIDTH,
+      BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+    ),
+    canvasHeight: sanitizeBiCanvasDimension(
+      base.canvasHeight ?? base.altoPizarra ?? defaults.canvasHeight,
+      defaults.canvasHeight,
+      QUICKSIGHT_CANVAS_MIN_HEIGHT,
+      BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+    ),
+    canvasZoom: sanitizeQuickSightCanvasZoom(base.canvasZoom ?? base.zoomPizarra ?? defaults.canvasZoom, defaults.canvasZoom)
+  };
+}
+
+function normalizeQuickSightVisual(rawVisual, index = 0) {
+  const source = rawVisual || {};
+  return {
+    id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : uid(),
+    name: trimOrFallback(source.name, `Visual ${index + 1}`).slice(0, 120),
+    source: normalizeBiSource(source.source || "all"),
+    groupBy: normalizeBiGroupBy(source.groupBy || source.dimension || "disciplina"),
+    metric: normalizeBiMetric(source.metric || source.metrica || "count"),
+    chartType: normalizeBiChartType(source.chartType || source.chart || "bar"),
+    topN: sanitizeBiTopN(source.topN ?? source.top ?? 12),
+    sortMode: normalizeBiSortMode(source.sortMode || source.orden || "value_desc"),
+    createdAt: trimOrFallback(source.createdAt, new Date().toISOString()),
+    layout: normalizeQuickSightVisualLayout(source.layout ?? source.posicion, index)
+  };
+}
+
+function normalizeQuickSightVisuals(rawVisuals) {
+  if (!Array.isArray(rawVisuals)) {
+    return [];
+  }
+  return rawVisuals.map((item, index) => normalizeQuickSightVisual(item, index));
+}
+
+function ensureQuickSightState(project) {
+  if (!project) {
+    return;
+  }
+  project.quickSightConfig = normalizeQuickSightConfig(project.quickSightConfig);
+  project.quickSightVisuals = normalizeQuickSightVisuals(project.quickSightVisuals).map((visual, index) => ({
+    ...visual,
+    layout: clampQuickSightVisualLayoutToCanvas(
+      normalizeQuickSightVisualLayout(visual.layout, index),
+      project.quickSightConfig
+    )
+  }));
+}
+
+function createQuickSightVisualFromConfig(config, index = 0) {
+  const safe = normalizeQuickSightConfig(config);
+  return normalizeQuickSightVisual({
+    id: uid(),
+    name: `${getBiGroupLabel(safe.groupBy)} | ${getBiMetricLabel(safe.metric)}`,
+    source: safe.source,
+    groupBy: safe.groupBy,
+    metric: safe.metric,
+    chartType: safe.chartType,
+    topN: safe.topN,
+    sortMode: safe.sortMode
+  }, index);
 }
 
 function normalizeBiChartType(value) {
@@ -17872,6 +19203,8 @@ function createDefaultProject(id, name) {
     packageControls: [],
     biConfig: createDefaultBiConfig(),
     biWidgets: createDefaultBiWidgets(),
+    quickSightConfig: createDefaultQuickSightConfig(),
+    quickSightVisuals: [],
     demoSeeded: false,
     progressControlMode: "deliverable",
     showMidpAdvanceDetails: true
@@ -18390,6 +19723,7 @@ function trimOrFallback(value, fallback) {
 function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
+
 
 
 

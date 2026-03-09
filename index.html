@@ -21,7 +21,7 @@
         <button type="button" class="tab-button nav-item" data-tab="review-flow">Hitos de Flujo de Revisión</button>
         <button type="button" class="tab-button nav-item" data-tab="review-controls">Control de Flujos de Revisión</button>
         <button type="button" class="tab-button nav-item" data-tab="bi">Dechini BI</button>
-        <button type="button" class="nav-item" disabled>Tipo</button>
+        <button type="button" class="tab-button nav-item" data-tab="quicksight">Dechini Quicksigth</button>
         <button type="button" class="nav-item" disabled>Paquete</button>
       </nav>
 
@@ -967,6 +967,214 @@
 
           <div id="biWidgetsGrid" class="bi-widgets-grid"></div>
 
+        </section>
+
+        <section id="tab-quicksight" class="tab-panel hidden qs-tab">
+          <div class="qs-frame">
+            <header class="qs-header-top">
+              <div class="qs-brand">
+                <span class="qs-brand-mark"></span>
+                <strong>AUTODESK Construction Cloud</strong>
+              </div>
+              <button type="button" class="qs-link-button">Configuracion</button>
+            </header>
+
+            <div class="qs-breadcrumb-row">
+              <span>Insight</span>
+              <span>/</span>
+              <span>Insight Builder</span>
+            </div>
+
+            <div class="qs-menu-row">
+              <nav class="qs-menu">
+                <button type="button">Archivo</button>
+                <div id="qsEditMenuWrap" class="qs-menu-dropdown-wrap">
+                  <button
+                    id="qsEditMenuButton"
+                    type="button"
+                    class="qs-menu-dropdown-trigger"
+                    aria-expanded="false"
+                    aria-controls="qsEditMenu"
+                  >
+                    Editar
+                  </button>
+                  <div id="qsEditMenu" class="qs-menu-dropdown" role="menu" aria-hidden="true">
+                    <div class="qs-menu-dropdown-section">
+                      <label class="qs-menu-dropdown-field">
+                        <span>Ancho de hoja (px)</span>
+                        <input id="qsCanvasWidthInput" type="number" min="1200" max="6000" step="20" value="1800">
+                      </label>
+                      <label class="qs-menu-dropdown-field">
+                        <span>Alto de hoja (px)</span>
+                        <input id="qsCanvasHeightInput" type="number" min="760" max="4000" step="20" value="1100">
+                      </label>
+                      <label class="qs-menu-dropdown-field">
+                        <span>Zoom de hoja</span>
+                        <select id="qsCanvasZoomSelect">
+                          <option value="25">25%</option>
+                          <option value="50">50%</option>
+                          <option value="75">75%</option>
+                          <option value="100" selected>100%</option>
+                          <option value="125">125%</option>
+                          <option value="150">150%</option>
+                          <option value="200">200%</option>
+                          <option value="300">300%</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="qs-menu-dropdown-actions">
+                      <button id="qsApplyCanvasSizeButton" type="button" class="secondary">Aplicar</button>
+                      <button id="qsResetCanvasSizeButton" type="button" class="secondary">Restablecer</button>
+                    </div>
+                  </div>
+                </div>
+                <button type="button">Datos</button>
+                <button type="button">Insertar</button>
+                <button type="button">Hojas</button>
+                <button type="button">Objetos</button>
+                <button type="button">Buscar</button>
+              </nav>
+              <div class="qs-menu-right">
+                <span class="muted">Guardado automatico activado</span>
+                <span>Ajustar al ancho</span>
+                <button type="button" class="secondary">Publicar</button>
+              </div>
+            </div>
+
+            <div class="qs-analysis-head">
+              <div class="qs-analysis-title">MIDP analysis</div>
+              <div class="qs-analysis-actions">
+                <button id="qsRefreshButton" type="button" class="secondary">Actualizar</button>
+              </div>
+            </div>
+
+            <div class="qs-toolbar-row">
+              <div class="qs-toolbar-left">
+                <button type="button" class="qs-tool-btn" title="Deshacer"><-</button>
+                <button type="button" class="qs-tool-btn" title="Rehacer">-></button>
+                <button id="qsToggleDataButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Datos" aria-pressed="true">
+                  <span class="qs-tool-icon qs-tool-icon-db" aria-hidden="true"></span>
+                  <span class="qs-tool-text">DB</span>
+                </button>
+                <button id="qsToggleVisualsButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Elementos visuales" aria-pressed="true">
+                  <span class="qs-tool-icon qs-tool-icon-vis" aria-hidden="true"></span>
+                  <span class="qs-tool-text">VIS</span>
+                </button>
+                <button id="qsTogglePropsButton" type="button" class="qs-tool-btn active" title="Mostrar/Ocultar Filtros/Propiedades" aria-pressed="true">
+                  <span class="qs-tool-icon qs-tool-icon-flt" aria-hidden="true"></span>
+                  <span class="qs-tool-text">FLT</span>
+                </button>
+                <span class="qs-toolbar-label">AGREGAR:</span>
+                <button id="qsAddVisualButton" type="button" class="qs-tool-pill">Visual</button>
+              </div>
+            </div>
+
+            <div id="qsShell" class="qs-shell">
+              <aside id="qsDataPanel" class="qs-panel qs-data-panel">
+                <div class="qs-panel-head">
+                  <h3>Datos</h3>
+                  <span id="qsDataSummaryText" class="muted"></span>
+                </div>
+                <label>
+                  Conjunto de datos
+                  <select id="qsSourceSelect">
+                    <option value="all">MIFA/TODAS_LAS_VISTAS</option>
+                    <option value="deliverable">MIFA/VISTA_MIDP</option>
+                    <option value="package">MIFA/VISTA_PAQUETES</option>
+                    <option value="review-control">MIFA/VISTA_FLUJOS</option>
+                  </select>
+                </label>
+                <label>
+                  Buscar campos
+                  <input id="qsFieldsSearchInput" type="text" maxlength="80" placeholder="disciplina, sistema, avance...">
+                </label>
+                <div id="qsFieldsList" class="qs-fields-list"></div>
+              </aside>
+
+              <aside id="qsVisualsPanel" class="qs-panel qs-visuals-panel">
+                <div class="qs-panel-head">
+                  <h3>Elementos visuales</h3>
+                </div>
+                <div id="qsChartTypeGrid" class="qs-chart-type-grid">
+                  <button type="button" data-qs-chart-type="line" title="Linea">LIN</button>
+                  <button type="button" data-qs-chart-type="bar" title="Barras">BAR</button>
+                  <button type="button" data-qs-chart-type="combo" title="Combinado">CMB</button>
+                  <button type="button" data-qs-chart-type="pie" title="Circular">PIE</button>
+                  <button type="button" data-qs-chart-type="donut" title="Dona">DON</button>
+                  <button type="button" data-qs-chart-type="area" title="Area">ARA</button>
+                  <button type="button" data-qs-chart-type="treemap" title="Treemap">TRM</button>
+                  <button type="button" data-qs-chart-type="funnel" title="Embudo">FNL</button>
+                  <button type="button" data-qs-chart-type="scatter" title="Dispersion">SCT</button>
+                  <button type="button" data-qs-chart-type="bubble" title="Burbujas">BBL</button>
+                  <button type="button" data-qs-chart-type="waterfall" title="Waterfall">WFL</button>
+                  <button type="button" data-qs-chart-type="radar" title="Radar">RDR</button>
+                </div>
+                <label>
+                  Tipo de grafico
+                  <select id="qsChartTypeSelect">
+                    <option value="bar">Barras</option>
+                    <option value="line">Lineas</option>
+                    <option value="area">Area</option>
+                    <option value="combo">Combinado</option>
+                    <option value="pie">Circular</option>
+                    <option value="donut">Dona</option>
+                    <option value="treemap">Treemap</option>
+                    <option value="funnel">Embudo</option>
+                    <option value="scatter">Dispersion</option>
+                    <option value="bubble">Burbujas</option>
+                    <option value="waterfall">Waterfall</option>
+                    <option value="radar">Radar</option>
+                    <option value="pareto">Pareto</option>
+                  </select>
+                </label>
+                <label>
+                  Dimension
+                  <select id="qsGroupBySelect"></select>
+                </label>
+                <label>
+                  Metrica
+                  <select id="qsMetricSelect">
+                    <option value="count">Cantidad de filas</option>
+                    <option value="baseunits">UP Base total</option>
+                    <option value="baseavg">UP Base promedio</option>
+                    <option value="realavg">Avance real promedio (%)</option>
+                    <option value="programmedavg">Avance programado promedio (%)</option>
+                    <option value="weightedreal">Avance real proyecto (%)</option>
+                    <option value="weightedprogrammed">Avance programado proyecto (%)</option>
+                    <option value="weightedgap">Brecha real - programado (%)</option>
+                    <option value="invaliddates">Fechas invertidas</option>
+                  </select>
+                </label>
+                <label>
+                  Top N
+                  <input id="qsTopNInput" type="number" min="1" max="60" step="1" value="12">
+                </label>
+                <div class="inline-actions">
+                  <button id="qsDeleteVisualButton" type="button" class="secondary">Eliminar visual</button>
+                </div>
+              </aside>
+
+              <section class="qs-panel qs-canvas-panel">
+                <div class="qs-canvas-head">
+                  <div class="qs-sheet-controls">
+                    <strong id="qsSheetTitle">Hoja 1</strong>
+                    <button type="button" class="qs-sheet-plus">+</button>
+                  </div>
+                  <span id="qsCanvasMetaText" class="muted"></span>
+                </div>
+                <div id="qsCanvasBoard" class="qs-canvas-board"></div>
+              </section>
+
+              <aside id="qsPropsPanel" class="qs-panel qs-props-panel">
+                <div class="qs-panel-head">
+                  <h3>Propiedades</h3>
+                </div>
+                <div id="qsPropertiesBody" class="qs-props-body">
+                  <p class="muted">Selecciona un visual para editar propiedades.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
         </section>
       </main>
 

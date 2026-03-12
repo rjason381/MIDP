@@ -5,6 +5,9 @@
   "description": "MIDP web fija",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check app.js && node --check server.js"
+    "check": "node --check midp-storage.js && node --check bi-core.js && node --check bi-local-data.js && node --check bi-project-query.js && node --check bi-echarts-adapter.js && node --check app.js && node --check server.js"
+  },
+  "dependencies": {
+    "echarts": "^6.0.0"
   }
 }

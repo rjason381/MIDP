@@ -1,5 +1,8 @@
 # Dechini BI - Roadmap de Configuracion (persistente)
 
+Nota:
+- El blueprint maestro del nuevo BI Studio y la ruta a Cloud Run + Cloud SQL estan documentados en `ROADMAP_SUPER_BI.md`.
+
 ## Estado actual (aplicado)
 - [x] Alcance de configuracion visual: global del proyecto vs widget seleccionado.
 - [x] Seleccion de widget en pizarra (resaltado visual).

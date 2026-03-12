@@ -38,6 +38,7 @@ const QUICKSIGHT_VISUAL_DEFAULT_HEIGHT = 280;
 const QUICKSIGHT_VISUAL_GAP_X = 24;
 const QUICKSIGHT_VISUAL_GAP_Y = 24;
 const QUICKSIGHT_CANVAS_PADDING = 20;
+const QUICKSIGHT_DRILL_PATH_SLOTS = 3;
 const BI_CANVAS_ZOOM_DEFAULT = 100;
 const BI_CANVAS_ZOOM_MIN = 25;
 const BI_CANVAS_ZOOM_MAX = 300;
@@ -49,6 +50,8 @@ const BI_EXPORT_BOARD_SCALE = 2;
 const BI_CUSTOM_CONTENT_TYPES = new Set(["table", "scorecard", "pivot", "sankey", "timeline"]);
 const BI_CHART_TYPES = new Set([
   "bar",
+  "bar_horizontal",
+  "bar_stacked",
   "line",
   "timeseries",
   "donut",
@@ -72,6 +75,10 @@ const BI_CHART_TYPES = new Set([
   "sankey",
   "timeline"
 ]);
+const BI_BAR_FAMILY_TYPES = new Set(["bar", "bar_horizontal", "bar_stacked"]);
+const BI_HORIZONTAL_BAR_TYPES = new Set(["bar_horizontal"]);
+const BI_STACKED_BAR_TYPES = new Set(["bar_stacked"]);
+const QUICKSIGHT_ECHARTS_REQUIRED_TYPES = new Set(["bar_horizontal", "bar_stacked"]);
 const BI_ALLOWED_FONT_FAMILIES = new Set([
   "Segoe UI",
   "Arial",
@@ -206,6 +213,7 @@ const DEFAULT_FIELD_TEMPLATES = [
   }
 ];
 
+const storageAdapter = createStorageAdapter();
 let state = loadState();
 let activeTab = "fields";
 let fieldsEditMode = false;
@@ -217,11 +225,13 @@ let chooserLocked = false;
 let drawerCloseTimer = null;
 let reviewMilestoneDrawerCloseTimer = null;
 let trackingCloseTimer = null;
+let quickSightDrillThroughCloseTimer = null;
 let trackingPanelTargetId = "";
 let trackingPanelTargetType = "";
 let pendingSaveTimer = null;
 let pendingSearchTimer = null;
 let currentSearchQuery = "";
+let quickSightDrillThroughQuery = "";
 let draggedNomenclatureFieldId = "";
 let matrixSelectionAnchor = null;
 let matrixSelectionRange = null;
@@ -245,6 +255,12 @@ let quickSightVisualInteraction = null;
 let quickSightSuppressClickUntil = 0;
 let quickSightWheelZoomRafId = 0;
 let quickSightPendingWheelZoomStep = 0;
+let quickSightPresentationMode = false;
+let quickSightExpandedVisualId = "";
+let quickSightRolePickerOpen = "";
+let quickSightRolePickerFocusRole = "";
+const QUICKSIGHT_HISTORY_LIMIT = 48;
+const quickSightHistoryByProject = Object.create(null);
 const quickSightPanelState = {
   data: true,
   visuals: true,
@@ -276,8 +292,9 @@ const SIDEBAR_COLLAPSED_PREF_KEY = "midp_sidebar_collapsed_v1";
 let sidebarCollapsed = false;
 const els = {};
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
+  await hydrateStorageState();
   restoreSidebarCollapsedPreference();
   applyBiControlHints();
   wireEvents();
@@ -403,26 +420,83 @@ function handleBiStudioPanelResizeMove(event) {
   updateBiWorkspaceInsets();
 }
 
-function restoreBiStudioUiPreferences() {
-  if (typeof localStorage === "undefined") {
-    applyBiStudioPanelWidths();
+function getMidpStorageApi() {
+  if (typeof window === "undefined" || !window.MIDPStorage || typeof window.MIDPStorage !== "object") {
+    return null;
+  }
+  return window.MIDPStorage;
+}
+
+function createStorageAdapter() {
+  const api = getMidpStorageApi();
+  if (api && typeof api.createHybridStorageAdapter === "function") {
+    return api.createHybridStorageAdapter();
+  }
+  if (api && typeof api.createLocalStorageAdapter === "function") {
+    return api.createLocalStorageAdapter();
+  }
+  return Object.freeze({
+    kind: "unavailable",
+    isAvailable() {
+      return false;
+    },
+    getString(key, fallback = "") {
+      void key;
+      return fallback;
+    },
+    setString(key, value) {
+      void key;
+      void value;
+      return false;
+    },
+    getJson(key, fallback = null) {
+      void key;
+      return fallback;
+    },
+    setJson(key, value) {
+      void key;
+      void value;
+      return false;
+    },
+    remove(key) {
+      void key;
+      return false;
+    },
+    async hydrateString(key, fallback = "") {
+      void key;
+      return fallback;
+    },
+    async hydrateJson(key, fallback = null) {
+      void key;
+      return fallback;
+    }
+  });
+}
+
+async function hydrateStorageState() {
+  if (!storageAdapter || typeof storageAdapter.hydrateJson !== "function" || typeof storageAdapter.hydrateString !== "function") {
     return;
   }
-  try {
-    const raw = localStorage.getItem(BI_STUDIO_UI_PREFS_KEY);
-    if (!raw) {
-      applyBiStudioPanelWidths();
-      return;
-    }
-    const parsed = JSON.parse(raw);
+
+  const hydratedState = await storageAdapter.hydrateJson(STORAGE_KEY, null);
+  if (hydratedState) {
+    state = normalizeState(hydratedState);
+  }
+
+  await storageAdapter.hydrateJson(BI_STUDIO_UI_PREFS_KEY, null);
+  await storageAdapter.hydrateString(SIDEBAR_COLLAPSED_PREF_KEY, "");
+}
+
+function restoreBiStudioUiPreferences() {
+  const parsed = storageAdapter.getJson(BI_STUDIO_UI_PREFS_KEY, null);
+  if (parsed) {
     biRailMode = normalizeBiRailMode(parsed?.mode || "data");
     biDataPanelOpen = !!parsed?.dataOpen;
     biInspectorPanelOpen = !!parsed?.inspectorOpen;
     biOtherPanelOpen = !!parsed?.otherOpen;
     biStudioLeftWidth = normalizeBiStudioPanelWidth(parsed?.leftWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
     biStudioRightWidth = normalizeBiStudioPanelWidth(parsed?.rightWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
-  } catch (error) {
-    // Ignorar preferencias corruptas.
+  } else {
     biStudioLeftWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
     biStudioRightWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
   }
@@ -430,21 +504,14 @@ function restoreBiStudioUiPreferences() {
 }
 
 function saveBiStudioUiPreferences() {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
-  try {
-    localStorage.setItem(BI_STUDIO_UI_PREFS_KEY, JSON.stringify({
-      mode: normalizeBiRailMode(biRailMode),
-      dataOpen: !!biDataPanelOpen,
-      inspectorOpen: !!biInspectorPanelOpen,
-      otherOpen: !!biOtherPanelOpen,
-      leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
-      rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
-    }));
-  } catch (error) {
-    // Ignorar errores de almacenamiento local.
-  }
+  storageAdapter.setJson(BI_STUDIO_UI_PREFS_KEY, {
+    mode: normalizeBiRailMode(biRailMode),
+    dataOpen: !!biDataPanelOpen,
+    inspectorOpen: !!biInspectorPanelOpen,
+    otherOpen: !!biOtherPanelOpen,
+    leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
+    rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
+  });
 }
 
 function applySidebarCollapsedState(collapsed, persist = true) {
@@ -456,26 +523,14 @@ function applySidebarCollapsedState(collapsed, persist = true) {
     els.sidebarToggleButton.setAttribute("title", sidebarCollapsed ? "Mostrar panel izquierdo" : "Ocultar panel izquierdo");
     els.sidebarToggleButton.setAttribute("aria-label", sidebarCollapsed ? "mostrar sidebar" : "ocultar sidebar");
   }
-  if (persist && typeof localStorage !== "undefined") {
-    try {
-      localStorage.setItem(SIDEBAR_COLLAPSED_PREF_KEY, sidebarCollapsed ? "1" : "0");
-    } catch (error) {
-      // Ignorar errores de almacenamiento local.
-    }
+  if (persist) {
+    storageAdapter.setString(SIDEBAR_COLLAPSED_PREF_KEY, sidebarCollapsed ? "1" : "0");
   }
 }
 
 function restoreSidebarCollapsedPreference() {
-  if (typeof localStorage === "undefined") {
-    applySidebarCollapsedState(false, false);
-    return;
-  }
-  try {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_PREF_KEY);
-    applySidebarCollapsedState(saved === "1", false);
-  } catch (error) {
-    applySidebarCollapsedState(false, false);
-  }
+  const saved = storageAdapter.getString(SIDEBAR_COLLAPSED_PREF_KEY, "");
+  applySidebarCollapsedState(saved === "1", false);
 }
 
 function bindElements() {
@@ -531,6 +586,12 @@ function bindElements() {
   els.reviewControlsHeader = document.getElementById("reviewControlsHeader");
   els.reviewControlsBody = document.getElementById("reviewControlsBody");
   els.qsAddVisualButton = document.getElementById("qsAddVisualButton");
+  els.qsSettingsButton = document.getElementById("qsSettingsButton");
+  els.qsPublishButton = document.getElementById("qsPublishButton");
+  els.qsUndoButton = document.getElementById("qsUndoButton");
+  els.qsRedoButton = document.getElementById("qsRedoButton");
+  els.qsSheetsMenuButton = document.getElementById("qsSheetsMenuButton");
+  els.qsPresentationModeButton = document.getElementById("qsPresentationModeButton");
   els.qsRefreshButton = document.getElementById("qsRefreshButton");
   els.qsToggleDataButton = document.getElementById("qsToggleDataButton");
   els.qsToggleVisualsButton = document.getElementById("qsToggleVisualsButton");
@@ -558,6 +619,8 @@ function bindElements() {
   els.qsFieldsList = document.getElementById("qsFieldsList");
   els.qsRoleDimensionList = document.getElementById("qsRoleDimensionList");
   els.qsRoleMetricList = document.getElementById("qsRoleMetricList");
+  els.qsRoleOptionalMetricBlock = document.getElementById("qsRoleOptionalMetricBlock");
+  els.qsRoleOptionalMetricList = document.getElementById("qsRoleOptionalMetricList");
   els.qsAddMetricGhostButton = document.getElementById("qsAddMetricGhostButton");
   els.qsRoleBreakdownList = document.getElementById("qsRoleBreakdownList");
   els.qsAddBreakdownGhostButton = document.getElementById("qsAddBreakdownGhostButton");
@@ -566,13 +629,26 @@ function bindElements() {
   els.qsGroupBySelect = document.getElementById("qsGroupBySelect");
   els.qsBreakdownSelect = document.getElementById("qsBreakdownSelect");
   els.qsMetricSelect = document.getElementById("qsMetricSelect");
+  els.qsOptionalMetricSelect = document.getElementById("qsOptionalMetricSelect");
   els.qsTopNInput = document.getElementById("qsTopNInput");
   els.qsDeleteVisualButton = document.getElementById("qsDeleteVisualButton");
   els.qsSheetTitle = document.getElementById("qsSheetTitle");
+  els.qsSheetAddButton = document.getElementById("qsSheetAddButton");
   els.qsCanvasMetaText = document.getElementById("qsCanvasMetaText");
   els.qsCanvasBoard = document.getElementById("qsCanvasBoard");
   els.qsPropertiesBody = document.getElementById("qsPropertiesBody");
+  els.qsDrillThroughOverlay = document.getElementById("qsDrillThroughOverlay");
+  els.qsDrillThroughTitle = document.getElementById("qsDrillThroughTitle");
+  els.qsDrillThroughSubtitle = document.getElementById("qsDrillThroughSubtitle");
+  els.qsDrillThroughMeta = document.getElementById("qsDrillThroughMeta");
+  els.qsDrillThroughKpis = document.getElementById("qsDrillThroughKpis");
+  els.qsDrillThroughSearchInput = document.getElementById("qsDrillThroughSearchInput");
+  els.qsDrillThroughExportButton = document.getElementById("qsDrillThroughExportButton");
+  els.qsDrillThroughHeader = document.getElementById("qsDrillThroughHeader");
+  els.qsDrillThroughBody = document.getElementById("qsDrillThroughBody");
+  els.closeQsDrillThroughButton = document.getElementById("closeQsDrillThroughButton");
   els.qsShell = document.getElementById("qsShell");
+  els.qsFrame = document.querySelector("#tab-quicksight .qs-frame");
   els.qsDataPanel = document.getElementById("qsDataPanel");
   els.qsVisualsPanel = document.getElementById("qsVisualsPanel");
   els.qsPropsPanel = document.getElementById("qsPropsPanel");
@@ -786,9 +862,9 @@ function applyBiControlHints() {
     biFontSizeAxisInput: "Tamano de fuente para ejes.",
     biFontSizeLabelsInput: "Tamano de fuente para labels y leyendas.",
     biFontSizeTooltipInput: "Tamano de fuente para tooltip.",
-    biAxisScaleSelect: "Escala del eje Y: lineal o logaritmica.",
-    biAxisMinInput: "Valor minimo manual del eje Y (vacio = automatico).",
-    biAxisMaxInput: "Valor maximo manual del eje Y (vacio = automatico).",
+    biAxisScaleSelect: "Escala del eje numerico principal (X o Y segun el grafico): lineal o logaritmica.",
+    biAxisMinInput: "Valor minimo manual del eje numerico principal (vacio = Automatico).",
+    biAxisMaxInput: "Valor maximo manual del eje numerico principal (vacio = Automatico).",
     biShowTargetLineCheckbox: "Dibuja una linea objetivo horizontal en graficos cartesianos.",
     biTargetLineValueInput: "Valor numerico de la meta para la linea objetivo.",
     biTargetLineLabelInput: "Etiqueta corta mostrada junto a la linea objetivo.",
@@ -941,12 +1017,17 @@ function wireEvents() {
     const nextSource = normalizeBiSource(els.qsSourceSelect?.value || project.quickSightConfig.source || "all");
     const nextGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
     const nextBreakdown = normalizeBiOptionalGroupBy(
-      els.qsBreakdownSelect?.value
-      || project.quickSightConfig.breakdownDimension
-      || ""
+      els.qsBreakdownSelect instanceof HTMLSelectElement
+        ? els.qsBreakdownSelect.value
+        : (project.quickSightConfig.breakdownDimension || "")
     );
     const nextMetric = normalizeBiMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
     const nextChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || project.quickSightConfig.chartType || "bar");
+    const nextOptionalMetric = normalizeBiOptionalMetric(
+      els.qsOptionalMetricSelect instanceof HTMLSelectElement
+        ? els.qsOptionalMetricSelect.value
+        : (project.quickSightConfig.optionalMetric || "")
+    );
     const nextTopN = sanitizeBiTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
     const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
     if (selectedVisual) {
@@ -960,29 +1041,192 @@ function wireEvents() {
         groupBy: nextGroupBy,
         breakdownDimension: nextBreakdown,
         metric: nextMetric,
-        chartType: nextChartType
+        chartType: nextChartType,
+        optionalMetric: nextOptionalMetric,
+        dateDimension: project.quickSightConfig.dateDimension || ""
       });
       selectedVisual.display = normalizeQuickSightDisplaySettings(selectedVisual.display);
-      selectedVisual.visualSettings = normalizeBiVisualSettings(selectedVisual.visualSettings);
+      selectedVisual.visualSettings = applyBiChartTypeVisualDefaults(
+        normalizeBiVisualSettings(selectedVisual.visualSettings),
+        selectedVisual.chartType
+      );
       selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
       const safeTypeMap = normalizeBiChartTypeConfigMap(selectedVisual.chartTypeConfig);
       if (!safeTypeMap[selectedVisual.chartType]) {
         safeTypeMap[selectedVisual.chartType] = normalizeBiChartTypeSpecificConfig({}, selectedVisual.chartType);
       }
       selectedVisual.chartTypeConfig = safeTypeMap;
+    } else {
+      project.quickSightConfig.source = nextSource;
+      project.quickSightConfig.groupBy = nextGroupBy;
+      project.quickSightConfig.breakdownDimension = nextBreakdown;
+      project.quickSightConfig.metric = nextMetric;
+      project.quickSightConfig.optionalMetric = nextOptionalMetric;
+      project.quickSightConfig.chartType = nextChartType;
+      project.quickSightConfig.topN = nextTopN;
     }
-    project.quickSightConfig.source = nextSource;
-    project.quickSightConfig.groupBy = nextGroupBy;
-    project.quickSightConfig.breakdownDimension = nextBreakdown;
-    project.quickSightConfig.metric = nextMetric;
-    project.quickSightConfig.chartType = nextChartType;
-    project.quickSightConfig.topN = nextTopN;
     project.quickSightConfig.fieldsSearch = trimOrFallback(els.qsFieldsSearchInput?.value, "").slice(0, 80);
     saveState();
     renderQuickSightPanel(project);
   };
 
-  [els.qsSourceSelect, els.qsGroupBySelect, els.qsBreakdownSelect, els.qsMetricSelect, els.qsChartTypeSelect, els.qsTopNInput, els.qsFieldsSearchInput]
+  const normalizeQuickSightRolePickerKey = (value) => {
+    const token = trimOrFallback(value, "");
+    return new Set(["dimension", "metric", "optionalMetric", "breakdown"]).has(token)
+      ? token
+      : "";
+  };
+
+  const getQuickSightRoleUiLabels = (chartType) => {
+    const type = normalizeBiChartType(chartType || "bar");
+    if (BI_HORIZONTAL_BAR_TYPES.has(type)) {
+      return {
+        dimension: "EJE Y",
+        metric: "EJE X / VALOR",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    if (type === "scatter" || type === "bubble") {
+      return {
+        dimension: "ETIQUETA",
+        metric: "EJE Y",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    if (BI_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
+      return {
+        dimension: "EJE X",
+        metric: "EJE Y / VALOR",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    return {
+      dimension: "CATEGORIA",
+      metric: "VALOR",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  };
+
+  const getQuickSightRolePickerContext = (project) => {
+    ensureQuickSightState(project);
+    const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+    const chartType = normalizeBiChartType(
+      els.qsChartTypeSelect?.value
+      || selectedVisual?.chartType
+      || project.quickSightConfig.chartType
+      || "bar"
+    );
+    const capabilities = getQuickSightChartCapabilities(selectedVisual ? {
+      ...selectedVisual,
+      chartType
+    } : { chartType }, project.quickSightConfig);
+    return {
+      selectedVisual,
+      chartType,
+      capabilities
+    };
+  };
+
+  const closeQuickSightRolePicker = (options = {}) => {
+    const rerender = !!options.rerender;
+    const hadOpenPicker = !!quickSightRolePickerOpen;
+    quickSightRolePickerOpen = "";
+    quickSightRolePickerFocusRole = "";
+    if (!rerender || !hadOpenPicker || activeTab !== "quicksight") {
+      return;
+    }
+    renderQuickSightPanel(getActiveProject(), { softSelect: true, allowEmptySelection: true });
+  };
+
+  const openQuickSightRolePicker = (role) => {
+    const nextRole = normalizeQuickSightRolePickerKey(role);
+    if (!nextRole || activeTab !== "quicksight") {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    const { capabilities } = getQuickSightRolePickerContext(project);
+    if (nextRole === "optionalMetric" && !capabilities.supportsOptionalMetric) {
+      setStatus("Este tipo usa una sola medida principal. EJE X adicional se habilita en Scatter y Bubble.");
+      return;
+    }
+    if (nextRole === "breakdown" && !capabilities.supportsBreakdown) {
+      setStatus("Este tipo de visual no usa GRUPO/COLOR.");
+      return;
+    }
+    quickSightRolePickerOpen = quickSightRolePickerOpen === nextRole ? "" : nextRole;
+    quickSightRolePickerFocusRole = quickSightRolePickerOpen || "";
+    renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+  };
+
+  const applyQuickSightRolePickerSelection = (role, rawValue) => {
+    const nextRole = normalizeQuickSightRolePickerKey(role);
+    const project = getActiveProject();
+    if (!project || !nextRole) {
+      return;
+    }
+    const roleLabels = getQuickSightRoleUiLabels(
+      els.qsChartTypeSelect?.value
+      || project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId)?.chartType
+      || project.quickSightConfig.chartType
+      || "bar"
+    );
+    if (nextRole === "dimension" && els.qsGroupBySelect instanceof HTMLSelectElement) {
+      const nextGroupBy = normalizeBiGroupBy(rawValue || els.qsGroupBySelect.value);
+      if (!nextGroupBy) {
+        closeQuickSightRolePicker({ rerender: true });
+        return;
+      }
+      els.qsGroupBySelect.value = nextGroupBy;
+      quickSightRolePickerOpen = "";
+      quickSightRolePickerFocusRole = "";
+      handleQuickSightConfigChange();
+      setStatus(`${roleLabels.dimension} actualizado: ${getBiGroupLabel(nextGroupBy, project)}.`);
+      return;
+    }
+    if (nextRole === "metric" && els.qsMetricSelect instanceof HTMLSelectElement) {
+      const nextMetric = normalizeBiMetric(rawValue || els.qsMetricSelect.value);
+      if (!nextMetric) {
+        closeQuickSightRolePicker({ rerender: true });
+        return;
+      }
+      els.qsMetricSelect.value = nextMetric;
+      quickSightRolePickerOpen = "";
+      quickSightRolePickerFocusRole = "";
+      handleQuickSightConfigChange();
+      setStatus(`${roleLabels.metric} actualizado: ${getBiMetricLabel(nextMetric)}.`);
+      return;
+    }
+    if (nextRole === "optionalMetric" && els.qsOptionalMetricSelect instanceof HTMLSelectElement) {
+      const nextMetric = normalizeBiOptionalMetric(rawValue);
+      els.qsOptionalMetricSelect.value = nextMetric;
+      quickSightRolePickerOpen = "";
+      quickSightRolePickerFocusRole = "";
+      handleQuickSightConfigChange();
+      setStatus(nextMetric
+        ? `${roleLabels.optionalMetric} actualizado: ${getBiMetricLabel(nextMetric)}.`
+        : `${roleLabels.optionalMetric} restaurado a Automatico: UP Base total.`);
+      return;
+    }
+    if (nextRole === "breakdown" && els.qsBreakdownSelect instanceof HTMLSelectElement) {
+      const nextBreakdown = normalizeBiOptionalGroupBy(rawValue);
+      els.qsBreakdownSelect.value = nextBreakdown;
+      quickSightRolePickerOpen = "";
+      quickSightRolePickerFocusRole = "";
+      handleQuickSightConfigChange();
+      setStatus(nextBreakdown
+        ? `${roleLabels.breakdown} actualizado: ${getBiGroupLabel(nextBreakdown, project)}.`
+        : `${roleLabels.breakdown} limpiado.`);
+    }
+  };
+
+  [els.qsSourceSelect, els.qsGroupBySelect, els.qsBreakdownSelect, els.qsMetricSelect, els.qsOptionalMetricSelect, els.qsChartTypeSelect, els.qsTopNInput, els.qsFieldsSearchInput]
     .forEach((node) => {
       if (!node) {
         return;
@@ -1012,18 +1256,22 @@ function wireEvents() {
     if (!(target instanceof HTMLElement)) {
       return;
     }
-    const chip = target.closest("[data-qs-groupby]");
-    if (!(chip instanceof HTMLElement)) {
+    if (target.closest("[data-qs-role-picker-select]")) {
       return;
     }
-    const nextGroupBy = normalizeBiGroupBy(chip.dataset.qsGroupby || "");
-    if (!nextGroupBy) {
+    event.preventDefault();
+    event.stopPropagation();
+    openQuickSightRolePicker("dimension");
+  });
+
+  els.qsRoleDimensionList?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.dataset.qsRolePickerSelect !== "dimension") {
       return;
     }
-    if (els.qsGroupBySelect instanceof HTMLSelectElement) {
-      els.qsGroupBySelect.value = nextGroupBy;
-    }
-    handleQuickSightConfigChange();
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightRolePickerSelection("dimension", target.value);
   });
 
   els.qsRoleMetricList?.addEventListener("click", (event) => {
@@ -1031,18 +1279,45 @@ function wireEvents() {
     if (!(target instanceof HTMLElement)) {
       return;
     }
-    const chip = target.closest("[data-qs-metric]");
-    if (!(chip instanceof HTMLElement)) {
+    if (target.closest("[data-qs-role-picker-select]")) {
       return;
     }
-    const nextMetric = normalizeBiMetric(chip.dataset.qsMetric || "");
-    if (!nextMetric) {
+    event.preventDefault();
+    event.stopPropagation();
+    openQuickSightRolePicker("metric");
+  });
+
+  els.qsRoleMetricList?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.dataset.qsRolePickerSelect !== "metric") {
       return;
     }
-    if (els.qsMetricSelect instanceof HTMLSelectElement) {
-      els.qsMetricSelect.value = nextMetric;
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightRolePickerSelection("metric", target.value);
+  });
+
+  els.qsRoleOptionalMetricList?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
     }
-    handleQuickSightConfigChange();
+    if (target.closest("[data-qs-role-picker-select]")) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openQuickSightRolePicker("optionalMetric");
+  });
+
+  els.qsRoleOptionalMetricList?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.dataset.qsRolePickerSelect !== "optionalMetric") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightRolePickerSelection("optionalMetric", target.value);
   });
 
   els.qsRoleBreakdownList?.addEventListener("click", (event) => {
@@ -1050,27 +1325,71 @@ function wireEvents() {
     if (!(target instanceof HTMLElement)) {
       return;
     }
-    const chip = target.closest("[data-qs-breakdown]");
-    if (!(chip instanceof HTMLElement)) {
+    if (target.closest("[data-qs-role-picker-select]")) {
       return;
     }
-    const nextBreakdown = normalizeBiOptionalGroupBy(chip.dataset.qsBreakdown || "");
-    if (els.qsBreakdownSelect instanceof HTMLSelectElement) {
-      els.qsBreakdownSelect.value = nextBreakdown;
+    event.preventDefault();
+    event.stopPropagation();
+    openQuickSightRolePicker("breakdown");
+  });
+
+  els.qsRoleBreakdownList?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.dataset.qsRolePickerSelect !== "breakdown") {
+      return;
     }
-    handleQuickSightConfigChange();
+    event.preventDefault();
+    event.stopPropagation();
+    applyQuickSightRolePickerSelection("breakdown", target.value);
   });
 
   els.qsAddMetricGhostButton?.addEventListener("click", () => {
-    setStatus("VALOR usa una metrica principal en esta version de Dechini Quicksigth.");
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+    const chartType = normalizeBiChartType(
+      els.qsChartTypeSelect?.value
+      || selectedVisual?.chartType
+      || project.quickSightConfig.chartType
+      || "bar"
+    );
+    const capabilities = getQuickSightChartCapabilities(selectedVisual ? {
+      ...selectedVisual,
+      chartType
+    } : { chartType }, project.quickSightConfig);
+    if (!capabilities.supportsOptionalMetric || !(els.qsOptionalMetricSelect instanceof HTMLSelectElement)) {
+      els.qsMetricSelect?.focus();
+      setStatus("Este tipo usa una sola medida principal. EJE X adicional se habilita en Scatter y Bubble.");
+      return;
+    }
+    openQuickSightRolePicker("optionalMetric");
   });
 
   els.qsAddBreakdownGhostButton?.addEventListener("click", () => {
-    if (els.qsBreakdownSelect instanceof HTMLSelectElement) {
-      els.qsBreakdownSelect.value = "";
+    const project = getActiveProject();
+    if (!project) {
+      return;
     }
-    handleQuickSightConfigChange();
-    setStatus("GRUPO/COLOR limpiado.");
+    ensureQuickSightState(project);
+    const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+    const chartType = normalizeBiChartType(
+      els.qsChartTypeSelect?.value
+      || selectedVisual?.chartType
+      || project.quickSightConfig.chartType
+      || "bar"
+    );
+    const capabilities = getQuickSightChartCapabilities(selectedVisual ? {
+      ...selectedVisual,
+      chartType
+    } : { chartType }, project.quickSightConfig);
+    if (!capabilities.supportsBreakdown || !(els.qsBreakdownSelect instanceof HTMLSelectElement)) {
+      setStatus("Este tipo de visual no usa GRUPO/COLOR.");
+      return;
+    }
+    openQuickSightRolePicker("breakdown");
   });
 
   const parseQuickSightDragPayload = (dataTransfer) => {
@@ -1114,6 +1433,12 @@ function wireEvents() {
       setStatus(`Metrica asignada: ${getBiMetricLabel(payload.metric)}.`);
       return;
     }
+    if (role === "optionalMetric" && payload.metric && els.qsOptionalMetricSelect instanceof HTMLSelectElement) {
+      els.qsOptionalMetricSelect.value = payload.metric;
+      handleQuickSightConfigChange();
+      setStatus(`EJE X asignado: ${getBiMetricLabel(payload.metric)}.`);
+      return;
+    }
     if (role === "breakdown" && payload.groupBy && els.qsBreakdownSelect instanceof HTMLSelectElement) {
       els.qsBreakdownSelect.value = payload.groupBy;
       handleQuickSightConfigChange();
@@ -1132,7 +1457,10 @@ function wireEvents() {
       if (!payload) {
         return;
       }
-      if ((role === "metric" && payload.metric) || ((role === "dimension" || role === "breakdown") && payload.groupBy)) {
+      if (
+        ((role === "metric" || role === "optionalMetric") && payload.metric)
+        || ((role === "dimension" || role === "breakdown") && payload.groupBy)
+      ) {
         node.classList.add("is-drop-target");
       }
     });
@@ -1141,7 +1469,10 @@ function wireEvents() {
       if (!payload) {
         return;
       }
-      const canDrop = (role === "metric" && payload.metric) || ((role === "dimension" || role === "breakdown") && payload.groupBy);
+      const canDrop = (
+        ((role === "metric" || role === "optionalMetric") && payload.metric)
+        || ((role === "dimension" || role === "breakdown") && payload.groupBy)
+      );
       if (!canDrop) {
         return;
       }
@@ -1164,6 +1495,7 @@ function wireEvents() {
 
   bindQuickSightRoleDropZone(els.qsRoleDimensionList, "dimension");
   bindQuickSightRoleDropZone(els.qsRoleMetricList, "metric");
+  bindQuickSightRoleDropZone(els.qsRoleOptionalMetricList, "optionalMetric");
   bindQuickSightRoleDropZone(els.qsRoleBreakdownList, "breakdown");
 
   const toggleQuickSightPanel = (panelKey) => {
@@ -1192,6 +1524,47 @@ function wireEvents() {
   bindQuickSightToggleButton(els.qsToggleDataButton, "data");
   bindQuickSightToggleButton(els.qsToggleVisualsButton, "visuals");
   bindQuickSightToggleButton(els.qsTogglePropsButton, "props");
+  els.qsPresentationModeButton?.addEventListener("click", () => {
+    const changed = toggleQuickSightPresentationMode();
+    const project = getActiveProject();
+    renderQuickSightPanel(project, { softSelect: false, allowEmptySelection: true });
+    if (changed) {
+      setStatus(quickSightPresentationMode ? "Modo visualizacion QuickSight activado." : "Modo visualizacion QuickSight desactivado.");
+    }
+  });
+
+  els.qsSettingsButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    ensureQuickSightState(project);
+    quickSightPanelState.props = true;
+    quickSightPropsTab = "visual";
+    if (!selectedQuickSightVisualId && project.quickSightVisuals.length > 0) {
+      selectedQuickSightVisualId = project.quickSightVisuals[0].id;
+    }
+    applyQuickSightPanelVisibility("Panel Configuracion QuickSight abierto.", "props");
+    renderQuickSightPanel(project, { softSelect: false, allowEmptySelection: true });
+  });
+
+  els.qsPublishButton?.addEventListener("click", () => {
+    exportQuickSightBoardPng(getActiveProject());
+  });
+
+  els.qsUndoButton?.addEventListener("click", () => {
+    stepQuickSightHistory(getActiveProject(), "undo");
+  });
+
+  els.qsRedoButton?.addEventListener("click", () => {
+    stepQuickSightHistory(getActiveProject(), "redo");
+  });
+
+  const announceSingleSheetMode = () => {
+    setStatus("QuickSight opera con una sola hoja por ahora; multi-hoja queda pendiente hasta introducir quickSightSheets[].");
+  };
+  els.qsSheetsMenuButton?.addEventListener("click", announceSingleSheetMode);
+  els.qsSheetAddButton?.addEventListener("click", announceSingleSheetMode);
 
   els.qsCanvasZoomMenuButton?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -1344,6 +1717,22 @@ function wireEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       let handled = false;
+      if (activeTab === "quicksight" && quickSightRolePickerOpen) {
+        closeQuickSightRolePicker({ rerender: true });
+        setStatus("Selector de rol QuickSight cerrado.");
+        handled = true;
+      }
+      if (activeTab === "quicksight" && quickSightExpandedVisualId) {
+        quickSightExpandedVisualId = "";
+        renderQuickSightPanel(getActiveProject(), { softSelect: true, allowEmptySelection: true });
+        setStatus("Visual QuickSight restaurado al tamano de hoja.");
+        handled = true;
+      } else if (activeTab === "quicksight" && quickSightPresentationMode) {
+        toggleQuickSightPresentationMode(false);
+        renderQuickSightPanel(getActiveProject(), { softSelect: true, allowEmptySelection: true });
+        setStatus("Modo visualizacion QuickSight desactivado.");
+        handled = true;
+      }
       if (quickSightEditMenuOpen) {
         setQuickSightEditMenuOpen(false);
         handled = true;
@@ -1397,6 +1786,21 @@ function wireEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    if (!quickSightRolePickerOpen || activeTab !== "quicksight") {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      closeQuickSightRolePicker({ rerender: true });
+      return;
+    }
+    if (target.closest(".qs-role-block")) {
+      return;
+    }
+    closeQuickSightRolePicker({ rerender: true });
+  });
+
+  document.addEventListener("click", (event) => {
     if (activeTab !== "quicksight") {
       return;
     }
@@ -1438,23 +1842,14 @@ function wireEvents() {
     const legacyKind = item.dataset.qsKind;
     const legacyValue = trimOrFallback(item.dataset.qsValue || "", "");
     const applyAsBreakdown = !!(event.shiftKey || event.altKey);
-    const selectedVisual = project.quickSightVisuals.find((entry) => entry.id === selectedQuickSightVisualId) || null;
     if (groupByValue) {
       const nextGroupBy = normalizeBiGroupBy(groupByValue);
       if (applyAsBreakdown) {
-        if (selectedVisual) {
-          selectedVisual.breakdownDimension = nextGroupBy;
-        }
-        project.quickSightConfig.breakdownDimension = nextGroupBy;
         if (els.qsBreakdownSelect) {
           els.qsBreakdownSelect.value = nextGroupBy;
         }
         setStatus(`GRUPO/COLOR seleccionado: ${getBiGroupLabel(nextGroupBy, project)}.`);
       } else {
-        if (selectedVisual) {
-          selectedVisual.groupBy = nextGroupBy;
-        }
-        project.quickSightConfig.groupBy = nextGroupBy;
         if (els.qsGroupBySelect) {
           els.qsGroupBySelect.value = nextGroupBy;
         }
@@ -1462,26 +1857,28 @@ function wireEvents() {
       }
     } else if (metricValue) {
       const nextMetric = normalizeBiMetric(metricValue);
-      if (selectedVisual) {
-        selectedVisual.metric = nextMetric;
+      const assignAsOptionalMetric = (
+        (event.shiftKey || event.altKey)
+        && !els.qsRoleOptionalMetricBlock?.classList.contains("hidden")
+        && els.qsOptionalMetricSelect instanceof HTMLSelectElement
+      );
+      if (assignAsOptionalMetric) {
+        els.qsOptionalMetricSelect.value = nextMetric;
+        setStatus(`Metrica eje X seleccionada: ${getBiMetricLabel(nextMetric)}.`);
+      } else if (els.qsMetricSelect) {
+        els.qsMetricSelect.value = nextMetric;
+        setStatus(`Metrica seleccionada: ${getBiMetricLabel(nextMetric)}.`);
       }
-      project.quickSightConfig.metric = nextMetric;
+    } else if (legacyKind === "dimension" && legacyValue) {
+      const nextGroupBy = normalizeBiGroupBy(legacyValue);
+      if (els.qsGroupBySelect) {
+        els.qsGroupBySelect.value = nextGroupBy;
+      }
+    } else if (legacyKind === "metric" && legacyValue) {
+      const nextMetric = normalizeBiMetric(legacyValue);
       if (els.qsMetricSelect) {
         els.qsMetricSelect.value = nextMetric;
       }
-      setStatus(`Metrica seleccionada: ${getBiMetricLabel(nextMetric)}.`);
-    } else if (legacyKind === "dimension" && legacyValue) {
-      const nextGroupBy = normalizeBiGroupBy(legacyValue);
-      if (selectedVisual) {
-        selectedVisual.groupBy = nextGroupBy;
-      }
-      project.quickSightConfig.groupBy = nextGroupBy;
-    } else if (legacyKind === "metric" && legacyValue) {
-      const nextMetric = normalizeBiMetric(legacyValue);
-      if (selectedVisual) {
-        selectedVisual.metric = nextMetric;
-      }
-      project.quickSightConfig.metric = nextMetric;
     } else {
       setStatus("Campo no vinculable a dimension o metrica.");
       return;
@@ -1534,7 +1931,9 @@ function wireEvents() {
       return;
     }
     ensureQuickSightState(project);
-    const visual = createQuickSightVisualFromConfig(project.quickSightConfig, project.quickSightVisuals.length);
+    const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+    const seedConfig = createQuickSightConfigFromVisual(selectedVisual, project.quickSightConfig);
+    const visual = createQuickSightVisualFromConfig(seedConfig, project.quickSightVisuals.length);
     project.quickSightVisuals.unshift(visual);
     selectedQuickSightVisualId = visual.id;
     saveState();
@@ -1557,6 +1956,9 @@ function wireEvents() {
     if (project.quickSightVisuals.length === before) {
       setStatus("No se encontr? el visual seleccionado.");
       return;
+    }
+    if (!project.quickSightVisuals.some((item) => item.id === quickSightExpandedVisualId)) {
+      quickSightExpandedVisualId = "";
     }
     selectedQuickSightVisualId = project.quickSightVisuals[0]?.id || "";
     saveState();
@@ -1608,6 +2010,12 @@ function wireEvents() {
   els.qsCanvasBoard?.addEventListener("pointerdown", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest("[data-qs-card-action]")) {
+      return;
+    }
+    if (quickSightExpandedVisualId) {
       return;
     }
     const resizeHandle = target.closest("[data-qs-resize-handle]");
@@ -1671,6 +2079,30 @@ function wireEvents() {
     }
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const actionButton = target.closest("[data-qs-card-action]");
+    if (actionButton instanceof HTMLElement) {
+      const action = trimOrFallback(actionButton.dataset.qsCardAction, "");
+      const visualId = trimOrFallback(actionButton.dataset.qsVisualId, "");
+      const project = getActiveProject();
+      if (!project || !visualId) {
+        return;
+      }
+      if (action === "toggle-expand") {
+        const changed = toggleQuickSightExpandedVisual(project, visualId);
+        if (!changed) {
+          return;
+        }
+        renderQuickSightPanel(project, { softSelect: false, allowEmptySelection: true });
+        setStatus(
+          quickSightExpandedVisualId
+            ? "Visual QuickSight maximizado."
+            : "Visual QuickSight restaurado."
+        );
+      }
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
     const visualCard = target.closest(".qs-visual-card");
@@ -1749,29 +2181,31 @@ function wireEvents() {
       visual.layout = clampQuickSightVisualLayoutToCanvas(visual.layout, project.quickSightConfig);
     } else if (prop === "source") {
       visual.source = normalizeBiSource(rawValue || visual.source);
-      project.quickSightConfig.source = visual.source;
+      visual.drillState = createDefaultQuickSightDrillState();
     } else if (prop === "groupBy") {
       visual.groupBy = normalizeBiGroupBy(rawValue || visual.groupBy);
-      project.quickSightConfig.groupBy = visual.groupBy;
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+      visual.drillState = createDefaultQuickSightDrillState();
     } else if (prop === "breakdownDimension") {
       visual.breakdownDimension = normalizeBiOptionalGroupBy(rawValue || "");
-      project.quickSightConfig.breakdownDimension = visual.breakdownDimension;
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
     } else if (prop === "metric") {
       visual.metric = normalizeBiMetric(rawValue || visual.metric);
-      project.quickSightConfig.metric = visual.metric;
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "optionalMetric") {
+      syncQuickSightVisualDataRoles(visual, {
+        ...project.quickSightConfig,
+        optionalMetric: normalizeBiOptionalMetric(rawValue || "")
+      });
     } else if (prop === "chartType") {
       visual.chartType = normalizeBiChartType(rawValue || visual.chartType);
-      project.quickSightConfig.chartType = visual.chartType;
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+    } else if (prop === "renderEngine") {
+      visual.renderEngine = normalizeQuickSightRenderEngine(rawValue);
     } else if (prop === "topN") {
       visual.topN = sanitizeBiTopN(rawValue || visual.topN);
-      project.quickSightConfig.topN = visual.topN;
     } else if (prop === "sortMode") {
       visual.sortMode = normalizeBiSortMode(rawValue || visual.sortMode);
-      project.quickSightConfig.sortMode = visual.sortMode;
     } else if (prop.startsWith("display:")) {
       const key = prop.slice("display:".length);
       const currentDisplay = normalizeQuickSightDisplaySettings(visual.display);
@@ -1788,6 +2222,24 @@ function wireEvents() {
         ...currentVisual,
         [key]: rawValue
       });
+    } else if (prop.startsWith("interaction:")) {
+      const key = prop.slice("interaction:".length);
+      const currentInteractions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+      if (/^drillPath\d+$/.test(key)) {
+        const drillIndex = Math.max(0, Number.parseInt(key.slice("drillPath".length), 10) || 0);
+        const nextPath = currentInteractions.drillPath.slice(0, QUICKSIGHT_DRILL_PATH_SLOTS);
+        nextPath[drillIndex] = rawValue;
+        visual.interactions = normalizeQuickSightInteractionSettings({
+          ...currentInteractions,
+          drillPath: nextPath
+        }, visual);
+      } else {
+        visual.interactions = normalizeQuickSightInteractionSettings({
+          ...currentInteractions,
+          [key]: rawValue
+        }, visual);
+      }
+      visual.drillState = normalizeQuickSightDrillState(visual.drillState, visual);
     } else if (prop.startsWith("type:")) {
       const key = prop.slice("type:".length);
       const chartType = normalizeBiChartType(visual.chartType || "bar");
@@ -1798,6 +2250,12 @@ function wireEvents() {
       });
     }
 
+    ensureQuickSightVisualDrillState(visual);
+    const activeDrillThrough = normalizeQuickSightDrillThroughSelection(project.quickSightConfig.drillThroughSelection);
+    if (activeDrillThrough && activeDrillThrough.visualId === visual.id && new Set(["source", "groupBy", "breakdownDimension"]).has(prop)) {
+      project.quickSightConfig.drillThroughSelection = null;
+      quickSightDrillThroughQuery = "";
+    }
     visual.chartConfig = normalizeBiChartConfig(visual.chartConfig, visual.chartType);
     const safeTypeMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
     const safeType = normalizeBiChartType(visual.chartType);
@@ -1820,6 +2278,54 @@ function wireEvents() {
     if (stopSummaryNode instanceof HTMLElement) {
       event.stopPropagation();
       return;
+    }
+    const actionButton = target.closest("[data-qs-action]");
+    if (actionButton instanceof HTMLElement) {
+      const action = trimOrFallback(actionButton.dataset.qsAction, "");
+      const project = getActiveProject();
+      if (!project) {
+        return;
+      }
+      const visual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
+      if (action === "clear-interaction-filters") {
+        const changed = clearQuickSightInteractionFilters(project);
+        if (!changed) {
+          setStatus("No hay filtros QuickSight activos.");
+          return;
+        }
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus("Filtros QuickSight limpiados.");
+        return;
+      }
+      if (action === "drill-up") {
+        if (!visual) {
+          return;
+        }
+        const result = rewindQuickSightVisualDrill(project, visual);
+        if (!result.changed) {
+          setStatus("El visual ya esta en el nivel raiz.");
+          return;
+        }
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(`Drill QuickSight: volvimos a ${getBiGroupLabel(result.currentGroupBy, project)}.`);
+        return;
+      }
+      if (action === "drill-reset") {
+        if (!visual) {
+          return;
+        }
+        const changed = resetQuickSightVisualDrill(project, visual);
+        if (!changed) {
+          setStatus("No hay drill activo en este visual.");
+          return;
+        }
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus("Drill QuickSight reiniciado.");
+        return;
+      }
     }
     const tabButton = target.closest("[data-qs-props-tab]");
     if (!(tabButton instanceof HTMLElement)) {
@@ -1881,7 +2387,7 @@ function wireEvents() {
       project.biConfig.visual = nextVisual;
     }
     syncBiInputs(project.biConfig);
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiWidgets(project, filteredRows);
     saveState();
     if (announceMessage) {
@@ -1961,7 +2467,7 @@ function wireEvents() {
     widget.showBorder = !!els.biWidgetShowBorderCheckbox?.checked;
     widget.showBackground = !!els.biWidgetShowBackgroundCheckbox?.checked;
     saveState();
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiWidgets(project, filteredRows);
     syncBiInputs(project.biConfig);
   };
@@ -2026,7 +2532,7 @@ function wireEvents() {
       target.widget.visualOverride = null;
       saveState();
       syncBiInputs(project.biConfig);
-      const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+      const filteredRows = queryBiProjectRows(project, project.biConfig);
       renderBiWidgets(project, filteredRows);
       setStatus(`Configuracion del widget "${target.widget.name}" limpiada (usa la global).`);
       return;
@@ -2034,7 +2540,7 @@ function wireEvents() {
     project.biConfig.visual = createDefaultBiVisualSettings();
     saveState();
     syncBiInputs(project.biConfig);
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiWidgets(project, filteredRows);
     setStatus("Configuracion global restablecida.");
   });
@@ -2066,7 +2572,7 @@ function wireEvents() {
     }
     saveState();
     syncBiInputs(project.biConfig);
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiWidgets(project, filteredRows);
   });
 
@@ -2105,7 +2611,7 @@ function wireEvents() {
       project.biConfig.visual = defaults;
     }
     syncBiInputs(project.biConfig);
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiWidgets(project, filteredRows);
     saveState();
     setStatus(target.mode === "widget" && target.widget
@@ -2534,7 +3040,7 @@ function wireEvents() {
     ensureBiState(project);
     project.biConfig.colorSource = normalizeBiSource(els.biColorSourceSelect?.value || project.biConfig.colorSource || "all");
     project.biConfig.colorGroupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiColorPanel(project, filteredRows);
     saveState();
   };
@@ -2566,7 +3072,7 @@ function wireEvents() {
     const colorMap = normalizeBiColorMap(project.biConfig.colorMap);
     colorMap[key] = normalizeBiColorHex(target.value, getBiPaletteColor(0));
     project.biConfig.colorMap = colorMap;
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiColorPanel(project, filteredRows);
     renderBiWidgets(project, filteredRows);
     saveState();
@@ -2580,7 +3086,7 @@ function wireEvents() {
     ensureBiState(project);
     const source = normalizeBiSource(els.biColorSourceSelect?.value || project.biConfig.colorSource || "all");
     const groupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     const legendRows = getBiColorLegendData(project, filteredRows, source, groupBy);
     if (legendRows.length === 0) {
       setStatus("No hay categorias para colorear.");
@@ -2611,7 +3117,7 @@ function wireEvents() {
     ensureBiState(project);
     const groupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
     const removed = clearBiColorsForGroup(project, groupBy);
-    const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+    const filteredRows = queryBiProjectRows(project, project.biConfig);
     renderBiColorPanel(project, filteredRows);
     renderBiWidgets(project, filteredRows);
     saveState();
@@ -4278,6 +4784,50 @@ function wireEvents() {
     }
   });
 
+  els.closeQsDrillThroughButton?.addEventListener("click", () => {
+    const project = getActiveProject();
+    closeQuickSightDrillThrough(project);
+  });
+
+  els.qsDrillThroughOverlay?.addEventListener("click", (event) => {
+    if (event.target === els.qsDrillThroughOverlay) {
+      const project = getActiveProject();
+      closeQuickSightDrillThrough(project);
+    }
+  });
+
+  els.qsDrillThroughSearchInput?.addEventListener("input", () => {
+    quickSightDrillThroughQuery = trimOrFallback(els.qsDrillThroughSearchInput?.value || "", "").slice(0, 80);
+    renderQuickSightDrillThroughDrawer(getActiveProject());
+  });
+
+  els.qsDrillThroughExportButton?.addEventListener("click", () => {
+    exportQuickSightDrillThroughCsv(getActiveProject());
+  });
+
+  els.qsDrillThroughBody?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const actionButton = target.closest("[data-qs-drill-row-source][data-qs-drill-row-id]");
+    if (!(actionButton instanceof HTMLElement)) {
+      return;
+    }
+    const rowSource = trimOrFallback(actionButton.dataset.qsDrillRowSource, "");
+    const rowId = trimOrFallback(actionButton.dataset.qsDrillRowId, "");
+    if (!rowSource || !rowId) {
+      return;
+    }
+    if (rowSource === "deliverable") {
+      openTrackingPanel(rowId);
+    } else if (rowSource === "package") {
+      openPackageTrackingPanel(rowId);
+    } else if (rowSource === "review-control") {
+      openReviewControlTrackingPanel(rowId);
+    }
+  });
+
   els.addRealAdvanceRowButton.addEventListener("click", () => {
     const context = getTrackingContext();
     if (!context) {
@@ -4954,6 +5504,16 @@ function wireEvents() {
         || (target instanceof HTMLElement && target.isContentEditable);
       const keyText = trimOrFallback(event.key, "").toLowerCase();
       const project = getActiveProject();
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !isTypingTarget && keyText === "z") {
+        event.preventDefault();
+        stepQuickSightHistory(project, event.shiftKey ? "redo" : "undo");
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !isTypingTarget && keyText === "y") {
+        event.preventDefault();
+        stepQuickSightHistory(project, "redo");
+        return;
+      }
       if (!isTypingTarget && project && event.ctrlKey && event.altKey && !event.metaKey) {
         ensureQuickSightState(project);
         if (keyText === "[") {
@@ -7059,8 +7619,7 @@ function renderBiPanel(project) {
   renderBiFieldCatalog(project);
   renderBiCrossFilterSummary(project);
 
-  const rows = collectBiRows(project);
-  const filteredRows = filterBiRows(rows, project.biConfig);
+  const filteredRows = queryBiProjectRows(project, project.biConfig);
   renderBiColorPanel(project, filteredRows);
 
   renderBiInsights(project, filteredRows);
@@ -7072,6 +7631,9 @@ function renderBiPanel(project) {
 }
 
 function getQuickSightShellColumns() {
+  if (quickSightPresentationMode) {
+    return "minmax(0, 1fr)";
+  }
   if (window.innerWidth <= 1180) {
     return "1fr";
   }
@@ -7080,6 +7642,68 @@ function getQuickSightShellColumns() {
   const canvasCol = "minmax(0, 1fr)";
   const propsCol = quickSightPanelState.props ? "280px" : "0px";
   return `${dataCol} ${visualsCol} ${canvasCol} ${propsCol}`;
+}
+
+function syncQuickSightViewportModeUi() {
+  const quickSightActive = activeTab === "quicksight";
+  document.body.classList.toggle("qs-tab-compact", quickSightActive);
+  document.body.classList.toggle("qs-presentation-mode", quickSightActive && quickSightPresentationMode);
+  if (els.appLayout instanceof HTMLElement) {
+    els.appLayout.classList.toggle("qs-presentation-mode", quickSightActive && quickSightPresentationMode);
+  }
+  if (els.qsFrame instanceof HTMLElement) {
+    els.qsFrame.classList.toggle("qs-presentation-frame", quickSightPresentationMode);
+  }
+  if (els.qsPresentationModeButton instanceof HTMLButtonElement) {
+    els.qsPresentationModeButton.classList.toggle("active", quickSightPresentationMode);
+    els.qsPresentationModeButton.setAttribute("aria-pressed", quickSightPresentationMode ? "true" : "false");
+    els.qsPresentationModeButton.textContent = quickSightPresentationMode ? "Salir visualizacion" : "Visualizacion";
+    els.qsPresentationModeButton.title = quickSightPresentationMode
+      ? "Salir del modo de visualizacion"
+      : "Entrar en modo de visualizacion";
+  }
+}
+
+function toggleQuickSightPresentationMode(forceValue = null) {
+  const nextValue = typeof forceValue === "boolean"
+    ? forceValue
+    : !quickSightPresentationMode;
+  if (quickSightPresentationMode === nextValue) {
+    syncQuickSightViewportModeUi();
+    return false;
+  }
+  quickSightPresentationMode = nextValue;
+  if (!quickSightPresentationMode) {
+    setQuickSightEditMenuOpen(false);
+  }
+  setQuickSightZoomMenuOpen(false);
+  syncQuickSightViewportModeUi();
+  return true;
+}
+
+function getQuickSightExpandedCanvasLayout(canvasSize) {
+  const width = Math.max(QUICKSIGHT_VISUAL_MIN_WIDTH, canvasSize.width - 24);
+  const height = Math.max(QUICKSIGHT_VISUAL_MIN_HEIGHT, canvasSize.height - 24);
+  return {
+    x: 12,
+    y: 12,
+    w: width,
+    h: height
+  };
+}
+
+function toggleQuickSightExpandedVisual(project, visualId) {
+  if (!project || !visualId || !project.quickSightVisuals.some((visual) => visual.id === visualId)) {
+    quickSightExpandedVisualId = "";
+    return false;
+  }
+  if (quickSightExpandedVisualId === visualId) {
+    quickSightExpandedVisualId = "";
+    return true;
+  }
+  quickSightExpandedVisualId = visualId;
+  selectedQuickSightVisualId = visualId;
+  return true;
 }
 
 function syncQuickSightEditMenuInputs(projectOrConfig) {
@@ -7116,6 +7740,17 @@ function setQuickSightEditMenuOpen(nextOpen) {
 
 function setQuickSightZoomMenuOpen(nextOpen) {
   quickSightZoomMenuOpen = !!nextOpen;
+  if (els.qsZoomMenuWrap instanceof HTMLElement) {
+    els.qsZoomMenuWrap.classList.toggle("open", quickSightZoomMenuOpen);
+    const toolbarLeft = els.qsZoomMenuWrap.closest(".qs-toolbar-left");
+    if (toolbarLeft instanceof HTMLElement) {
+      toolbarLeft.classList.toggle("qs-toolbar-left-menu-open", quickSightZoomMenuOpen);
+    }
+    const toolbarRow = els.qsZoomMenuWrap.closest(".qs-toolbar-row");
+    if (toolbarRow instanceof HTMLElement) {
+      toolbarRow.classList.toggle("qs-toolbar-row-menu-open", quickSightZoomMenuOpen);
+    }
+  }
   if (els.qsCanvasZoomMenu instanceof HTMLElement) {
     els.qsCanvasZoomMenu.classList.toggle("hidden", !quickSightZoomMenuOpen);
   }
@@ -7203,6 +7838,160 @@ function applyQuickSightPanelVisibility(announceMessage = "", animatedPanelKey =
   if (announceMessage && activeTab === "quicksight") {
     setStatus(announceMessage);
   }
+}
+
+function cloneQuickSightSnapshotData(value, fallback) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return fallback;
+  }
+}
+
+function getQuickSightHistoryTracker(projectId) {
+  const key = trimOrFallback(projectId, "");
+  if (!key) {
+    return null;
+  }
+  if (!quickSightHistoryByProject[key]) {
+    quickSightHistoryByProject[key] = {
+      undo: [],
+      redo: [],
+      current: null,
+      currentKey: "",
+      suspended: false
+    };
+  }
+  return quickSightHistoryByProject[key];
+}
+
+function captureQuickSightHistorySnapshot(project) {
+  if (!project) {
+    return null;
+  }
+  ensureQuickSightState(project);
+  return {
+    quickSightConfig: cloneQuickSightSnapshotData(project.quickSightConfig, createDefaultQuickSightConfig()),
+    quickSightVisuals: cloneQuickSightSnapshotData(project.quickSightVisuals, []),
+    selectedQuickSightVisualId: trimOrFallback(selectedQuickSightVisualId, ""),
+    quickSightPropsTab: quickSightPropsTab === "interactions" ? "interactions" : "visual"
+  };
+}
+
+function serializeQuickSightHistorySnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return "";
+  }
+  return JSON.stringify({
+    quickSightConfig: snapshot.quickSightConfig || createDefaultQuickSightConfig(),
+    quickSightVisuals: Array.isArray(snapshot.quickSightVisuals) ? snapshot.quickSightVisuals : []
+  });
+}
+
+function syncQuickSightHistoryState(project) {
+  if (!project?.id) {
+    return;
+  }
+  const tracker = getQuickSightHistoryTracker(project.id);
+  if (!tracker) {
+    return;
+  }
+  const snapshot = captureQuickSightHistorySnapshot(project);
+  const key = serializeQuickSightHistorySnapshot(snapshot);
+  if (!key) {
+    return;
+  }
+  if (tracker.suspended) {
+    tracker.current = snapshot;
+    tracker.currentKey = key;
+    return;
+  }
+  if (!tracker.currentKey) {
+    tracker.current = snapshot;
+    tracker.currentKey = key;
+    return;
+  }
+  if (tracker.currentKey === key) {
+    tracker.current = snapshot;
+    return;
+  }
+  if (tracker.current) {
+    tracker.undo.push(tracker.current);
+    if (tracker.undo.length > QUICKSIGHT_HISTORY_LIMIT) {
+      tracker.undo.shift();
+    }
+  }
+  tracker.redo = [];
+  tracker.current = snapshot;
+  tracker.currentKey = key;
+}
+
+function syncQuickSightHistoryButtons(project) {
+  const tracker = project?.id ? getQuickSightHistoryTracker(project.id) : null;
+  const undoDisabled = !tracker || tracker.undo.length === 0;
+  const redoDisabled = !tracker || tracker.redo.length === 0;
+  if (els.qsUndoButton instanceof HTMLButtonElement) {
+    els.qsUndoButton.disabled = undoDisabled;
+    els.qsUndoButton.setAttribute("aria-disabled", undoDisabled ? "true" : "false");
+    els.qsUndoButton.title = undoDisabled ? "No hay cambios QuickSight para deshacer" : "Deshacer";
+  }
+  if (els.qsRedoButton instanceof HTMLButtonElement) {
+    els.qsRedoButton.disabled = redoDisabled;
+    els.qsRedoButton.setAttribute("aria-disabled", redoDisabled ? "true" : "false");
+    els.qsRedoButton.title = redoDisabled ? "No hay cambios QuickSight para rehacer" : "Rehacer";
+  }
+}
+
+function applyQuickSightHistorySnapshot(project, snapshot) {
+  if (!project || !snapshot || typeof snapshot !== "object") {
+    return false;
+  }
+  project.quickSightConfig = normalizeQuickSightConfig(snapshot.quickSightConfig);
+  project.quickSightVisuals = normalizeQuickSightVisuals(snapshot.quickSightVisuals);
+  ensureQuickSightState(project);
+  quickSightPropsTab = snapshot.quickSightPropsTab === "interactions" ? "interactions" : "visual";
+  const preferredId = trimOrFallback(snapshot.selectedQuickSightVisualId, "");
+  selectedQuickSightVisualId = project.quickSightVisuals.some((visual) => visual.id === preferredId)
+    ? preferredId
+    : (project.quickSightVisuals[0]?.id || "");
+  return true;
+}
+
+function stepQuickSightHistory(project, direction = "undo") {
+  if (!project?.id) {
+    return;
+  }
+  ensureQuickSightState(project);
+  syncQuickSightHistoryState(project);
+  const tracker = getQuickSightHistoryTracker(project.id);
+  if (!tracker) {
+    return;
+  }
+  const mode = direction === "redo" ? "redo" : "undo";
+  const sourceStack = mode === "redo" ? tracker.redo : tracker.undo;
+  if (sourceStack.length === 0) {
+    setStatus(mode === "redo" ? "No hay cambios QuickSight para rehacer." : "No hay cambios QuickSight para deshacer.");
+    syncQuickSightHistoryButtons(project);
+    return;
+  }
+  const nextSnapshot = sourceStack.pop();
+  const currentSnapshot = tracker.current || captureQuickSightHistorySnapshot(project);
+  if (currentSnapshot) {
+    const targetStack = mode === "redo" ? tracker.undo : tracker.redo;
+    targetStack.push(currentSnapshot);
+    if (targetStack.length > QUICKSIGHT_HISTORY_LIMIT) {
+      targetStack.shift();
+    }
+  }
+  tracker.suspended = true;
+  applyQuickSightHistorySnapshot(project, nextSnapshot);
+  tracker.current = nextSnapshot;
+  tracker.currentKey = serializeQuickSightHistorySnapshot(nextSnapshot);
+  renderQuickSightPanel(project, { softSelect: false, allowEmptySelection: true });
+  tracker.suspended = false;
+  saveState(true);
+  syncQuickSightHistoryButtons(project);
+  setStatus(mode === "redo" ? "Cambio QuickSight rehecho." : "Cambio QuickSight deshecho.");
 }
 
 function getDefaultQuickSightVisualLayout(index = 0) {
@@ -7436,12 +8225,12 @@ function repaintQuickSightVisualCanvasForCard(project, visual, cardElement) {
   if (!project || !visual || !(cardElement instanceof HTMLElement)) {
     return;
   }
-  const canvasNode = cardElement.querySelector("canvas[data-qs-canvas-id]");
-  if (!(canvasNode instanceof HTMLCanvasElement)) {
+  const chartHostNode = cardElement.querySelector("[data-qs-chart-host-id]");
+  if (!(chartHostNode instanceof HTMLElement)) {
     return;
   }
-  const snapshot = buildBiWidgetSnapshot(collectBiRows(project), visual);
-  paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+  const snapshot = buildQuickSightVisualSnapshot(project, visual);
+  paintQuickSightVisualCanvas(chartHostNode, project, visual, snapshot);
 }
 
 function scheduleQuickSightResizeCanvasRepaint(interaction, project, visual) {
@@ -7644,6 +8433,8 @@ function getQuickSightMetricOptions() {
 function getQuickSightChartTypeOptions() {
   return [
     { value: "bar", label: "Barras" },
+    { value: "bar_horizontal", label: "Barras horizontales" },
+    { value: "bar_stacked", label: "Barras apiladas" },
     { value: "line", label: "Lineas" },
     { value: "area", label: "Area" },
     { value: "combo", label: "Combinado" },
@@ -7898,6 +8689,42 @@ function bindQuickSightCanvasHover(canvas) {
     finishDrag(event, true);
   });
 
+  canvas.addEventListener("click", (event) => {
+    if (Date.now() < quickSightSuppressClickUntil || dragState) {
+      return;
+    }
+    const state = canvas.__qsHoverState;
+    if (!state || !state.visual || !Array.isArray(state.rows) || state.rows.length === 0) {
+      return;
+    }
+    const interactions = normalizeQuickSightInteractionSettings(state.visual.interactions, state.visual);
+    state.visual.interactions = interactions;
+    if (interactions.clickAction === "none") {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const model = state.model || { type: "none", items: [] };
+    const labelIndex = resolveBiLabelDragIndex(model, x, y);
+    if (labelIndex >= 0) {
+      return;
+    }
+    const hoverIndex = resolveBiHoverIndex(model, x, y);
+    if (hoverIndex < 0 || hoverIndex >= state.rows.length) {
+      return;
+    }
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    applyQuickSightInteractionFromVisual(project, state.visual, {
+      rows: state.rows
+    }, hoverIndex, event);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
   canvas.addEventListener("mouseleave", () => {
     const state = canvas.__qsHoverState;
     canvas.style.cursor = "default";
@@ -7916,11 +8743,17 @@ function renderQuickSightPanel(project, options = {}) {
   const softSelect = !!options.softSelect;
   const allowEmptySelection = !!options.allowEmptySelection;
   if (project && activeTab !== "quicksight") {
+    renderQuickSightDrillThroughDrawer(project);
     return;
   }
   captureQuickSightPropsSectionState();
   applyQuickSightPanelVisibility("");
   if (!project) {
+    quickSightRolePickerOpen = "";
+    quickSightRolePickerFocusRole = "";
+    quickSightExpandedVisualId = "";
+    disposeQuickSightChartsInContainer(els.qsCanvasBoard);
+    renderQuickSightDrillThroughDrawer(null);
     updateQuickSightZoomMenuUi(null);
     if (els.qsDataSummaryText) {
       els.qsDataSummaryText.textContent = "";
@@ -7937,41 +8770,75 @@ function renderQuickSightPanel(project, options = {}) {
     if (els.qsRoleMetricList) {
       els.qsRoleMetricList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>";
     }
+    if (els.qsRoleOptionalMetricBlock) {
+      els.qsRoleOptionalMetricBlock.hidden = true;
+      els.qsRoleOptionalMetricBlock.classList.add("hidden");
+    }
+    if (els.qsRoleOptionalMetricList) {
+      els.qsRoleOptionalMetricList.innerHTML = "";
+    }
+    if (els.qsOptionalMetricSelect) {
+      els.qsOptionalMetricSelect.innerHTML = "<option value=\"\">(Automatico: UP Base total)</option>";
+      els.qsOptionalMetricSelect.value = "";
+    }
     if (els.qsRoleBreakdownList) {
       els.qsRoleBreakdownList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>";
     }
     els.qsFieldsList.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsCanvasBoard.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Sin proyecto activo.</p>";
+    if (els.qsPresentationModeButton instanceof HTMLButtonElement) {
+      els.qsPresentationModeButton.disabled = true;
+    }
+    syncQuickSightHistoryButtons(null);
     return;
   }
 
   ensureQuickSightState(project);
+  if (els.qsPresentationModeButton instanceof HTMLButtonElement) {
+    els.qsPresentationModeButton.disabled = false;
+  }
+  if (quickSightExpandedVisualId && !project.quickSightVisuals.some((item) => item.id === quickSightExpandedVisualId)) {
+    quickSightExpandedVisualId = "";
+  }
   if (!project.quickSightVisuals.some((item) => item.id === selectedQuickSightVisualId)) {
     selectedQuickSightVisualId = allowEmptySelection ? "" : (project.quickSightVisuals[0]?.id || "");
   }
   const activeVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
 
-  const allRows = collectBiRows(project);
+  const scopedRows = getQuickSightPanelBaseRows(project);
+  const activeInteractionFilters = normalizeQuickSightInteractionFilters(project.quickSightConfig.interactionFilters);
   const selectedSource = normalizeBiSource(activeVisual?.source || project.quickSightConfig.source || "all");
   const sourceRows = selectedSource === "all"
-    ? allRows
-    : allRows.filter((row) => row.source === selectedSource);
+    ? scopedRows
+    : scopedRows.filter((row) => row.source === selectedSource);
+  const activeDrillMeta = activeVisual ? getQuickSightVisualDrillMeta(activeVisual, project) : null;
   const groupOptions = getBiGroupByOptions(project);
   const metricOptions = getQuickSightMetricOptions();
   const chartOptions = getQuickSightChartTypeOptions();
   const safeGroupBy = normalizeBiGroupBy(activeVisual?.groupBy || project.quickSightConfig.groupBy || "disciplina");
-  const safeBreakdown = normalizeBiOptionalGroupBy(
-    activeVisual?.breakdownDimension
-    || activeVisual?.dataRoles?.breakdownDimension
-    || project.quickSightConfig.breakdownDimension
-    || ""
-  );
+  const safeBreakdown = activeVisual
+    ? normalizeBiOptionalGroupBy(
+      getOwnObjectValue(activeVisual, "breakdownDimension", activeVisual?.dataRoles?.breakdownDimension ?? "")
+    )
+    : normalizeBiOptionalGroupBy(project.quickSightConfig.breakdownDimension || "");
   const safeMetric = normalizeBiMetric(activeVisual?.metric || project.quickSightConfig.metric || "count");
+  const safeOptionalMetric = activeVisual
+    ? getQuickSightVisualOptionalMetric(activeVisual)
+    : getQuickSightVisualOptionalMetric(null, project.quickSightConfig);
   const safeChartType = normalizeBiChartType(activeVisual?.chartType || project.quickSightConfig.chartType || "bar");
   const safeTopN = sanitizeBiTopN(activeVisual?.topN ?? project.quickSightConfig.topN ?? 12);
   const catalogFields = getBiCatalogFields(project, selectedSource);
   const breakdownOptions = [{ value: "", label: "(sin grupo/color)" }, ...groupOptions];
+  const panelCapabilities = getQuickSightChartCapabilities(activeVisual ? {
+    ...activeVisual,
+    chartType: safeChartType
+  } : { chartType: safeChartType }, project.quickSightConfig);
+  if ((quickSightRolePickerOpen === "optionalMetric" && !panelCapabilities.supportsOptionalMetric)
+    || (quickSightRolePickerOpen === "breakdown" && !panelCapabilities.supportsBreakdown)) {
+    quickSightRolePickerOpen = "";
+    quickSightRolePickerFocusRole = "";
+  }
 
   if (els.qsSourceSelect) {
     els.qsSourceSelect.value = selectedSource;
@@ -7998,6 +8865,15 @@ function renderQuickSightPanel(project, options = {}) {
       ? safeMetric
       : "count";
   }
+  if (els.qsOptionalMetricSelect) {
+    const rows = [{ value: "", label: "Automatico (UP Base total)" }, ...metricOptions];
+    els.qsOptionalMetricSelect.innerHTML = rows
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    els.qsOptionalMetricSelect.value = rows.some((option) => option.value === safeOptionalMetric)
+      ? safeOptionalMetric
+      : "";
+  }
   if (els.qsChartTypeSelect) {
     els.qsChartTypeSelect.innerHTML = chartOptions
       .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
@@ -8007,9 +8883,48 @@ function renderQuickSightPanel(project, options = {}) {
       : "bar";
   }
   const resolvedGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || safeGroupBy);
-  const resolvedBreakdown = normalizeBiOptionalGroupBy(els.qsBreakdownSelect?.value || safeBreakdown);
+  const resolvedBreakdown = normalizeBiOptionalGroupBy(
+    els.qsBreakdownSelect instanceof HTMLSelectElement
+      ? els.qsBreakdownSelect.value
+      : safeBreakdown
+  );
   const resolvedMetric = normalizeBiMetric(els.qsMetricSelect?.value || safeMetric);
+  const resolvedOptionalMetric = normalizeBiOptionalMetric(
+    els.qsOptionalMetricSelect instanceof HTMLSelectElement
+      ? els.qsOptionalMetricSelect.value
+      : safeOptionalMetric
+  );
   const resolvedChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || safeChartType);
+  const roleUiLabels = getQuickSightRoleUiLabels(resolvedChartType);
+  const dimensionRoleLabelNode = els.qsRoleDimensionList?.previousElementSibling;
+  if (dimensionRoleLabelNode instanceof HTMLElement) {
+    dimensionRoleLabelNode.textContent = roleUiLabels.dimension;
+  }
+  const metricRoleLabelNode = els.qsRoleMetricList?.previousElementSibling;
+  if (metricRoleLabelNode instanceof HTMLElement) {
+    metricRoleLabelNode.textContent = roleUiLabels.metric;
+  }
+  const optionalMetricRoleLabelNode = els.qsRoleOptionalMetricList?.previousElementSibling;
+  if (optionalMetricRoleLabelNode instanceof HTMLElement) {
+    optionalMetricRoleLabelNode.textContent = roleUiLabels.optionalMetric;
+  }
+  const breakdownRoleLabelNode = els.qsRoleBreakdownList?.previousElementSibling;
+  if (breakdownRoleLabelNode instanceof HTMLElement) {
+    breakdownRoleLabelNode.textContent = roleUiLabels.breakdown;
+  }
+  const rolePickerOptionHtml = (options, selectedValue) => options
+    .map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedValue ? " selected" : ""}>${escapeHtml(option.label)}</option>`)
+    .join("");
+  const dimensionPickerHtml = `<select class="qs-role-inline-select" data-qs-role-picker-select="dimension">${rolePickerOptionHtml(groupOptions, resolvedGroupBy)}</select>`;
+  const metricPickerHtml = `<select class="qs-role-inline-select" data-qs-role-picker-select="metric">${rolePickerOptionHtml(metricOptions, resolvedMetric)}</select>`;
+  const optionalMetricPickerOptions = [{ value: "", label: "Automatico: UP Base total" }, ...metricOptions.filter((option) => option.value !== resolvedMetric)];
+  const optionalMetricPickerHtml = panelCapabilities.supportsOptionalMetric
+    ? `<select class="qs-role-inline-select" data-qs-role-picker-select="optionalMetric">${rolePickerOptionHtml(optionalMetricPickerOptions, resolvedOptionalMetric)}</select>`
+    : "";
+  const breakdownPickerOptions = breakdownOptions.filter((option) => !option.value || option.value !== resolvedGroupBy);
+  const breakdownPickerHtml = panelCapabilities.supportsBreakdown
+    ? `<select class="qs-role-inline-select" data-qs-role-picker-select="breakdown">${rolePickerOptionHtml(breakdownPickerOptions, resolvedBreakdown)}</select>`
+    : "";
   if (els.qsChartTypeGrid) {
     els.qsChartTypeGrid.querySelectorAll("[data-qs-chart-type]").forEach((node) => {
       if (!(node instanceof HTMLElement)) {
@@ -8020,25 +8935,89 @@ function renderQuickSightPanel(project, options = {}) {
     });
   }
   if (els.qsRoleDimensionList) {
-    if (resolvedGroupBy) {
-      els.qsRoleDimensionList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-dimension" data-qs-groupby="${escapeAttribute(resolvedGroupBy)}">${escapeHtml(getBiGroupLabel(resolvedGroupBy, project))}</button>`;
-    } else {
-      els.qsRoleDimensionList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin dimension</span>";
-    }
+    els.qsRoleDimensionList.innerHTML = quickSightRolePickerOpen === "dimension"
+      ? dimensionPickerHtml
+      : (resolvedGroupBy
+        ? `<button type="button" class="qs-role-chip qs-role-chip-dimension" data-qs-groupby="${escapeAttribute(resolvedGroupBy)}">${escapeHtml(getBiGroupLabel(resolvedGroupBy, project))}</button>`
+        : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin dimension</span>");
   }
   if (els.qsRoleMetricList) {
-    if (resolvedMetric) {
-      els.qsRoleMetricList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-metric="${escapeAttribute(resolvedMetric)}">${escapeHtml(getBiMetricLabel(resolvedMetric))}</button>`;
+    els.qsRoleMetricList.innerHTML = quickSightRolePickerOpen === "metric"
+      ? metricPickerHtml
+      : (resolvedMetric
+        ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-metric="${escapeAttribute(resolvedMetric)}">${escapeHtml(getBiMetricLabel(resolvedMetric))}</button>`
+        : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>");
+  }
+  if (els.qsRoleOptionalMetricBlock) {
+    els.qsRoleOptionalMetricBlock.hidden = !panelCapabilities.supportsOptionalMetric;
+    els.qsRoleOptionalMetricBlock.classList.toggle("hidden", !panelCapabilities.supportsOptionalMetric);
+  }
+  if (els.qsRoleOptionalMetricList) {
+    if (panelCapabilities.supportsOptionalMetric) {
+      els.qsRoleOptionalMetricList.innerHTML = quickSightRolePickerOpen === "optionalMetric"
+        ? optionalMetricPickerHtml
+        : (resolvedOptionalMetric
+          ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-optional-metric="${escapeAttribute(resolvedOptionalMetric)}">${escapeHtml(getBiMetricLabel(resolvedOptionalMetric))}</button>`
+          : "<span class=\"qs-role-chip qs-role-chip-empty\">Automatico: UP Base total</span>");
     } else {
-      els.qsRoleMetricList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>";
+      els.qsRoleOptionalMetricList.innerHTML = "";
     }
   }
   if (els.qsRoleBreakdownList) {
-    if (resolvedBreakdown) {
-      els.qsRoleBreakdownList.innerHTML = `<button type="button" class="qs-role-chip qs-role-chip-breakdown" data-qs-breakdown="${escapeAttribute(resolvedBreakdown)}">${escapeHtml(getBiGroupLabel(resolvedBreakdown, project))}</button>`;
+    els.qsRoleBreakdownList.innerHTML = quickSightRolePickerOpen === "breakdown"
+      ? breakdownPickerHtml
+      : (resolvedBreakdown
+        ? `<button type="button" class="qs-role-chip qs-role-chip-breakdown" data-qs-breakdown="${escapeAttribute(resolvedBreakdown)}">${escapeHtml(getBiGroupLabel(resolvedBreakdown, project))}</button>`
+        : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>");
+  }
+  if (els.qsAddMetricGhostButton) {
+    if (panelCapabilities.supportsOptionalMetric) {
+      els.qsAddMetricGhostButton.disabled = false;
+      els.qsAddMetricGhostButton.textContent = resolvedOptionalMetric
+        ? "Cambiar medida eje X"
+        : "Agregar medida eje X";
+      els.qsAddMetricGhostButton.title = "Asigna o rota la metrica usada como eje X.";
     } else {
-      els.qsRoleBreakdownList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>";
+      els.qsAddMetricGhostButton.disabled = true;
+      els.qsAddMetricGhostButton.textContent = "Una sola medida";
+      els.qsAddMetricGhostButton.title = "La metrica adicional solo aplica en tipos como Scatter o Bubble.";
     }
+  }
+  if (els.qsAddBreakdownGhostButton) {
+    const canPickBreakdown = panelCapabilities.supportsBreakdown && groupOptions.some((option) => option.value && option.value !== resolvedGroupBy);
+    els.qsAddBreakdownGhostButton.disabled = !canPickBreakdown;
+    if (!panelCapabilities.supportsBreakdown) {
+      els.qsAddBreakdownGhostButton.textContent = "Sin grupo/color";
+      els.qsAddBreakdownGhostButton.title = "Este tipo no usa una dimension secundaria.";
+    } else {
+      els.qsAddBreakdownGhostButton.textContent = resolvedBreakdown
+        ? "Cambiar dimensión"
+        : "Agregar una dimensión";
+      els.qsAddBreakdownGhostButton.title = "Asigna o rota la dimension usada para GRUPO/COLOR.";
+    }
+  }
+  if (els.qsDeleteVisualButton) {
+    els.qsDeleteVisualButton.disabled = !activeVisual;
+    els.qsDeleteVisualButton.title = activeVisual
+      ? "Eliminar el visual seleccionado"
+      : "Selecciona un visual para eliminarlo";
+  }
+  if (quickSightRolePickerFocusRole) {
+    const roleToFocus = quickSightRolePickerFocusRole;
+    quickSightRolePickerFocusRole = "";
+    window.requestAnimationFrame(() => {
+      const picker = document.querySelector(`[data-qs-role-picker-select="${roleToFocus}"]`);
+      if (picker instanceof HTMLSelectElement) {
+        picker.focus();
+        if (typeof picker.showPicker === "function") {
+          try {
+            picker.showPicker();
+          } catch (error) {
+            // Fall back to regular focus if the browser blocks programmatic opening.
+          }
+        }
+      }
+    });
   }
   if (els.qsTopNInput) {
     els.qsTopNInput.value = String(safeTopN);
@@ -8057,7 +9036,13 @@ function renderQuickSightPanel(project, options = {}) {
   syncQuickSightEditMenuInputs(project);
   updateQuickSightZoomMenuUi(project);
   if (els.qsCanvasMetaText) {
-    els.qsCanvasMetaText.textContent = `Visuales: ${project.quickSightVisuals.length} | Filas: ${sourceRows.length} | Pizarra: ${canvasSize.width} x ${canvasSize.height}px | Zoom: ${canvasZoom}%`;
+    const interactionText = activeInteractionFilters.length > 0
+      ? ` | interacciones: ${activeInteractionFilters.length} filtro(s)`
+      : "";
+    const drillText = activeDrillMeta?.enabled
+      ? ` | drill ${activeDrillMeta.currentLevel}/${activeDrillMeta.totalLevels}`
+      : "";
+    els.qsCanvasMetaText.textContent = `Visuales: ${project.quickSightVisuals.length} | Filas: ${sourceRows.length}${currentSearchQuery ? " | filtro global" : ""}${interactionText}${drillText} | Pizarra: ${canvasSize.width} x ${canvasSize.height}px | Zoom: ${canvasZoom}%`;
   }
 
   const searchToken = normalizeLookup(project.quickSightConfig.fieldsSearch || "");
@@ -8066,7 +9051,7 @@ function renderQuickSightPanel(project, options = {}) {
     : catalogFields;
 
   if (els.qsDataSummaryText) {
-    els.qsDataSummaryText.textContent = `${getBiSourceLabel(selectedSource)} | Campos ${filteredCatalogFields.length}/${catalogFields.length}`;
+    els.qsDataSummaryText.textContent = `${getBiSourceLabel(selectedSource)} | Campos ${filteredCatalogFields.length}/${catalogFields.length}${currentSearchQuery ? " | busqueda global activa" : ""}`;
   }
 
   els.qsFieldsList.innerHTML = filteredCatalogFields
@@ -8095,6 +9080,7 @@ function renderQuickSightPanel(project, options = {}) {
   });
 
   if (!softSelect) {
+    disposeQuickSightChartsInContainer(els.qsCanvasBoard);
     if (project.quickSightVisuals.length === 0) {
       els.qsCanvasBoard.innerHTML = `<div class="qs-canvas-zoom-wrap" style="width:${scaledCanvasWidth}px;height:${scaledCanvasHeight}px;">
         <div class="qs-canvas-surface qs-canvas-surface-empty" data-qs-canvas-width="${canvasSize.width}" data-qs-canvas-height="${canvasSize.height}" data-qs-canvas-zoom="${canvasZoom}" style="width:${canvasSize.width}px;height:${canvasSize.height}px;transform:scale(${canvasZoomScale});transform-origin:top left;">
@@ -8102,10 +9088,15 @@ function renderQuickSightPanel(project, options = {}) {
         </div>
       </div>`;
     } else {
-      const visualCardsHtml = project.quickSightVisuals.map((visual, index) => {
+      const visibleVisuals = quickSightExpandedVisualId
+        ? project.quickSightVisuals.filter((visual) => visual.id === quickSightExpandedVisualId)
+        : project.quickSightVisuals.slice();
+      const visualCardsHtml = visibleVisuals.map((visual, index) => {
         const activeClass = visual.id === selectedQuickSightVisualId ? "active" : "";
-        const layout = normalizeQuickSightVisualLayout(visual.layout, index);
-        visual.layout = layout;
+        const storedLayout = normalizeQuickSightVisualLayout(visual.layout, index);
+        visual.layout = storedLayout;
+        ensureQuickSightVisualDrillState(visual);
+        const drillMeta = getQuickSightVisualDrillMeta(visual, project);
         const display = normalizeQuickSightDisplaySettings(visual.display);
         const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
         visual.display = display;
@@ -8119,9 +9110,15 @@ function renderQuickSightPanel(project, options = {}) {
         visual.chartTypeConfig = typeMap;
         visual.labelLayoutV2 = normalizeBiLabelLayoutV2(visual.labelLayoutV2);
         visual.polarLayout = normalizeBiCircularLayout(visual.polarLayout);
+        const currentGroupLabel = getBiGroupLabel(drillMeta.currentGroupBy, project);
+        const drillTag = drillMeta.enabled ? ` | Drill ${drillMeta.currentLevel}/${drillMeta.totalLevels}` : "";
         const subtitle = trimOrFallback(display.subtitle, "")
-          || `${getBiSourceLabel(visual.source)} | ${getBiGroupLabel(visual.groupBy, project)} | ${getBiMetricLabel(visual.metric)}`;
+          || `${getBiSourceLabel(visual.source)} | ${currentGroupLabel} | ${getBiMetricLabel(visual.metric)}${drillTag}`;
         const showHead = display.showTitle || display.showSubtitle;
+        const isExpanded = visual.id === quickSightExpandedVisualId;
+        const layout = isExpanded
+          ? getQuickSightExpandedCanvasLayout(canvasSize)
+          : storedLayout;
         const backgroundColor = display.showBackground
           ? hexToRgba(display.backgroundColor, Math.max(0, Math.min(1, display.backgroundOpacity / 100)), "rgba(255,255,255,1)")
           : "transparent";
@@ -8137,9 +9134,17 @@ function renderQuickSightPanel(project, options = {}) {
         const cardClasses = [
           "qs-visual-card",
           activeClass ? "active" : "",
+          isExpanded ? "is-expanded" : "",
           showHead ? "" : "no-head",
           display.loadAnimation ? "qs-load-anim" : ""
         ].filter(Boolean).join(" ");
+        const sizeLabel = drillMeta.enabled
+          ? `${layout.w} x ${layout.h} | Drill ${drillMeta.currentLevel}/${drillMeta.totalLevels}`
+          : `${layout.w} x ${layout.h}`;
+        const expandLabel = isExpanded ? "Minimizar visual" : "Maximizar visual";
+        const expandIcon = isExpanded
+          ? `<svg viewBox="0 0 16 16" class="qs-visual-icon-svg" aria-hidden="true"><path d="M2 6V2h4"></path><path d="M10 2h4v4"></path><path d="M14 10v4h-4"></path><path d="M6 14H2v-4"></path></svg>`
+          : `<svg viewBox="0 0 16 16" class="qs-visual-icon-svg" aria-hidden="true"><path d="M6 2H2v4"></path><path d="M10 2h4v4"></path><path d="M14 10v4h-4"></path><path d="M6 14H2v-4"></path></svg>`;
         return `<article class="${cardClasses}" data-qs-visual-id="${escapeAttribute(visual.id)}" style="left:${layout.x}px;top:${layout.y}px;width:${layout.w}px;height:${layout.h}px;--qs-card-padding:${display.padding}px;--qs-card-bg:${backgroundColor};--qs-card-border-color:${borderColor};--qs-card-border-width:${borderWidth}px;--qs-card-select-color:${selectionColor};--qs-head-height:${showHead ? 39 : 0}px;--qs-title-font-family:'${escapeAttribute(display.titleFontFamily)}';--qs-title-font-size:${display.titleFontSize}px;--qs-title-color:${escapeAttribute(display.titleColor)};--qs-subtitle-font-family:'${escapeAttribute(display.subtitleFontFamily)}';--qs-subtitle-font-size:${display.subtitleFontSize}px;--qs-subtitle-color:${escapeAttribute(display.subtitleColor)};">
           <div class="qs-visual-head${showHead ? "" : " hidden"}" data-qs-drag-visual="${escapeAttribute(visual.id)}">
             <div>
@@ -8147,11 +9152,17 @@ function renderQuickSightPanel(project, options = {}) {
               ${display.showSubtitle ? `<p class="qs-visual-meta">${escapeHtml(subtitle)}</p>` : ""}
             </div>
             <div class="qs-visual-head-right">
-              <span class="qs-visual-size">${layout.w} x ${layout.h}</span>
+              <button type="button" class="qs-visual-icon-btn" data-qs-card-action="toggle-expand" data-qs-visual-id="${escapeAttribute(visual.id)}" title="${expandLabel}" aria-label="${expandLabel}">
+                ${expandIcon}
+              </button>
+              <span class="qs-visual-size">${escapeHtml(sizeLabel)}</span>
             </div>
           </div>
           <div class="qs-visual-canvas-wrap">
-            <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
+            <div class="qs-visual-chart-host" data-qs-chart-host-id="${escapeAttribute(visual.id)}">
+              <div class="qs-visual-echart-surface hidden" data-qs-echart-surface="${escapeAttribute(visual.id)}"></div>
+              <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
+            </div>
           </div>
           <div class="qs-visual-transform-box" aria-hidden="true">
             <span class="qs-transform-handle" data-qs-resize-handle="nw"></span>
@@ -8171,18 +9182,18 @@ function renderQuickSightPanel(project, options = {}) {
     }
 
     if (project.quickSightVisuals.length > 0) {
-      const canvases = els.qsCanvasBoard.querySelectorAll("canvas[data-qs-canvas-id]");
-      canvases.forEach((canvasNode) => {
-        if (!(canvasNode instanceof HTMLCanvasElement)) {
+      const chartHosts = els.qsCanvasBoard.querySelectorAll("[data-qs-chart-host-id]");
+      chartHosts.forEach((hostNode) => {
+        if (!(hostNode instanceof HTMLElement)) {
           return;
         }
-        const visualId = trimOrFallback(canvasNode.dataset.qsCanvasId, "");
+        const visualId = trimOrFallback(hostNode.dataset.qsChartHostId, "");
         const visual = project.quickSightVisuals.find((item) => item.id === visualId);
         if (!visual) {
           return;
         }
-        const snapshot = buildBiWidgetSnapshot(allRows, visual);
-        paintQuickSightVisualCanvas(canvasNode, project, visual, snapshot);
+        const snapshot = buildQuickSightVisualSnapshot(project, visual, scopedRows);
+        paintQuickSightVisualCanvas(hostNode, project, visual, snapshot);
       });
     }
   } else if (els.qsCanvasBoard instanceof HTMLElement) {
@@ -8207,6 +9218,10 @@ function renderQuickSightPanel(project, options = {}) {
       </div>
       <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? "" : " hidden"}" data-qs-props-tab-panel="interactions">
         <p class="muted">Selecciona un visual para configurar interacciones.</p>
+        <p class="muted">${escapeHtml(getQuickSightInteractionSummary(project))}</p>
+        <div class="inline-actions">
+          <button type="button" class="secondary" data-qs-action="clear-interaction-filters"${activeInteractionFilters.length === 0 ? " disabled" : ""}>Limpiar filtros activos</button>
+        </div>
       </div>
     `;
   } else {
@@ -8223,6 +9238,10 @@ function renderQuickSightPanel(project, options = {}) {
     selectedVisual.display = selectedDisplay;
     selectedVisual.subtitle = selectedDisplay.subtitle;
     selectedVisual.altText = selectedDisplay.altText;
+    const selectedInteractions = normalizeQuickSightInteractionSettings(selectedVisual.interactions, selectedVisual);
+    selectedVisual.interactions = selectedInteractions;
+    ensureQuickSightVisualDrillState(selectedVisual);
+    const selectedDrillMeta = getQuickSightVisualDrillMeta(selectedVisual, project);
     const selectedVisualSettings = normalizeBiVisualSettings(selectedVisual.visualSettings);
     selectedVisual.visualSettings = selectedVisualSettings;
     selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
@@ -8233,8 +9252,11 @@ function renderQuickSightPanel(project, options = {}) {
     }
     selectedVisual.chartTypeConfig = selectedTypeMap;
     const selectedTypeConfig = getBiSpecificChartConfigForWidget(selectedVisual, selectedChartType);
-    const selectedCapabilities = getBiChartCapabilities(selectedChartType);
+    const selectedCapabilities = getQuickSightChartCapabilities(selectedVisual, project.quickSightConfig);
     const selectedTypeSchema = getBiSpecificConfigSchema("chart", selectedChartType);
+    const selectedRenderEngine = normalizeQuickSightRenderEngine(selectedVisual.renderEngine);
+    const selectedRenderMeta = selectedCapabilities.renderMeta || getQuickSightRenderEngineMeta(selectedVisual);
+    const selectedOptionalMetric = getQuickSightVisualOptionalMetric(selectedVisual, project.quickSightConfig);
     const fontFamilyOptions = Array.from(BI_ALLOWED_FONT_FAMILIES);
     const markerStyleOptions = [
       { value: "circle", label: "Circulo" },
@@ -8251,8 +9273,22 @@ function renderQuickSightPanel(project, options = {}) {
     const isLineLike = new Set(["line", "timeseries", "area", "combo", "radar", "pareto"]).has(selectedChartType);
     const isMarkerLike = new Set(["line", "timeseries", "area", "combo", "scatter", "bubble", "radar", "pareto"]).has(selectedChartType);
     const isAreaLike = new Set(["area", "combo"]).has(selectedChartType);
-    const isBarLike = new Set(["bar", "combo", "waterfall", "pareto", "bullet"]).has(selectedChartType);
+    const isBarLike = BI_BAR_FAMILY_TYPES.has(selectedChartType) || new Set(["combo", "waterfall", "pareto", "bullet"]).has(selectedChartType);
     const showBreakdownInSeries = !!selectedCapabilities.supportsBreakdown;
+    const interactionTargetGroupBy = getQuickSightInteractionTargetGroupBy(selectedVisual);
+    const interactionTargetLabel = selectedInteractions.filterBy === "breakdown"
+      ? getBiGroupLabel(normalizeBiOptionalGroupBy(selectedVisual.breakdownDimension || ""), project)
+      : getBiGroupLabel(interactionTargetGroupBy, project);
+    const drillLevelOptions = [{ value: "", label: "(sin siguiente nivel)" }, ...groupOptions];
+    const drillLevelInputsHtml = Array.from({ length: QUICKSIGHT_DRILL_PATH_SLOTS }, (_, index) => {
+      const value = selectedInteractions.drillPath[index] || "";
+      return `<label class="qs-props-row">
+        Nivel ${index + 2}
+        <select data-qs-prop="interaction:drillPath${index}">
+          ${drillLevelOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === value ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>`;
+    }).join("");
     const showSortInSeries = !!selectedCapabilities.supportsSortMode;
     const showReferenceLines = !!selectedCapabilities.supportsReferenceLine;
     const showDataLabelsSection = !!selectedCapabilities.supportsDataLabels;
@@ -8341,7 +9377,16 @@ function renderQuickSightPanel(project, options = {}) {
                 ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedChartType ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
               </select>
             </label>
+            <label class="qs-props-row">
+              Motor render
+              <select data-qs-prop="renderEngine">
+                <option value="auto"${selectedRenderEngine === "auto" ? " selected" : ""}>Automatico</option>
+                <option value="echarts"${selectedRenderEngine === "echarts" ? " selected" : ""}>ECharts</option>
+                <option value="canvas"${selectedRenderEngine === "canvas" ? " selected" : ""}>Canvas clasico</option>
+              </select>
+            </label>
           </div>
+          <p class="muted">Motor actual: ${escapeHtml(selectedRenderMeta.resolved === "echarts" ? "ECharts" : "Canvas")} | ${escapeHtml(selectedRenderMeta.note)}</p>
           <div class="qs-props-check-grid">
             <label class="qs-props-check"><input data-qs-prop="display:showTitle" type="checkbox"${selectedDisplay.showTitle ? " checked" : ""}><span>Mostrar titulo</span></label>
             <label class="qs-props-check"><input data-qs-prop="display:showSubtitle" type="checkbox"${selectedDisplay.showSubtitle ? " checked" : ""}><span>Mostrar subtitulo</span></label>
@@ -8392,6 +9437,13 @@ function renderQuickSightPanel(project, options = {}) {
                 ${breakdownOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === resolvedBreakdown ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
               </select>
             </label>` : ""}
+            ${selectedCapabilities.supportsOptionalMetric ? `<label class="qs-props-row">
+              Metrica eje X
+              <select data-qs-prop="optionalMetric">
+                <option value="">Automatico (UP Base total)</option>
+                ${metricOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedOptionalMetric ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+              </select>
+            </label>` : ""}
             <label class="qs-props-row">
               Top N
               <input data-qs-prop="topN" type="number" min="1" max="60" step="1" value="${escapeAttribute(String(selectedVisual.topN))}">
@@ -8435,6 +9487,7 @@ function renderQuickSightPanel(project, options = {}) {
           ${selectedCapabilities.supportsStack ? `<label class="qs-props-row">Stacking<select data-qs-prop="visual:stackMode"><option value="none"${selectedVisualSettings.stackMode === "none" ? " selected" : ""}>Ninguno</option><option value="normal"${selectedVisualSettings.stackMode === "normal" ? " selected" : ""}>Normal</option><option value="percent"${selectedVisualSettings.stackMode === "percent" ? " selected" : ""}>100%</option></select></label>` : ""}
           ${isLineLike ? `<label class="qs-props-check"><input data-qs-prop="visual:smoothLines" type="checkbox"${selectedVisualSettings.smoothLines ? " checked" : ""}><span>Suavizar lineas</span></label>` : ""}
         </div>
+        ${selectedCapabilities.supportsOptionalMetric ? `<p class="muted">Si queda vacio, QuickSight usa UP Base total como eje X para este tipo.</p>` : ""}
       </details>
 
       ${selectedCapabilities.supportsLegend ? `<details class="qs-props-section" data-qs-props-section="legend" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "legend", false)}>
@@ -8481,12 +9534,12 @@ function renderQuickSightPanel(project, options = {}) {
               </select>
             </label>
             <label class="qs-props-row">
-              Min Y
-              <input data-qs-prop="visual:axisMin" type="number" step="0.1" value="${escapeAttribute(selectedVisualSettings.axisMin ?? "")}">
+              Min eje numerico
+              <input data-qs-prop="visual:axisMin" type="number" step="0.1" placeholder="Automatico" value="${escapeAttribute(selectedVisualSettings.axisMin ?? "")}">
             </label>
             <label class="qs-props-row">
-              Max Y
-              <input data-qs-prop="visual:axisMax" type="number" step="0.1" value="${escapeAttribute(selectedVisualSettings.axisMax ?? "")}">
+              Max eje numerico
+              <input data-qs-prop="visual:axisMax" type="number" step="0.1" placeholder="Automatico" value="${escapeAttribute(selectedVisualSettings.axisMax ?? "")}">
             </label>
             <label class="qs-props-row">
               Fuente eje
@@ -8624,36 +9677,80 @@ function renderQuickSightPanel(project, options = {}) {
         <details class="qs-props-section" data-qs-props-section="interactions" data-qs-props-tab-context="interactions"${getQuickSightPropsSectionOpenAttr("interactions", "interactions", true)}>
           <summary>Interacciones</summary>
           <div class="qs-props-section-body">
-            <p class="muted">Configura aqu? el comportamiento entre visuales y filtros.</p>
-            <p class="muted">La configuración avanzada de interacciones se ampliará en la siguiente fase.</p>
+            <p class="muted">${selectedInteractions.clickAction === "drill_down"
+              ? "Haz click sobre un dato del visual para bajar al siguiente nivel de la jerarquia."
+              : (selectedInteractions.clickAction === "drill_through"
+                ? "Haz click sobre un dato del visual para abrir el detalle real de las filas subyacentes."
+              : (selectedInteractions.clickAction === "cross_filter"
+                ? "Haz click sobre un dato del visual para filtrar el resto de la hoja."
+                : "El click del visual no ejecuta ninguna accion."))}</p>
+            <div class="qs-props-layout-grid">
+              <label class="qs-props-row">
+                Accion al hacer click
+                <select data-qs-prop="interaction:clickAction">
+                  <option value="drill_down"${selectedInteractions.clickAction === "drill_down" ? " selected" : ""}>Drill-down</option>
+                  <option value="drill_through"${selectedInteractions.clickAction === "drill_through" ? " selected" : ""}>Drill-through</option>
+                  <option value="cross_filter"${selectedInteractions.clickAction === "cross_filter" ? " selected" : ""}>Aplicar filtro cruzado</option>
+                  <option value="none"${selectedInteractions.clickAction === "none" ? " selected" : ""}>Sin accion</option>
+                </select>
+              </label>
+              ${new Set(["cross_filter", "drill_through"]).has(selectedInteractions.clickAction) ? `<label class="qs-props-row">
+                ${selectedInteractions.clickAction === "drill_through" ? "Campo a detallar" : "Campo a filtrar"}
+                <select data-qs-prop="interaction:filterBy">
+                  <option value="group"${selectedInteractions.filterBy === "group" ? " selected" : ""}>Dimension principal</option>
+                  <option value="breakdown"${selectedInteractions.filterBy === "breakdown" ? " selected" : ""}${normalizeBiOptionalGroupBy(selectedVisual.breakdownDimension || "") ? "" : " disabled"}>Grupo / color</option>
+                </select>
+              </label>
+              ${selectedInteractions.clickAction === "cross_filter" ? `<label class="qs-props-row">
+                Alcance
+                <select data-qs-prop="interaction:scope">
+                  <option value="all"${selectedInteractions.scope === "all" ? " selected" : ""}>Toda la hoja</option>
+                  <option value="same_source"${selectedInteractions.scope === "same_source" ? " selected" : ""}>Solo misma fuente</option>
+                </select>
+              </label>
+              <label class="qs-props-check">
+                <input data-qs-prop="interaction:appendWithModifier" type="checkbox"${selectedInteractions.appendWithModifier ? " checked" : ""}>
+                <span>Permitir multi-filtro con Ctrl/Cmd</span>
+              </label>` : ""}`
+                : (selectedInteractions.clickAction === "drill_down" ? drillLevelInputsHtml : "")}
+            </div>
+            ${new Set(["cross_filter", "drill_through"]).has(selectedInteractions.clickAction)
+              ? `<p class="muted">Campo objetivo actual: ${escapeHtml(interactionTargetLabel)}</p>`
+              : ""}
+            ${selectedInteractions.clickAction === "drill_down"
+              ? `<p class="muted">${selectedDrillMeta.sequence.length > 1
+                ? `Jerarquia configurada: ${escapeHtml(selectedDrillMeta.sequenceText)}`
+                : "Configura al menos un siguiente nivel para habilitar el drill-down."}</p>
+                 <p class="muted">Nivel actual: ${escapeHtml(getBiGroupLabel(selectedDrillMeta.currentGroupBy, project))}</p>
+                 <p class="muted">${escapeHtml(selectedDrillMeta.breadcrumbText)}</p>
+                 <div class="inline-actions">
+                   <button type="button" class="secondary" data-qs-action="drill-up"${selectedDrillMeta.canDrillUp ? "" : " disabled"}>Subir nivel</button>
+                   <button type="button" class="secondary" data-qs-action="drill-reset"${selectedDrillMeta.canDrillUp ? "" : " disabled"}>Reiniciar drill</button>
+                 </div>`
+              : ""}
+            <p class="muted">${escapeHtml(getQuickSightInteractionSummary(project))}</p>
+            <div class="inline-actions">
+              <button type="button" class="secondary" data-qs-action="clear-interaction-filters"${activeInteractionFilters.length === 0 ? " disabled" : ""}>Limpiar filtros activos</button>
+            </div>
           </div>
         </details>
       </div>
     `;
   }
+  syncQuickSightHistoryState(project);
+  syncQuickSightHistoryButtons(project);
+  renderQuickSightDrillThroughDrawer(project);
 }
 
-function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
+function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
+  if (!(chartHost instanceof HTMLElement)) {
+    return;
+  }
+  const canvas = chartHost.querySelector("canvas[data-qs-canvas-id]");
+  const echartSurface = chartHost.querySelector("[data-qs-echart-surface]");
   if (!(canvas instanceof HTMLCanvasElement)) {
     return;
   }
-  const width = Math.max(220, Math.round(canvas.clientWidth || 420));
-  const height = Math.max(180, Math.round(canvas.clientHeight || 260));
-  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
-  canvas.dataset.biRenderWidth = String(width);
-  canvas.dataset.biRenderHeight = String(height);
-  canvas.dataset.biDpr = String(dpr);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return;
-  }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
   const chartType = normalizeBiChartType(visual.chartType || "bar");
   const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
   visual.visualSettings = visualSettings;
@@ -8670,7 +9767,30 @@ function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
   visual.labelLayoutV2 = safeLabelLayout;
   visual.labelOffsets = safeLabelOffsets;
   visual.polarLayout = safePolarLayout;
+  const width = Math.max(220, Math.round(canvas.clientWidth || chartHost.clientWidth || 420));
+  const height = Math.max(180, Math.round(canvas.clientHeight || chartHost.clientHeight || 260));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  canvas.dataset.biRenderWidth = String(width);
+  canvas.dataset.biRenderHeight = String(height);
+  canvas.dataset.biDpr = String(dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
   if (!snapshot || !Array.isArray(snapshot.rows) || snapshot.rows.length === 0) {
+    disposeQuickSightChartSurface(echartSurface);
+    if (echartSurface instanceof HTMLElement) {
+      echartSurface.classList.add("hidden");
+    }
+    chartHost.dataset.qsRenderEngine = "canvas";
+    canvas.classList.remove("hidden");
+    canvas.style.display = "";
     canvas.__qsHoverState = null;
     canvas.style.cursor = "default";
     drawBiWidgetFallbackPreview(ctx, snapshot || null, width, height, true);
@@ -8680,6 +9800,46 @@ function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
   const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
   const labels = snapshot.rows.map((row) => row.label);
   const values = snapshot.rows.map((row) => row.value);
+  if (echartSurface instanceof HTMLElement && shouldUseQuickSightECharts(visual, snapshot)) {
+    const adapter = getQuickSightEChartsAdapter();
+    const chartTypeConfig = normalizeBiChartTypeSpecificConfig(
+      typeConfigMap[chartType],
+      chartType
+    );
+    echartSurface.classList.remove("hidden");
+    const renderResult = adapter?.renderQuickSightChart?.(echartSurface, {
+      chartType,
+      rows: snapshot.rows,
+      colors: seriesColors,
+      visualSettings,
+      chartConfig,
+      typeConfig: chartTypeConfig,
+      metric: visual.metric || visual.dataRoles?.metrics?.[0] || "count",
+      metricLabel: getBiMetricLabel(visual.metric || visual.dataRoles?.metrics?.[0] || "count")
+    });
+    if (renderResult?.rendered && renderResult.chart) {
+      chartHost.dataset.qsRenderEngine = "echarts";
+      canvas.classList.add("hidden");
+      canvas.style.display = "none";
+      canvas.__qsHoverState = {
+        visual,
+        rows: snapshot.rows,
+        chartType,
+        model: { type: "none", items: [] },
+        hoverIndex: -1,
+        echartsManaged: true
+      };
+      bindQuickSightEChartsInteractions(echartSurface, renderResult.chart, project, visual, snapshot);
+      return;
+    }
+  }
+  disposeQuickSightChartSurface(echartSurface);
+  if (echartSurface instanceof HTMLElement) {
+    echartSurface.classList.add("hidden");
+  }
+  chartHost.dataset.qsRenderEngine = "canvas";
+  canvas.classList.remove("hidden");
+  canvas.style.display = "";
   const initialModel = drawBiWidgetChart(
     canvas,
     chartType,
@@ -8696,6 +9856,7 @@ function paintQuickSightVisualCanvas(canvas, project, visual, snapshot) {
     typeConfigMap
   );
   canvas.__qsHoverState = {
+    visual,
     chartType,
     labels,
     values,
@@ -9677,22 +10838,33 @@ function normalizeBiOptionalGroupBy(value) {
   return normalizeBiGroupBy(token);
 }
 
+function hasOwnObjectKey(value, key) {
+  return !!value
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function getOwnObjectValue(value, key, fallback = undefined) {
+  return hasOwnObjectKey(value, key) ? value[key] : fallback;
+}
+
 function getBiChartCapabilities(chartType) {
   const type = normalizeBiChartType(chartType || "bar");
   const noAxisTypes = new Set(["pie", "donut", "treemap", "funnel", "gauge", "scorecard", "table", "pivot", "sankey", "timeline"]);
   const legendTypes = new Set(["pie", "donut"]);
-  const stackTypes = new Set(["bar", "area", "combo"]);
+  const stackTypes = new Set(["bar", "bar_horizontal", "bar_stacked", "area", "combo"]);
   const breakdownTypes = new Set([
-    "bar", "line", "timeseries", "area", "combo",
+    "bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo",
     "pie", "donut", "scatter", "bubble",
     "treemap", "funnel", "waterfall", "radar", "pareto",
     "pivot", "sankey"
   ]);
   const optionalMetricTypes = new Set(["scatter", "bubble", "bullet", "candlestick", "boxplot"]);
   const dateRequiredTypes = new Set(["timeseries", "timeline", "candlestick"]);
-  const referenceLineTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pareto", "bullet"]);
-  const dataLabelTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto"]);
-  const sortModeTypes = new Set(["bar", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto", "gauge", "bullet", "boxplot", "candlestick", "scorecard", "table"]);
+  const referenceLineTypes = new Set(["bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo", "pareto", "bullet"]);
+  const dataLabelTypes = new Set(["bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto"]);
+  const sortModeTypes = new Set(["bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo", "pie", "donut", "scatter", "bubble", "treemap", "funnel", "waterfall", "radar", "pareto", "gauge", "bullet", "boxplot", "candlestick", "scorecard", "table"]);
   return {
     type,
     usesAxes: !noAxisTypes.has(type),
@@ -9914,13 +11086,19 @@ function createBiChartProfile(chartType) {
     addSections(["axes", "series", "legend", "target"]);
     return { controls: all, sections, description: "Configuracion para grafico combinado (lineas + barras)." };
   }
-  if (type === "bar" || type === "pareto" || type === "waterfall") {
+  if (BI_BAR_FAMILY_TYPES.has(type) || type === "pareto" || type === "waterfall") {
     addControls(legend);
     addControls(axes);
     addControls(["biBarWidthRatioInput", "biStackModeSelect", "biShowDataLabelsCheckbox"]);
     addControls(target);
     addSections(["axes", "series", "legend", "target"]);
-    return { controls: all, sections, description: "Configuracion para grafico de barras/cartesiano." };
+    return {
+      controls: all,
+      sections,
+      description: BI_HORIZONTAL_BAR_TYPES.has(type)
+        ? "Configuracion para grafico de barras horizontales."
+        : "Configuracion para grafico de barras/cartesiano."
+    };
   }
   if (type === "scatter" || type === "bubble") {
     addControls(axes);
@@ -10164,7 +11342,7 @@ function getBiSpecificConfigSchema(kind, chartType) {
     ];
     return base;
   }
-  if (safeType === "line" || safeType === "timeseries" || safeType === "area" || safeType === "combo" || safeType === "bar") {
+  if (safeType === "line" || safeType === "timeseries" || safeType === "area" || safeType === "combo" || BI_BAR_FAMILY_TYPES.has(safeType)) {
     base.fields = [{ key: "labelMinValue", label: "Mín. valor para label", type: "number", min: -1000000, max: 1000000, step: 0.1 }];
     return base;
   }
@@ -10272,7 +11450,7 @@ function applyBiSpecificConfigChange(input, options = {}) {
     setBiSpecificChartConfigForWidget(widget, chartType, next);
   }
   saveState();
-  const filteredRows = filterBiRows(collectBiRows(project), project.biConfig);
+  const filteredRows = queryBiProjectRows(project, project.biConfig);
   renderBiWidgets(project, filteredRows);
   if (options.refreshInspector) {
     syncBiInputs(project.biConfig);
@@ -10488,131 +11666,75 @@ function getBiCatalogFieldTypeToken(type) {
   return "ABC";
 }
 
-function getBiCatalogFields(project, source) {
-  const fieldsBySource = {
-    deliverable: [
-      { name: "Ref", type: "text" },
-      { name: "Nomenclatura", type: "text" },
-      { name: "Proyecto", type: "text", groupBy: "proyecto" },
-      { name: "Disciplina", type: "text", groupBy: "disciplina" },
-      { name: "Sistema", type: "text", groupBy: "sistema" },
-      { name: "Paquete", type: "text", groupBy: "paquete" },
-      { name: "Creador", type: "text", groupBy: "creador" },
-      { name: "Fase", type: "text", groupBy: "fase" },
-      { name: "Sector", type: "text", groupBy: "sector" },
-      { name: "Nivel", type: "text", groupBy: "nivel" },
-      { name: "Tipo", type: "text", groupBy: "tipo" },
-      { name: "Fecha inicio", type: "date" },
-      { name: "Fecha fin", type: "date" },
-      { name: "UP Base", type: "number", metric: "baseunits" },
-      { name: "Programado", type: "percent", metric: "programmedavg" },
-      { name: "Avance Real", type: "percent", metric: "realavg" },
-      { name: "Avance Programado Proyecto", type: "calc", metric: "weightedprogrammed" },
-      { name: "Avance Real Proyecto", type: "calc", metric: "weightedreal" },
-      { name: "Estado", type: "text" },
-      { name: "Creado", type: "date" }
-    ],
-    package: [
-      { name: "Combinacion", type: "text" },
-      { name: "Proyecto", type: "text", groupBy: "proyecto" },
-      { name: "Disciplina", type: "text", groupBy: "disciplina" },
-      { name: "Sistema", type: "text", groupBy: "sistema" },
-      { name: "Paquete", type: "text", groupBy: "paquete" },
-      { name: "Fecha inicio", type: "date" },
-      { name: "Fecha fin", type: "date" },
-      { name: "UP Base", type: "number", metric: "baseunits" },
-      { name: "Programado", type: "percent", metric: "programmedavg" },
-      { name: "Avance Real", type: "percent", metric: "realavg" },
-      { name: "Avance Programado Proyecto", type: "calc", metric: "weightedprogrammed" },
-      { name: "Avance Real Proyecto", type: "calc", metric: "weightedreal" },
-      { name: "Estado", type: "text" },
-      { name: "Creado", type: "date" }
-    ],
-    "review-control": [
-      { name: "Combinacion", type: "text" },
-      { name: "Hito", type: "text", groupBy: "hito" },
-      { name: "Proyecto", type: "text", groupBy: "proyecto" },
-      { name: "Disciplina", type: "text", groupBy: "disciplina" },
-      { name: "Sistema", type: "text", groupBy: "sistema" },
-      { name: "Fecha inicio", type: "date" },
-      { name: "Fecha fin", type: "date" },
-      { name: "UP Base", type: "number", metric: "baseunits" },
-      { name: "Programado", type: "percent", metric: "programmedavg" },
-      { name: "Avance Real", type: "percent", metric: "realavg" },
-      { name: "Avance Programado Proyecto", type: "calc", metric: "weightedprogrammed" },
-      { name: "Avance Real Proyecto", type: "calc", metric: "weightedreal" },
-      { name: "Estado", type: "text" },
-      { name: "Creado", type: "date" }
-    ]
-  };
-
-  const selectedSources = source === "all"
-    ? ["deliverable", "package", "review-control"]
-    : [source];
-  const catalog = [];
-
-  selectedSources.forEach((sourceKey) => {
-    const sourceLabel = getBiSourceLabel(sourceKey);
-    const sourceFields = fieldsBySource[sourceKey] || [];
-    sourceFields.forEach((field) => {
-      catalog.push({
-        source: sourceLabel,
-        name: field.name,
-        type: field.type,
-        groupBy: trimOrFallback(field.groupBy, ""),
-        metric: trimOrFallback(field.metric, "")
-      });
-    });
-  });
-
-  if (selectedSources.includes("deliverable")) {
-    getBiCustomFieldDefs(project).forEach((field) => {
-      catalog.push({
-        source: getBiSourceLabel("deliverable"),
-        name: field.label,
-        type: "text",
-        groupBy: `field:${field.id}`,
-        metric: ""
-      });
-    });
+function getBiProjectQueryApi() {
+  if (typeof window === "undefined" || !window.MIDPBIProjectQuery || typeof window.MIDPBIProjectQuery !== "object") {
+    return null;
   }
+  return window.MIDPBIProjectQuery;
+}
 
-  const metricCatalog = [
-    { name: "Record Count", type: "number", metric: "count" },
-    { name: "UP Base total", type: "number", metric: "baseunits" },
-    { name: "UP Base promedio", type: "calc", metric: "baseavg" },
-    { name: "UP Base max", type: "calc", metric: "basemax" },
-    { name: "UP Base min", type: "calc", metric: "basemin" },
-    { name: "Avance real promedio", type: "percent", metric: "realavg" },
-    { name: "Avance real max", type: "percent", metric: "realmax" },
-    { name: "Avance real min", type: "percent", metric: "realmin" },
-    { name: "Avance programado promedio", type: "percent", metric: "programmedavg" },
-    { name: "Avance programado max", type: "percent", metric: "programmedmax" },
-    { name: "Avance programado min", type: "percent", metric: "programmedmin" },
-    { name: "Avance real proyecto", type: "percent", metric: "weightedreal" },
-    { name: "Avance programado proyecto", type: "percent", metric: "weightedprogrammed" },
-    { name: "Brecha real - programado", type: "calc", metric: "weightedgap" },
-    { name: "Fechas invertidas", type: "calc", metric: "invaliddates" }
-  ];
-  metricCatalog.forEach((item) => {
-    catalog.push({
-      source: "Metricas",
-      name: item.name,
-      type: item.type,
-      groupBy: "",
-      metric: item.metric
-    });
+function createBiProjectQueryService(project) {
+  const api = getBiProjectQueryApi();
+  if (!project || !api || typeof api.createProjectQueryService !== "function") {
+    return null;
+  }
+  return api.createProjectQueryService({
+    project,
+    getSourceLabel: getBiSourceLabel,
+    getCustomFieldDefs: getBiCustomFieldDefs,
+    normalizeSource: normalizeBiSource,
+    collectRows: collectBiRows,
+    filterRows: filterBiRows,
+    trimOrFallback
   });
+}
 
-  const seen = new Set();
-  return catalog.filter((item) => {
-    const key = `${item.source}|${item.name}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
+function getBiCatalogFields(project, source) {
+  const service = createBiProjectQueryService(project);
+  if (!service || typeof service.getCatalogFields !== "function") {
+    return [];
+  }
+  return service.getCatalogFields(source || "all");
+}
+
+function buildBiQuerySchemaFields(project, source = "all") {
+  const service = createBiProjectQueryService(project);
+  if (!service || typeof service.getSchemaFields !== "function") {
+    return [];
+  }
+  return service.getSchemaFields(source);
+}
+
+function createBiProjectQueryAdapter(project) {
+  const service = createBiProjectQueryService(project);
+  if (!service || typeof service.createAdapter !== "function") {
+    return null;
+  }
+  return service.createAdapter();
+}
+
+function queryBiProjectRows(project, rawConfig = null) {
+  const service = createBiProjectQueryService(project);
+  if (!service || typeof service.queryRows !== "function") {
+    return [];
+  }
+  return service.queryRows(rawConfig);
+}
+
+function queryQuickSightProjectRows(project) {
+  if (!project) {
+    return [];
+  }
+  const baseRows = queryBiProjectRows(project, {
+    source: "all",
+    startDate: "",
+    endDate: "",
+    textFilter: "",
+    invalidOnly: false,
+    crossFilters: [],
+    crossFilterScope: "all"
   });
+  return filterQuickSightRowsByInteractions(baseRows, project.quickSightConfig);
 }
 
 function renderBiFieldCatalog(project) {
@@ -10897,278 +12019,63 @@ function renderBiPerformancePanel(project, rows) {
   els.biPerfSummaryText.textContent = summaryParts.join(" | ");
 }
 
-function buildBiSearchBlob(row) {
-  return normalizeLookup([
-    row.sourceLabel,
-    row.itemLabel,
-    row.projectLabel,
-    row.disciplineLabel,
-    row.systemLabel,
-    row.packageLabel,
-    row.milestoneLabel,
-    row.creatorLabel,
-    row.phaseLabel,
-    row.sectorLabel,
-    row.levelLabel,
-    row.typeLabel,
-    row.startDate,
-    row.endDate,
-    formatNumberForInput(row.baseUnits),
-    formatPercent(row.programmedPercent, 2),
-    formatPercent(row.realProgress, 2),
-    formatPercent(row.weightedProgrammed, 2),
-    formatPercent(row.weightedReal, 2),
-    row.statusLabel,
-    row.customText
-  ].join(" "));
+function getBiLocalDataApi() {
+  if (typeof window === "undefined" || !window.MIDPBILocalData || typeof window.MIDPBILocalData !== "object") {
+    return null;
+  }
+  return window.MIDPBILocalData;
+}
+
+function createBiLocalDataService(project = null) {
+  const api = getBiLocalDataApi();
+  if (!api || typeof api.createLocalProjectDataService !== "function") {
+    return null;
+  }
+  return api.createLocalProjectDataService({
+    project,
+    ensurePackageControls,
+    ensureReviewControls,
+    ensureReviewMilestones,
+    getPackageControlFieldIds,
+    collectDeliverableMetricsByPackageKey,
+    getFieldRowData: getBiFieldRowData,
+    findFieldIdByAlias,
+    getCustomValuesFromRefs: getBiCustomValuesFromRefs,
+    sanitizeDateInput,
+    isDateRangeInvalid,
+    buildProgressSnapshot,
+    sanitizeBaseUnits,
+    sanitizeRealProgress,
+    getSourceLabel: getBiSourceLabel,
+    trimOrFallback,
+    buildPackageControlCode,
+    computeProjectIncidenceRatio,
+    computeWeightedProjectProgress,
+    normalizeLookup,
+    formatNumberForInput,
+    formatPercent,
+    normalizeSource: normalizeBiSource,
+    normalizeCrossFilterScope: normalizeBiCrossFilterScope,
+    normalizeCrossFilters: normalizeBiCrossFilters,
+    rowMatchesCrossFilter: rowMatchesBiCrossFilter,
+    getGlobalSearchQuery: () => currentSearchQuery
+  });
 }
 
 function collectBiRows(project) {
-  ensurePackageControls(project);
-  ensureReviewControls(project);
-  ensureReviewMilestones(project);
-
-  const fields = project.fields || [];
-  const packageFieldIds = getPackageControlFieldIds(fields);
-  const metricsByPackageKey = collectDeliverableMetricsByPackageKey(project, packageFieldIds);
-  const milestoneMap = new Map(project.reviewMilestones.map((item) => [item.id, item]));
-  const rows = [];
-
-  const creatorFieldId = findFieldIdByAlias(fields, ["creador"]);
-  const phaseFieldId = findFieldIdByAlias(fields, ["fase"]);
-  const sectorFieldId = findFieldIdByAlias(fields, ["sector"]);
-  const levelFieldId = findFieldIdByAlias(fields, ["nivel"]);
-  const typeFieldId = findFieldIdByAlias(fields, ["tipo"]);
-
-  project.deliverables.forEach((item) => {
-    const rowRefs = item.rowRefs || {};
-    const projectData = getBiFieldRowData(fields, packageFieldIds.projectFieldId, rowRefs[packageFieldIds.projectFieldId]);
-    const disciplineData = getBiFieldRowData(fields, packageFieldIds.disciplineFieldId, rowRefs[packageFieldIds.disciplineFieldId]);
-    const systemData = getBiFieldRowData(fields, packageFieldIds.systemFieldId, rowRefs[packageFieldIds.systemFieldId]);
-    const packageData = getBiFieldRowData(fields, packageFieldIds.packageFieldId, rowRefs[packageFieldIds.packageFieldId]);
-    const creatorData = getBiFieldRowData(fields, creatorFieldId, rowRefs[creatorFieldId]);
-    const phaseData = getBiFieldRowData(fields, phaseFieldId, rowRefs[phaseFieldId]);
-    const sectorData = getBiFieldRowData(fields, sectorFieldId, rowRefs[sectorFieldId]);
-    const levelData = getBiFieldRowData(fields, levelFieldId, rowRefs[levelFieldId]);
-    const typeData = getBiFieldRowData(fields, typeFieldId, rowRefs[typeFieldId]);
-    const customValues = getBiCustomValuesFromRefs(project, rowRefs);
-    const customText = Object.values(customValues).filter((value) => !!value).join(" ");
-    const startDate = sanitizeDateInput(item.startDate || "");
-    const endDate = sanitizeDateInput(item.endDate || "");
-    const invalidDates = isDateRangeInvalid(startDate, endDate);
-    const progress = invalidDates
-      ? { label: "Fechas invertidas", percent: null }
-      : buildProgressSnapshot(startDate, endDate);
-    const baseUnitsRaw = sanitizeBaseUnits(item.baseUnits);
-    const baseUnits = baseUnitsRaw === "" ? 0 : baseUnitsRaw;
-    const realProgressRaw = sanitizeRealProgress(item.realProgress);
-    const realProgress = realProgressRaw === "" ? null : realProgressRaw;
-    const row = {
-      source: "deliverable",
-      sourceLabel: getBiSourceLabel("deliverable"),
-      itemId: item.id,
-      itemLabel: trimOrFallback(item.code, "") || trimOrFallback(item.ref, ""),
-      ref: trimOrFallback(item.ref, ""),
-      code: trimOrFallback(item.code, ""),
-      startDate,
-      endDate,
-      monthStart: startDate ? startDate.slice(0, 7) : "",
-      monthEnd: endDate ? endDate.slice(0, 7) : "",
-      baseUnits,
-      programmedPercent: progress.percent,
-      realProgress,
-      weightedProgrammed: null,
-      weightedReal: null,
-      invalidDates,
-      statusLabel: progress.label,
-      createdAt: trimOrFallback(item.createdAt, ""),
-      projectLabel: projectData.label || project.name,
-      disciplineLabel: disciplineData.label,
-      systemLabel: systemData.label,
-      packageLabel: packageData.label,
-      milestoneLabel: "",
-      creatorLabel: creatorData.label,
-      phaseLabel: phaseData.label,
-      sectorLabel: sectorData.label,
-      levelLabel: levelData.label,
-      typeLabel: typeData.label,
-      customValues,
-      customText
-    };
-    row.searchBlob = buildBiSearchBlob(row);
-    rows.push(row);
-  });
-
-  project.packageControls.forEach((item) => {
-    const projectData = getBiFieldRowData(fields, packageFieldIds.projectFieldId, item.projectRowId);
-    const disciplineData = getBiFieldRowData(fields, packageFieldIds.disciplineFieldId, item.disciplineRowId);
-    const systemData = getBiFieldRowData(fields, packageFieldIds.systemFieldId, item.systemRowId);
-    const packageData = getBiFieldRowData(fields, packageFieldIds.packageFieldId, item.packageRowId);
-    const startDate = sanitizeDateInput(item.startDate || "");
-    const endDate = sanitizeDateInput(item.endDate || "");
-    const invalidDates = isDateRangeInvalid(startDate, endDate);
-    const progress = invalidDates
-      ? { label: "Fechas invertidas", percent: null }
-      : buildProgressSnapshot(startDate, endDate);
-    const metrics = metricsByPackageKey.get(item.key) || null;
-    const baseUnitsRaw = sanitizeBaseUnits(metrics?.baseUnitsTotal);
-    const baseUnits = baseUnitsRaw === "" ? 0 : baseUnitsRaw;
-    const realProgressRaw = sanitizeRealProgress(item.realProgress);
-    const realProgress = realProgressRaw === "" ? null : realProgressRaw;
-    const keyLabel = buildPackageControlCode(project, [
-      { code: projectData.code, name: projectData.name },
-      { code: disciplineData.code, name: disciplineData.name },
-      { code: systemData.code, name: systemData.name },
-      { code: packageData.code, name: packageData.name }
-    ]) || trimOrFallback(item.key, "");
-    const row = {
-      source: "package",
-      sourceLabel: getBiSourceLabel("package"),
-      itemId: item.id,
-      itemLabel: keyLabel,
-      ref: "",
-      code: keyLabel,
-      startDate,
-      endDate,
-      monthStart: startDate ? startDate.slice(0, 7) : "",
-      monthEnd: endDate ? endDate.slice(0, 7) : "",
-      baseUnits,
-      programmedPercent: progress.percent,
-      realProgress,
-      weightedProgrammed: null,
-      weightedReal: null,
-      invalidDates,
-      statusLabel: progress.label,
-      createdAt: trimOrFallback(item.createdAt, ""),
-      projectLabel: projectData.label || project.name,
-      disciplineLabel: disciplineData.label,
-      systemLabel: systemData.label,
-      packageLabel: packageData.label,
-      milestoneLabel: "",
-      creatorLabel: "",
-      phaseLabel: "",
-      sectorLabel: "",
-      levelLabel: "",
-      typeLabel: "",
-      customValues: {},
-      customText: ""
-    };
-    row.searchBlob = buildBiSearchBlob(row);
-    rows.push(row);
-  });
-
-  project.reviewControls.forEach((item) => {
-    const projectData = getBiFieldRowData(fields, packageFieldIds.projectFieldId, item.projectRowId);
-    const disciplineData = getBiFieldRowData(fields, packageFieldIds.disciplineFieldId, item.disciplineRowId);
-    const systemData = getBiFieldRowData(fields, packageFieldIds.systemFieldId, item.systemRowId);
-    const milestone = milestoneMap.get(item.milestoneId) || null;
-    const milestoneLabel = trimOrFallback(milestone?.name, "");
-    const startDate = sanitizeDateInput(item.startDate || "");
-    const endDate = sanitizeDateInput(item.endDate || "");
-    const invalidDates = isDateRangeInvalid(startDate, endDate);
-    const progress = invalidDates
-      ? { label: "Fechas invertidas", percent: null }
-      : buildProgressSnapshot(startDate, endDate);
-    const baseUnitsRaw = sanitizeBaseUnits(milestone?.baseUnits ?? item.baseUnits);
-    const baseUnits = baseUnitsRaw === "" ? 0 : baseUnitsRaw;
-    const realProgressRaw = sanitizeRealProgress(item.realProgress);
-    const realProgress = realProgressRaw === "" ? null : realProgressRaw;
-    const combination = buildPackageControlCode(project, [
-      { code: projectData.code, name: projectData.name },
-      { code: disciplineData.code, name: disciplineData.name },
-      { code: systemData.code, name: systemData.name }
-    ]);
-    const row = {
-      source: "review-control",
-      sourceLabel: getBiSourceLabel("review-control"),
-      itemId: item.id,
-      itemLabel: [combination, milestoneLabel].filter((token) => !!token).join(" | "),
-      ref: "",
-      code: combination,
-      startDate,
-      endDate,
-      monthStart: startDate ? startDate.slice(0, 7) : "",
-      monthEnd: endDate ? endDate.slice(0, 7) : "",
-      baseUnits,
-      programmedPercent: progress.percent,
-      realProgress,
-      weightedProgrammed: null,
-      weightedReal: null,
-      invalidDates,
-      statusLabel: progress.label,
-      createdAt: trimOrFallback(item.createdAt, ""),
-      projectLabel: projectData.label || project.name,
-      disciplineLabel: disciplineData.label,
-      systemLabel: systemData.label,
-      packageLabel: "",
-      milestoneLabel,
-      creatorLabel: "",
-      phaseLabel: "",
-      sectorLabel: "",
-      levelLabel: "",
-      typeLabel: "",
-      customValues: {},
-      customText: ""
-    };
-    row.searchBlob = buildBiSearchBlob(row);
-    rows.push(row);
-  });
-
-  const totalBySource = new Map();
-  rows.forEach((row) => {
-    const current = totalBySource.get(row.source) || 0;
-    totalBySource.set(row.source, current + (row.baseUnits || 0));
-  });
-
-  rows.forEach((row) => {
-    const sourceTotal = totalBySource.get(row.source) || 0;
-    const incidence = computeProjectIncidenceRatio(row.baseUnits, sourceTotal);
-    row.weightedProgrammed = computeWeightedProjectProgress(incidence, row.programmedPercent);
-    row.weightedReal = computeWeightedProjectProgress(incidence, row.realProgress);
-    row.searchBlob = buildBiSearchBlob(row);
-  });
-
-  return rows;
+  const service = createBiLocalDataService(project);
+  if (!service || typeof service.collectRows !== "function") {
+    return [];
+  }
+  return service.collectRows();
 }
 
 function filterBiRows(rows, config) {
-  if (!Array.isArray(rows) || !config) {
+  const service = createBiLocalDataService();
+  if (!service || typeof service.filterRows !== "function") {
     return [];
   }
-
-  const localQuery = normalizeLookup(config.textFilter || "");
-  const queries = [localQuery, currentSearchQuery].filter((item) => !!item);
-  const source = normalizeBiSource(config.source || "all");
-  const startDate = sanitizeDateInput(config.startDate || "");
-  const endDate = sanitizeDateInput(config.endDate || "");
-  const crossFilterScope = normalizeBiCrossFilterScope(config.crossFilterScope || "all");
-  const crossFilters = normalizeBiCrossFilters(config.crossFilters);
-
-  return rows.filter((row) => {
-    if (source !== "all" && row.source !== source) {
-      return false;
-    }
-    if (config.invalidOnly && !row.invalidDates) {
-      return false;
-    }
-    if (startDate && (!row.startDate || row.startDate < startDate)) {
-      return false;
-    }
-    if (endDate && (!row.endDate || row.endDate > endDate)) {
-      return false;
-    }
-    if (crossFilters.length > 0) {
-      const matchesCross = crossFilters.every((filter) => rowMatchesBiCrossFilter(row, filter, crossFilterScope));
-      if (!matchesCross) {
-        return false;
-      }
-    }
-    if (queries.length === 0) {
-      return true;
-    }
-    const blob = row.searchBlob || "";
-    return queries.every((query) => blob.includes(query));
-  });
+  return service.filterRows(rows, config);
 }
 
 function formatBiSignedPercent(value, decimals = 2) {
@@ -11455,6 +12362,685 @@ function rowMatchesBiCrossFilter(row, filter, scope) {
   const left = normalizeLookup(rowValue || "");
   const right = normalizeLookup(filter.label || "");
   return !!left && !!right && left === right;
+}
+
+function rowMatchesQuickSightInteractionFilter(row, filter) {
+  if (!row || !filter) {
+    return true;
+  }
+  return rowMatchesBiCrossFilter(row, filter, filter.scope || "all");
+}
+
+function filterQuickSightRowsByInteractions(rows, quickSightConfig) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const filters = normalizeQuickSightInteractionFilters(quickSightConfig?.interactionFilters);
+  if (filters.length === 0) {
+    return safeRows;
+  }
+  return safeRows.filter((row) => filters.every((filter) => rowMatchesQuickSightInteractionFilter(row, filter)));
+}
+
+function getQuickSightInteractionTargetGroupBy(visual) {
+  const safeVisual = visual && typeof visual === "object" ? visual : {};
+  const interactions = normalizeQuickSightInteractionSettings(safeVisual.interactions, safeVisual);
+  const breakdownGroupBy = normalizeBiOptionalGroupBy(
+    getOwnObjectValue(
+      safeVisual,
+      "breakdownDimension",
+      safeVisual.dataRoles?.breakdownDimension ?? ""
+    ) || ""
+  );
+  if (interactions.filterBy === "breakdown" && breakdownGroupBy) {
+    return breakdownGroupBy;
+  }
+  return normalizeBiGroupBy(
+    safeVisual.groupBy
+    || safeVisual.dataRoles?.dimensions?.[0]
+    || "disciplina"
+  );
+}
+
+function getQuickSightInteractionTargetLabel(snapshotRow, visual) {
+  const row = snapshotRow && typeof snapshotRow === "object" ? snapshotRow : {};
+  const safeVisual = visual && typeof visual === "object" ? visual : {};
+  const interactions = normalizeQuickSightInteractionSettings(safeVisual.interactions, safeVisual);
+  if (interactions.filterBy === "breakdown") {
+    return trimOrFallback(row.breakdownLabel, "");
+  }
+  return trimOrFallback(row.groupLabel || row.label, "");
+}
+
+function toggleQuickSightInteractionFilter(project, visual, snapshotRow, appendMode = false) {
+  if (!project || !visual || !snapshotRow) {
+    return false;
+  }
+  ensureQuickSightState(project);
+  const interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+  visual.interactions = interactions;
+  if (interactions.clickAction !== "cross_filter") {
+    return false;
+  }
+  const groupBy = getQuickSightInteractionTargetGroupBy(visual);
+  const label = getQuickSightInteractionTargetLabel(snapshotRow, visual);
+  if (!groupBy || !label) {
+    return false;
+  }
+  const nextEntry = normalizeQuickSightInteractionFilterEntry({
+    groupBy,
+    label,
+    source: visual.source || "all",
+    scope: interactions.scope,
+    visualId: visual.id
+  });
+  if (!nextEntry) {
+    return false;
+  }
+
+  const current = normalizeQuickSightInteractionFilters(project.quickSightConfig.interactionFilters);
+  const isSameEntry = (entry) => entry
+    && entry.groupBy === nextEntry.groupBy
+    && entry.source === nextEntry.source
+    && entry.scope === nextEntry.scope
+    && normalizeLookup(entry.label) === normalizeLookup(nextEntry.label);
+
+  if (appendMode) {
+    const exists = current.some((entry) => isSameEntry(entry));
+    project.quickSightConfig.interactionFilters = exists
+      ? current.filter((entry) => !isSameEntry(entry))
+      : [...current, nextEntry];
+    return true;
+  }
+
+  const currentEntry = current[0] || null;
+  if (isSameEntry(currentEntry) && current.length === 1) {
+    project.quickSightConfig.interactionFilters = [];
+    return true;
+  }
+  project.quickSightConfig.interactionFilters = [nextEntry];
+  return true;
+}
+
+function clearQuickSightInteractionFilters(project) {
+  if (!project) {
+    return false;
+  }
+  ensureQuickSightState(project);
+  const current = normalizeQuickSightInteractionFilters(project.quickSightConfig.interactionFilters);
+  if (current.length === 0) {
+    return false;
+  }
+  project.quickSightConfig.interactionFilters = [];
+  return true;
+}
+
+function getQuickSightInteractionSummary(project) {
+  const filters = normalizeQuickSightInteractionFilters(project?.quickSightConfig?.interactionFilters);
+  if (filters.length === 0) {
+    return "Sin filtros interactivos activos.";
+  }
+  return filters
+    .map((item) => {
+      const scopeText = item.scope === "same_source" ? "misma fuente" : "global";
+      return `${getBiGroupLabel(item.groupBy, project)} = ${item.label} (${scopeText})`;
+    })
+    .join(" | ");
+}
+
+function openQuickSightDrillThroughDrawerOverlay() {
+  if (!(els.qsDrillThroughOverlay instanceof HTMLElement)) {
+    return;
+  }
+  if (quickSightDrillThroughCloseTimer !== null) {
+    clearTimeout(quickSightDrillThroughCloseTimer);
+    quickSightDrillThroughCloseTimer = null;
+  }
+  els.qsDrillThroughOverlay.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    els.qsDrillThroughOverlay?.classList.add("open");
+  });
+}
+
+function hideQuickSightDrillThroughDrawerOverlay() {
+  if (!(els.qsDrillThroughOverlay instanceof HTMLElement) || els.qsDrillThroughOverlay.classList.contains("hidden")) {
+    return;
+  }
+  els.qsDrillThroughOverlay.classList.remove("open");
+  if (quickSightDrillThroughCloseTimer !== null) {
+    clearTimeout(quickSightDrillThroughCloseTimer);
+  }
+  quickSightDrillThroughCloseTimer = window.setTimeout(() => {
+    els.qsDrillThroughOverlay?.classList.add("hidden");
+    quickSightDrillThroughCloseTimer = null;
+  }, 220);
+}
+
+function getQuickSightDrillThroughSelection(project) {
+  if (!project) {
+    return null;
+  }
+  ensureQuickSightState(project);
+  return normalizeQuickSightDrillThroughSelection(project.quickSightConfig.drillThroughSelection);
+}
+
+function clearQuickSightDrillThroughSelection(project) {
+  if (!project) {
+    return false;
+  }
+  ensureQuickSightState(project);
+  if (!project.quickSightConfig.drillThroughSelection) {
+    return false;
+  }
+  project.quickSightConfig.drillThroughSelection = null;
+  return true;
+}
+
+function createQuickSightDrillThroughSelection(project, visual, snapshotRow) {
+  if (!project || !visual || !snapshotRow) {
+    return null;
+  }
+  const interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+  const breakdownGroupBy = normalizeBiOptionalGroupBy(
+    getOwnObjectValue(
+      visual,
+      "breakdownDimension",
+      visual.dataRoles?.breakdownDimension ?? ""
+    ) || ""
+  );
+  const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+  const groupBy = interactions.filterBy === "breakdown" && breakdownGroupBy
+    ? breakdownGroupBy
+    : drillMeta.currentGroupBy;
+  const label = interactions.filterBy === "breakdown" && breakdownGroupBy
+    ? trimOrFallback(snapshotRow.breakdownLabel, "")
+    : trimOrFallback(snapshotRow.groupLabel || snapshotRow.label, "");
+  return normalizeQuickSightDrillThroughSelection({
+    visualId: visual.id,
+    groupBy,
+    label,
+    source: visual.source || "all",
+    openedAt: new Date().toISOString()
+  });
+}
+
+function getQuickSightDrillThroughRows(project, selection = null) {
+  const safeSelection = selection || getQuickSightDrillThroughSelection(project);
+  if (!project || !safeSelection) {
+    return [];
+  }
+  const baseRows = getQuickSightPanelBaseRows(project);
+  return baseRows.filter((row) => {
+    if (safeSelection.source !== "all" && row.source !== safeSelection.source) {
+      return false;
+    }
+    return rowMatchesQuickSightDrillFilter(row, safeSelection);
+  });
+}
+
+function buildQuickSightDrillThroughRowActionHtml(row) {
+  const rowSource = trimOrFallback(row?.source, "");
+  const itemId = trimOrFallback(row?.itemId, "");
+  if (!itemId || !new Set(["deliverable", "package", "review-control"]).has(rowSource)) {
+    return "";
+  }
+  return `<button type="button" class="secondary mini-button" data-qs-drill-row-source="${escapeAttribute(rowSource)}" data-qs-drill-row-id="${escapeAttribute(itemId)}">Seguimiento</button>`;
+}
+
+function renderQuickSightDrillThroughDrawer(project) {
+  if (!els.qsDrillThroughOverlay || !els.qsDrillThroughHeader || !els.qsDrillThroughBody) {
+    return;
+  }
+  if (!project || activeTab !== "quicksight") {
+    hideQuickSightDrillThroughDrawerOverlay();
+    return;
+  }
+  const selection = getQuickSightDrillThroughSelection(project);
+  if (!selection) {
+    hideQuickSightDrillThroughDrawerOverlay();
+    return;
+  }
+  const visual = project.quickSightVisuals.find((item) => item.id === selection.visualId) || null;
+  if (!visual) {
+    project.quickSightConfig.drillThroughSelection = null;
+    hideQuickSightDrillThroughDrawerOverlay();
+    return;
+  }
+
+  const rows = getQuickSightDrillThroughRows(project, selection);
+  const searchToken = normalizeLookup(quickSightDrillThroughQuery || "");
+  const filteredRows = searchToken
+    ? rows.filter((row) => row.searchBlob.includes(searchToken))
+    : rows;
+  const visibleRows = filteredRows.slice(0, BI_DETAIL_ROW_LIMIT);
+  const baseUnitsTotal = rows.reduce((sum, row) => sum + (Number(row.baseUnits) || 0), 0);
+  const realValues = rows.map((row) => Number(row.realProgress)).filter((value) => Number.isFinite(value));
+  const programmedValues = rows.map((row) => Number(row.programmedPercent)).filter((value) => Number.isFinite(value));
+  const avgReal = realValues.length > 0
+    ? realValues.reduce((sum, value) => sum + value, 0) / realValues.length
+    : null;
+  const avgProgrammed = programmedValues.length > 0
+    ? programmedValues.reduce((sum, value) => sum + value, 0) / programmedValues.length
+    : null;
+  const columns = [
+    "#",
+    "Accion",
+    "Fuente",
+    "Item",
+    "Proyecto",
+    "Disciplina",
+    "Sistema",
+    "Paquete",
+    "Hito",
+    "Inicio",
+    "Fin",
+    "UP Base",
+    "Prog.",
+    "Real",
+    "Estado"
+  ];
+
+  if (els.qsDrillThroughTitle) {
+    els.qsDrillThroughTitle.textContent = "Drill-through QuickSight";
+  }
+  if (els.qsDrillThroughSubtitle) {
+    els.qsDrillThroughSubtitle.textContent = `${visual.name} | ${getBiGroupLabel(selection.groupBy, project)} = ${selection.label}`;
+  }
+  if (els.qsDrillThroughMeta) {
+    const capLabel = filteredRows.length > BI_DETAIL_ROW_LIMIT
+      ? `Mostrando ${visibleRows.length} de ${filteredRows.length} filas`
+      : `${filteredRows.length} filas`;
+    const searchLabel = searchToken ? " | filtro local activo" : "";
+    els.qsDrillThroughMeta.textContent = `${capLabel}${searchLabel}`;
+  }
+  if (els.qsDrillThroughKpis) {
+    const kpis = [
+      { label: "Filas base", value: String(rows.length) },
+      { label: "UP base", value: formatNumberForInput(baseUnitsTotal) || "0" },
+      { label: "Real promedio", value: avgReal === null ? "-" : (formatPercent(avgReal, 2) || "0%") },
+      { label: "Programado promedio", value: avgProgrammed === null ? "-" : (formatPercent(avgProgrammed, 2) || "0%") }
+    ];
+    els.qsDrillThroughKpis.innerHTML = kpis
+      .map((item) => `<div class="qs-drillthrough-kpi"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`)
+      .join("");
+  }
+  if (els.qsDrillThroughSearchInput && els.qsDrillThroughSearchInput.value !== quickSightDrillThroughQuery) {
+    els.qsDrillThroughSearchInput.value = quickSightDrillThroughQuery;
+  }
+  els.qsDrillThroughHeader.innerHTML = `<tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
+  if (visibleRows.length === 0) {
+    els.qsDrillThroughBody.innerHTML = `<tr><td colspan="${columns.length}" class="muted">Sin filas subyacentes para esta seleccion.</td></tr>`;
+  } else {
+    els.qsDrillThroughBody.innerHTML = visibleRows
+      .map((row, index) => {
+        const programmedText = row.programmedPercent === null ? "" : formatPercent(row.programmedPercent, 2);
+        const realText = row.realProgress === null ? "" : formatPercent(row.realProgress, 2);
+        return `<tr>
+          <td>${index + 1}</td>
+          <td>${buildQuickSightDrillThroughRowActionHtml(row)}</td>
+          <td>${escapeHtml(row.sourceLabel || getBiSourceLabel(row.source))}</td>
+          <td>${escapeHtml(row.itemLabel || "")}</td>
+          <td>${escapeHtml(row.projectLabel || "")}</td>
+          <td>${escapeHtml(row.disciplineLabel || "")}</td>
+          <td>${escapeHtml(row.systemLabel || "")}</td>
+          <td>${escapeHtml(row.packageLabel || "")}</td>
+          <td>${escapeHtml(row.milestoneLabel || "")}</td>
+          <td>${escapeHtml(formatDateFromInput(row.startDate) || "")}</td>
+          <td>${escapeHtml(formatDateFromInput(row.endDate) || "")}</td>
+          <td>${escapeHtml(formatNumberForInput(row.baseUnits) || "0")}</td>
+          <td>${programmedText ? `<span class="project-progress-chip">${escapeHtml(programmedText)}</span>` : ""}</td>
+          <td>${realText ? `<span class="project-progress-chip">${escapeHtml(realText)}</span>` : ""}</td>
+          <td><span class="progress-chip${row.invalidDates ? " overdue" : ""}">${escapeHtml(row.statusLabel || "")}</span></td>
+        </tr>`;
+      })
+      .join("");
+  }
+  openQuickSightDrillThroughDrawerOverlay();
+}
+
+function closeQuickSightDrillThrough(project) {
+  quickSightDrillThroughQuery = "";
+  if (els.qsDrillThroughSearchInput) {
+    els.qsDrillThroughSearchInput.value = "";
+  }
+  hideQuickSightDrillThroughDrawerOverlay();
+  if (!project) {
+    return;
+  }
+  const changed = clearQuickSightDrillThroughSelection(project);
+  if (!changed) {
+    return;
+  }
+  saveState();
+  renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+  setStatus("Detalle QuickSight cerrado.");
+}
+
+function exportQuickSightDrillThroughCsv(project) {
+  if (!project) {
+    return;
+  }
+  const selection = getQuickSightDrillThroughSelection(project);
+  if (!selection) {
+    setStatus("No hay detalle QuickSight activo para exportar.");
+    return;
+  }
+  const rows = getQuickSightDrillThroughRows(project, selection);
+  const searchToken = normalizeLookup(quickSightDrillThroughQuery || "");
+  const filteredRows = searchToken
+    ? rows.filter((row) => row.searchBlob.includes(searchToken))
+    : rows;
+  if (filteredRows.length === 0) {
+    setStatus("No hay filas en el detalle QuickSight para exportar.");
+    return;
+  }
+  const headers = ["Fuente", "Item", "Proyecto", "Disciplina", "Sistema", "Paquete", "Hito", "Inicio", "Fin", "UP Base", "Programado", "Real", "Estado"];
+  const csvRows = filteredRows.map((row) => ([
+    row.sourceLabel || getBiSourceLabel(row.source),
+    row.itemLabel || "",
+    row.projectLabel || "",
+    row.disciplineLabel || "",
+    row.systemLabel || "",
+    row.packageLabel || "",
+    row.milestoneLabel || "",
+    formatDateFromInput(row.startDate) || "",
+    formatDateFromInput(row.endDate) || "",
+    formatNumberForInput(row.baseUnits) || "0",
+    row.programmedPercent === null ? "" : (formatPercent(row.programmedPercent, 2) || ""),
+    row.realProgress === null ? "" : (formatPercent(row.realProgress, 2) || ""),
+    row.statusLabel || ""
+  ]));
+  downloadCsv(buildBiExportFileName("dechini_quicksight_drillthrough", project), headers, csvRows);
+  setStatus(`Detalle QuickSight exportado (${filteredRows.length} filas).`);
+}
+
+function getQuickSightEChartsApi() {
+  if (typeof window === "undefined" || !window.echarts || typeof window.echarts.getInstanceByDom !== "function") {
+    return null;
+  }
+  return window.echarts;
+}
+
+async function getQuickSightVisualExportDataUrl(visualId, exportScale = 3) {
+  if (!(els.qsCanvasBoard instanceof HTMLElement) || !visualId) {
+    return "";
+  }
+  let chartHost = null;
+  els.qsCanvasBoard.querySelectorAll("[data-qs-chart-host-id]").forEach((node) => {
+    if (chartHost || !(node instanceof HTMLElement)) {
+      return;
+    }
+    if (trimOrFallback(node.dataset.qsChartHostId, "") === visualId) {
+      chartHost = node;
+    }
+  });
+  if (!(chartHost instanceof HTMLElement)) {
+    return "";
+  }
+  if (trimOrFallback(chartHost.dataset.qsRenderEngine, "") === "echarts") {
+    const surface = chartHost.querySelector("[data-qs-echart-surface]");
+    const api = getQuickSightEChartsApi();
+    if (surface instanceof HTMLElement && api) {
+      const instance = api.getInstanceByDom(surface);
+      if (instance && typeof instance.getDataURL === "function") {
+        return instance.getDataURL({
+          type: "png",
+          pixelRatio: exportScale,
+          backgroundColor: "#ffffff"
+        });
+      }
+    }
+  }
+  const canvas = chartHost.querySelector("canvas[data-qs-canvas-id]");
+  if (canvas instanceof HTMLCanvasElement && canvas.width > 0 && canvas.height > 0) {
+    return canvas.toDataURL("image/png");
+  }
+  return "";
+}
+
+async function exportQuickSightBoardPng(project) {
+  if (!project) {
+    return;
+  }
+  ensureQuickSightState(project);
+  if (!Array.isArray(project.quickSightVisuals) || project.quickSightVisuals.length === 0) {
+    setStatus("No hay visuales QuickSight para publicar/exportar.");
+    return;
+  }
+  const canvasSize = getQuickSightCanvasSizeFromConfig(project.quickSightConfig);
+  const boardCanvas = document.createElement("canvas");
+  const exportScale = 3;
+  boardCanvas.width = canvasSize.width * exportScale;
+  boardCanvas.height = canvasSize.height * exportScale;
+  const ctx = boardCanvas.getContext("2d");
+  if (!ctx) {
+    setStatus("No se pudo generar PNG de QuickSight.");
+    return;
+  }
+  ctx.scale(exportScale, exportScale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+
+  for (let index = 0; index < project.quickSightVisuals.length; index += 1) {
+    const visual = normalizeQuickSightVisual(project.quickSightVisuals[index], index);
+    const layout = clampQuickSightVisualLayoutToCanvas(
+      normalizeQuickSightVisualLayout(visual.layout, index),
+      project.quickSightConfig
+    );
+    const display = normalizeQuickSightDisplaySettings(visual.display);
+    const x = Math.max(0, Math.round(layout.x));
+    const y = Math.max(0, Math.round(layout.y));
+    const w = Math.max(220, Math.round(layout.w));
+    const h = Math.max(160, Math.round(layout.h));
+    const showHead = display.showTitle || display.showSubtitle;
+    const headHeight = showHead ? 39 : 0;
+    const innerPadding = Math.max(4, sanitizeBiInteger(display.padding, 8, 0, 24));
+    if (display.showBackground) {
+      ctx.fillStyle = hexToRgba(
+        display.backgroundColor,
+        Math.max(0, Math.min(1, display.backgroundOpacity / 100)),
+        "rgba(255,255,255,1)"
+      );
+      ctx.fillRect(x, y, w, h);
+    }
+    if (display.showBorder && display.borderWidth > 0) {
+      ctx.strokeStyle = hexToRgba(
+        display.borderColor,
+        Math.max(0, Math.min(1, display.borderOpacity / 100)),
+        "rgba(183,201,223,1)"
+      );
+      ctx.lineWidth = Math.max(1, display.borderWidth);
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    }
+    if (showHead) {
+      const textX = x + innerPadding;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      if (display.showTitle) {
+        ctx.fillStyle = display.titleColor;
+        ctx.font = `600 ${Math.max(10, display.titleFontSize)}px ${display.titleFontFamily}`;
+        ctx.fillText(trimOrFallback(visual.name, "Visual"), textX, y + 18);
+      }
+      if (display.showSubtitle) {
+        const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+        const subtitle = trimOrFallback(display.subtitle, "")
+          || `${getBiSourceLabel(visual.source)} | ${getBiGroupLabel(drillMeta.currentGroupBy, project)} | ${getBiMetricLabel(visual.metric)}`;
+        ctx.fillStyle = display.subtitleColor;
+        ctx.font = `${Math.max(8, display.subtitleFontSize)}px ${display.subtitleFontFamily}`;
+        ctx.fillText(subtitle, textX, y + 32);
+      }
+    }
+    const chartX = x + innerPadding;
+    const chartY = y + headHeight + innerPadding;
+    const chartW = Math.max(40, w - (innerPadding * 2));
+    const chartH = Math.max(40, h - headHeight - (innerPadding * 2));
+    const dataUrl = await getQuickSightVisualExportDataUrl(visual.id, exportScale);
+    if (!dataUrl) {
+      continue;
+    }
+    const image = await loadBiImage(dataUrl);
+    if (!image) {
+      continue;
+    }
+    ctx.drawImage(image, chartX, chartY, chartW, chartH);
+  }
+
+  downloadDataUrl(buildBiExportFileName("dechini_quicksight_hoja", project, "png"), boardCanvas.toDataURL("image/png"));
+  setStatus("QuickSight publicado localmente como PNG.");
+}
+
+function advanceQuickSightVisualDrill(project, visual, snapshotRow) {
+  if (!project || !visual || !snapshotRow) {
+    return { changed: false, reason: "invalid" };
+  }
+  ensureQuickSightState(project);
+  ensureQuickSightVisualDrillState(visual);
+  const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+  if (!drillMeta.enabled) {
+    return { changed: false, reason: "disabled" };
+  }
+  if (drillMeta.sequence.length < 2) {
+    return { changed: false, reason: "no_path" };
+  }
+  if (!drillMeta.canDrillDown) {
+    return {
+      changed: false,
+      reason: "max_level",
+      currentGroupBy: drillMeta.currentGroupBy
+    };
+  }
+  const currentGroupBy = drillMeta.currentGroupBy;
+  const targetLabel = trimOrFallback(snapshotRow.groupLabel || snapshotRow.label, "");
+  if (!targetLabel) {
+    return { changed: false, reason: "missing_label" };
+  }
+  visual.drillState = normalizeQuickSightDrillState({
+    filters: [
+      ...drillMeta.filters,
+      { groupBy: currentGroupBy, label: targetLabel }
+    ]
+  }, visual);
+  const nextMeta = getQuickSightVisualDrillMeta(visual, project);
+  return {
+    changed: true,
+    fromGroupBy: currentGroupBy,
+    toGroupBy: nextMeta.currentGroupBy,
+    label: targetLabel,
+    currentLevel: nextMeta.currentLevel,
+    totalLevels: nextMeta.totalLevels
+  };
+}
+
+function rewindQuickSightVisualDrill(project, visual) {
+  if (!project || !visual) {
+    return { changed: false, reason: "invalid" };
+  }
+  ensureQuickSightState(project);
+  ensureQuickSightVisualDrillState(visual);
+  const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+  if (!drillMeta.canDrillUp) {
+    return { changed: false, reason: "at_root" };
+  }
+  visual.drillState = normalizeQuickSightDrillState({
+    filters: drillMeta.filters.slice(0, -1)
+  }, visual);
+  const nextMeta = getQuickSightVisualDrillMeta(visual, project);
+  return {
+    changed: true,
+    currentGroupBy: nextMeta.currentGroupBy,
+    currentLevel: nextMeta.currentLevel,
+    totalLevels: nextMeta.totalLevels
+  };
+}
+
+function resetQuickSightVisualDrill(project, visual) {
+  if (!project || !visual) {
+    return false;
+  }
+  ensureQuickSightState(project);
+  ensureQuickSightVisualDrillState(visual);
+  const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+  if (drillMeta.filters.length === 0) {
+    return false;
+  }
+  visual.drillState = createDefaultQuickSightDrillState();
+  return true;
+}
+
+function applyQuickSightInteractionFromVisual(project, visual, snapshot, rowIndex, event) {
+  if (!project || !visual || !snapshot || !Array.isArray(snapshot.rows)) {
+    return;
+  }
+  const selectedRow = snapshot.rows[rowIndex];
+  if (!selectedRow) {
+    return;
+  }
+  const interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+  visual.interactions = interactions;
+  if (interactions.clickAction === "none") {
+    return;
+  }
+  if (interactions.clickAction === "drill_through") {
+    const nextSelection = createQuickSightDrillThroughSelection(project, visual, selectedRow);
+    if (!nextSelection) {
+      setStatus("No se pudo abrir el detalle QuickSight.");
+      return;
+    }
+    const currentSelection = getQuickSightDrillThroughSelection(project);
+    const isSameSelection = currentSelection
+      && currentSelection.visualId === nextSelection.visualId
+      && currentSelection.groupBy === nextSelection.groupBy
+      && currentSelection.source === nextSelection.source
+      && normalizeLookup(currentSelection.label) === normalizeLookup(nextSelection.label);
+    if (isSameSelection) {
+      closeQuickSightDrillThrough(project);
+      return;
+    }
+    quickSightDrillThroughQuery = "";
+    project.quickSightConfig.drillThroughSelection = nextSelection;
+    selectedQuickSightVisualId = visual.id;
+    saveState();
+    renderQuickSightPanel(project, { softSelect: false });
+    renderQuickSightDrillThroughDrawer(project);
+    setStatus(`Drill-through QuickSight: ${getBiGroupLabel(nextSelection.groupBy, project)} = ${nextSelection.label}.`);
+    return;
+  }
+  if (interactions.clickAction === "drill_down") {
+    const result = advanceQuickSightVisualDrill(project, visual, selectedRow);
+    if (!result.changed) {
+      if (result.reason === "no_path") {
+        setStatus("Configura al menos un siguiente nivel para usar drill-down.");
+      } else if (result.reason === "max_level") {
+        setStatus(`Ya estas en el ultimo nivel de drill: ${getBiGroupLabel(result.currentGroupBy, project)}.`);
+      } else {
+        setStatus("No se pudo aplicar el drill-down.");
+      }
+      return;
+    }
+    selectedQuickSightVisualId = visual.id;
+    saveState();
+    renderQuickSightPanel(project, { softSelect: false });
+    setStatus(`Drill QuickSight: ${getBiGroupLabel(result.fromGroupBy, project)} = ${result.label} -> ${getBiGroupLabel(result.toGroupBy, project)}.`);
+    return;
+  }
+  const allowAppend = interactions.appendWithModifier !== false;
+  const appendMode = allowAppend && !!(event && (event.ctrlKey || event.metaKey));
+  const changed = toggleQuickSightInteractionFilter(project, visual, selectedRow, appendMode);
+  if (!changed) {
+    return;
+  }
+  selectedQuickSightVisualId = visual.id;
+  saveState();
+  renderQuickSightPanel(project, { softSelect: false });
+  const hasFilter = normalizeQuickSightInteractionFilters(project.quickSightConfig.interactionFilters).length > 0;
+  if (hasFilter) {
+    const targetGroupBy = getQuickSightInteractionTargetGroupBy(visual);
+    const targetLabel = getQuickSightInteractionTargetLabel(selectedRow, visual);
+    const modeLabel = appendMode ? " (multi)" : "";
+    setStatus(`Filtro QuickSight aplicado${modeLabel}: ${getBiGroupLabel(targetGroupBy, project)} = ${targetLabel}`);
+  } else {
+    setStatus("Filtro QuickSight removido.");
+  }
 }
 
 function renderBiCrossFilterSummary(project) {
@@ -14794,7 +16380,7 @@ function buildBiWidgetSnapshot(rows, widget) {
     ? rows.slice()
     : rows.filter((row) => row.source === source);
   const canUseBreakdownSeries = !!breakdownDimension && new Set([
-    "bar", "line", "timeseries", "area", "combo", "pie", "donut",
+    "bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo", "pie", "donut",
     "scatter", "bubble", "radar", "waterfall", "pareto", "treemap", "funnel"
   ]).has(chartType);
   const rowsBySnapshotLabel = new Map();
@@ -15895,7 +17481,7 @@ function exportBiRowsCsv(project) {
   }
 
   ensureBiState(project);
-  const rows = filterBiRows(collectBiRows(project), project.biConfig);
+  const rows = queryBiProjectRows(project, project.biConfig);
   const customFields = getBiCustomFieldDefs(project);
   if (rows.length === 0) {
     setStatus("No hay filas BI para exportar.");
@@ -15984,7 +17570,7 @@ function exportBiWidgetCsv(project, widgetId) {
 
   let snapshot = biWidgetSnapshotsByProject[project.id]?.[widget.id];
   if (!snapshot) {
-    const rows = filterBiRows(collectBiRows(project), project.biConfig);
+    const rows = queryBiProjectRows(project, project.biConfig);
     snapshot = buildBiWidgetSnapshot(rows, widget);
   }
 
@@ -16436,7 +18022,7 @@ async function exportBiWidgetPng(project, widgetId) {
   let snapshot = biWidgetSnapshotsByProject[project.id]?.[widget.id];
   const widgetKind = normalizeBiWidgetKind(widget.kind || "chart");
   if (widgetKind === "chart" && !snapshot) {
-    const rows = filterBiRows(collectBiRows(project), project.biConfig);
+    const rows = queryBiProjectRows(project, project.biConfig);
     snapshot = buildBiWidgetSnapshot(rows, widget);
   }
   const width = Math.max(320, Math.round(widget.layout?.w || 360));
@@ -16596,7 +18182,7 @@ async function exportBiBoardPng(project) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-  const rows = filterBiRows(collectBiRows(project), project.biConfig);
+  const rows = queryBiProjectRows(project, project.biConfig);
   for (let index = 0; index < widgets.length; index += 1) {
     const rawWidget = widgets[index];
     const widget = normalizeBiWidget(rawWidget, index);
@@ -17572,6 +19158,10 @@ function renderTabState() {
   if (activeTab !== "quicksight" && quickSightZoomMenuOpen) {
     setQuickSightZoomMenuOpen(false);
   }
+  if (activeTab !== "quicksight") {
+    hideQuickSightDrillThroughDrawerOverlay();
+  }
+  syncQuickSightViewportModeUi();
 
   tabButtons.forEach((button) => {
     const isActive = button.dataset.tab === activeTab;
@@ -18999,21 +20589,23 @@ function hasRowContent(row) {
 }
 
 function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
+  const parsed = storageAdapter.getJson(STORAGE_KEY, null);
+  if (!parsed) {
     return createDefaultState();
   }
 
-  try {
-    const parsed = JSON.parse(raw);
-    return normalizeState(parsed);
-  } catch (error) {
-    return createDefaultState();
-  }
+  return normalizeState(parsed);
 }
 
 function scheduleSaveState() {
-  saveState();
+  if (pendingSaveTimer !== null) {
+    clearTimeout(pendingSaveTimer);
+  }
+  setSyncIndicator("Cambios pendientes", "pending");
+  pendingSaveTimer = window.setTimeout(() => {
+    pendingSaveTimer = null;
+    saveState(true);
+  }, SAVE_DEBOUNCE_MS);
 }
 
 function flushPendingSave() {
@@ -19023,12 +20615,13 @@ function flushPendingSave() {
 
   clearTimeout(pendingSaveTimer);
   pendingSaveTimer = null;
+  saveState(true);
 }
 
 function saveState(forcePersist) {
   const shouldPersist = !!forcePersist;
   if (!shouldPersist) {
-    setSyncIndicator("Cambios pendientes", "pending");
+    scheduleSaveState();
     return;
   }
 
@@ -19036,7 +20629,9 @@ function saveState(forcePersist) {
     applyPendingRealAdvanceLogs();
     applyPendingPackageRealAdvanceLogs();
     applyPendingReviewControlRealAdvanceLogs();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!storageAdapter.setJson(STORAGE_KEY, state)) {
+      throw new Error("storage_write_failed");
+    }
     const stamp = new Date().toLocaleTimeString();
     setSyncIndicator(`Guardado ${stamp}`, "");
   } catch {
@@ -19365,19 +20960,91 @@ function normalizeBiSortMode(value) {
   return allowed.has(token) ? token : "value_desc";
 }
 
+function getQuickSightVisualOptionalMetric(visual, fallbackConfig = null) {
+  const fallback = normalizeQuickSightConfig(fallbackConfig || {});
+  const chartType = normalizeBiChartType(
+    visual?.chartType
+    || fallback.chartType
+    || "bar"
+  );
+  const capabilities = getBiChartCapabilities(chartType);
+  if (!capabilities.supportsOptionalMetric) {
+    return "";
+  }
+  if (!visual || typeof visual !== "object") {
+    return normalizeBiOptionalMetric(fallback.optionalMetric || "");
+  }
+  const visualOptionalMetric = getOwnObjectValue(
+    visual,
+    "optionalMetric",
+    visual.dataRoles?.optionalMetrics?.[0] ?? fallback.optionalMetric ?? ""
+  );
+  return normalizeBiOptionalMetric(
+    visualOptionalMetric || ""
+  );
+}
+
+function getQuickSightRoleUiLabels(chartType) {
+  const type = normalizeBiChartType(chartType || "bar");
+  if (BI_HORIZONTAL_BAR_TYPES.has(type)) {
+    return {
+      dimension: "EJE Y",
+      metric: "EJE X / VALOR",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  }
+  if (type === "scatter" || type === "bubble") {
+    return {
+      dimension: "ETIQUETA",
+      metric: "EJE Y",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  }
+  if (BI_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
+    return {
+      dimension: "EJE X",
+      metric: "EJE Y / VALOR",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  }
+  return {
+    dimension: "CATEGORIA",
+    metric: "VALOR",
+    optionalMetric: "EJE X",
+    breakdown: "GRUPO/COLOR"
+  };
+}
+
 function createDefaultQuickSightConfig() {
   return {
     source: "all",
     groupBy: "disciplina",
     breakdownDimension: "",
     metric: "count",
+    optionalMetric: "",
+    dateDimension: "",
     chartType: "bar",
     topN: 12,
     sortMode: "value_desc",
     fieldsSearch: "",
+    interactionFilters: [],
+    drillThroughSelection: null,
     canvasWidth: QUICKSIGHT_CANVAS_DEFAULT_WIDTH,
     canvasHeight: QUICKSIGHT_CANVAS_DEFAULT_HEIGHT,
     canvasZoom: QUICKSIGHT_CANVAS_ZOOM_DEFAULT
+  };
+}
+
+function createDefaultQuickSightInteractionSettings() {
+  return {
+    clickAction: "cross_filter",
+    filterBy: "group",
+    scope: "all",
+    appendWithModifier: true,
+    drillPath: []
   };
 }
 
@@ -19445,10 +21112,14 @@ function normalizeQuickSightConfig(rawConfig) {
     groupBy: normalizeBiGroupBy(base.groupBy || base.dimension || defaults.groupBy),
     breakdownDimension: normalizeBiOptionalGroupBy(base.breakdownDimension || base.grupoColor || base.dimensionColor || defaults.breakdownDimension),
     metric: normalizeBiMetric(base.metric || base.metrica || defaults.metric),
+    optionalMetric: normalizeBiOptionalMetric(base.optionalMetric || base.metricaOpcional || defaults.optionalMetric),
+    dateDimension: normalizeBiDateRole(base.dateDimension || base.dimensionFecha || defaults.dateDimension),
     chartType: normalizeBiChartType(base.chartType || base.chart || defaults.chartType),
     topN: sanitizeBiTopN(base.topN ?? base.top ?? defaults.topN),
     sortMode: normalizeBiSortMode(base.sortMode || base.orden || defaults.sortMode),
     fieldsSearch: trimOrFallback(base.fieldsSearch || base.busquedaCampos || "", "").slice(0, 80),
+    interactionFilters: normalizeQuickSightInteractionFilters(base.interactionFilters || base.filtrosInteraccion || []),
+    drillThroughSelection: normalizeQuickSightDrillThroughSelection(base.drillThroughSelection || base.detalleDrill || null),
     canvasWidth: sanitizeBiCanvasDimension(
       base.canvasWidth ?? base.anchoPizarra ?? defaults.canvasWidth,
       defaults.canvasWidth,
@@ -19465,6 +21136,431 @@ function normalizeQuickSightConfig(rawConfig) {
   };
 }
 
+function normalizeQuickSightInteractionSettings(rawSettings, visualLike = null) {
+  const defaults = createDefaultQuickSightInteractionSettings();
+  const source = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings)
+    ? rawSettings
+    : {};
+  const clickActionToken = trimOrFallback(
+    source.clickAction || source.action || source.click || "",
+    defaults.clickAction
+  ).toLowerCase();
+  const filterByToken = trimOrFallback(
+    source.filterBy || source.filtrarPor || "",
+    defaults.filterBy
+  ).toLowerCase();
+  const resolvedBreakdown = normalizeBiOptionalGroupBy(
+    getOwnObjectValue(
+      visualLike,
+      "breakdownDimension",
+      visualLike?.dataRoles?.breakdownDimension ?? ""
+    ) || ""
+  );
+  const safeFilterBy = filterByToken === "breakdown" && resolvedBreakdown
+    ? "breakdown"
+    : "group";
+  const drillPath = normalizeQuickSightDrillPath(
+    source.drillPath || source.rutaDrill || source.drillFields || source.nivelesDrill || [],
+    visualLike?.groupBy || visualLike?.dataRoles?.dimensions?.[0] || "disciplina"
+  );
+  return {
+    clickAction: clickActionToken === "none"
+      ? "none"
+      : (new Set(["drill", "drill_down", "drilldown"]).has(clickActionToken)
+        ? "drill_down"
+        : (new Set(["drill_through", "drillthrough", "detail"]).has(clickActionToken) ? "drill_through" : "cross_filter")),
+    filterBy: safeFilterBy,
+    scope: normalizeBiCrossFilterScope(source.scope || source.alcance || defaults.scope),
+    appendWithModifier: normalizeBiToggle(source.appendWithModifier ?? source.multiSelect ?? defaults.appendWithModifier, defaults.appendWithModifier),
+    drillPath
+  };
+}
+
+function normalizeQuickSightDrillPath(rawPath, baseGroupBy = "") {
+  const source = Array.isArray(rawPath)
+    ? rawPath
+    : (typeof rawPath === "string" ? rawPath.split(/[>,|]/g) : []);
+  const safeBase = normalizeBiOptionalGroupBy(baseGroupBy);
+  const seen = new Set(safeBase ? [safeBase] : []);
+  const result = [];
+  source.forEach((item) => {
+    if (result.length >= QUICKSIGHT_DRILL_PATH_SLOTS) {
+      return;
+    }
+    const normalized = normalizeBiOptionalGroupBy(item);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  return result;
+}
+
+function createDefaultQuickSightDrillState() {
+  return {
+    filters: []
+  };
+}
+
+function normalizeQuickSightDrillFilterEntry(rawEntry, fallbackGroupBy = "") {
+  const source = rawEntry && typeof rawEntry === "object" && !Array.isArray(rawEntry)
+    ? rawEntry
+    : {};
+  const groupBy = normalizeBiOptionalGroupBy(
+    source.groupBy
+    || source.dimension
+    || source.campo
+    || fallbackGroupBy
+    || ""
+  );
+  const label = trimOrFallback(
+    source.label
+    || source.value
+    || source.groupLabel
+    || source.nombre
+    || "",
+    ""
+  ).slice(0, 120);
+  if (!groupBy || !label) {
+    return null;
+  }
+  return {
+    groupBy,
+    label
+  };
+}
+
+function getQuickSightDrillSequence(visualLike) {
+  const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
+  const baseGroupBy = normalizeBiGroupBy(
+    safeVisual.groupBy
+    || safeVisual.dataRoles?.dimensions?.[0]
+    || "disciplina"
+  );
+  const interactions = normalizeQuickSightInteractionSettings(safeVisual.interactions, safeVisual);
+  return [baseGroupBy, ...normalizeQuickSightDrillPath(interactions.drillPath, baseGroupBy)];
+}
+
+function normalizeQuickSightDrillState(rawState, visualLike = null) {
+  const source = rawState && typeof rawState === "object" && !Array.isArray(rawState)
+    ? rawState
+    : {};
+  const sequence = getQuickSightDrillSequence(visualLike);
+  const rawFilters = Array.isArray(source.filters)
+    ? source.filters
+    : (Array.isArray(source.breadcrumbs) ? source.breadcrumbs : []);
+  const filters = [];
+  for (const item of rawFilters) {
+    const expectedGroupBy = sequence[filters.length];
+    if (!expectedGroupBy || filters.length >= (sequence.length - 1)) {
+      break;
+    }
+    const normalized = normalizeQuickSightDrillFilterEntry(item, expectedGroupBy);
+    if (!normalized || normalized.groupBy !== expectedGroupBy) {
+      break;
+    }
+    filters.push(normalized);
+  }
+  return {
+    filters
+  };
+}
+
+function normalizeQuickSightDrillThroughSelection(rawSelection) {
+  const source = rawSelection && typeof rawSelection === "object" && !Array.isArray(rawSelection)
+    ? rawSelection
+    : {};
+  const visualId = trimOrFallback(source.visualId || source.visual || "", "");
+  const groupBy = normalizeBiOptionalGroupBy(source.groupBy || source.dimension || source.campo || "");
+  const label = trimOrFallback(source.label || source.value || source.valor || "", "").slice(0, 120);
+  if (!visualId || !groupBy || !label) {
+    return null;
+  }
+  return {
+    visualId,
+    groupBy,
+    label,
+    source: normalizeBiSource(source.source || source.fuente || "all"),
+    openedAt: trimOrFallback(source.openedAt, new Date().toISOString())
+  };
+}
+
+function ensureQuickSightVisualDrillState(visual) {
+  if (!visual || typeof visual !== "object") {
+    return;
+  }
+  visual.interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+  visual.drillState = normalizeQuickSightDrillState(visual.drillState, visual);
+}
+
+function getQuickSightVisualDrillMeta(visual, project = null) {
+  const safeVisual = visual && typeof visual === "object" ? visual : {};
+  if (visual && typeof visual === "object") {
+    ensureQuickSightVisualDrillState(visual);
+  }
+  const interactions = normalizeQuickSightInteractionSettings(safeVisual.interactions, safeVisual);
+  const sequence = getQuickSightDrillSequence(safeVisual);
+  const storedState = normalizeQuickSightDrillState(safeVisual.drillState, safeVisual);
+  const enabled = interactions.clickAction === "drill_down" && sequence.length > 1;
+  const filters = enabled ? storedState.filters : [];
+  const currentIndex = Math.max(0, Math.min(filters.length, Math.max(0, sequence.length - 1)));
+  const currentGroupBy = sequence[currentIndex] || sequence[0] || "disciplina";
+  return {
+    enabled,
+    filters,
+    sequence,
+    currentGroupBy,
+    currentLevel: currentIndex + 1,
+    totalLevels: sequence.length,
+    canDrillDown: enabled && currentIndex < (sequence.length - 1),
+    canDrillUp: enabled && filters.length > 0,
+    sequenceText: sequence.map((groupBy) => getBiGroupLabel(groupBy, project)).join(" > "),
+    breadcrumbText: filters.length > 0
+      ? filters.map((item) => `${getBiGroupLabel(item.groupBy, project)} = ${item.label}`).join(" > ")
+      : "Sin drill activo."
+  };
+}
+
+function rowMatchesQuickSightDrillFilter(row, filter) {
+  if (!row || !filter) {
+    return false;
+  }
+  const rowValue = getBiRowGroupValue(row, filter.groupBy);
+  return normalizeLookup(rowValue) === normalizeLookup(filter.label);
+}
+
+function getQuickSightPanelBaseRows(project) {
+  const rows = queryQuickSightProjectRows(project);
+  if (!currentSearchQuery) {
+    return rows;
+  }
+  return rows.filter((row) => row.searchBlob.includes(currentSearchQuery));
+}
+
+function filterQuickSightRowsByDrillState(rows, visual) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const drillMeta = getQuickSightVisualDrillMeta(visual);
+  if (!drillMeta.enabled || drillMeta.filters.length === 0) {
+    return safeRows;
+  }
+  return safeRows.filter((row) => drillMeta.filters.every((filter) => rowMatchesQuickSightDrillFilter(row, filter)));
+}
+
+function buildQuickSightVisualSnapshot(project, visual, rows = null) {
+  if (!project || !visual) {
+    return buildBiWidgetSnapshot([], visual || {});
+  }
+  ensureQuickSightVisualDrillState(visual);
+  const baseRows = Array.isArray(rows) ? rows : getQuickSightPanelBaseRows(project);
+  const scopedRows = filterQuickSightRowsByDrillState(baseRows, visual);
+  const drillMeta = getQuickSightVisualDrillMeta(visual, project);
+  const currentGroupBy = drillMeta.currentGroupBy;
+  const metric = normalizeBiMetric(visual.metric || visual.dataRoles?.metrics?.[0] || "count");
+  const breakdownDimension = normalizeBiOptionalGroupBy(
+    getOwnObjectValue(
+      visual,
+      "breakdownDimension",
+      visual.dataRoles?.breakdownDimension ?? ""
+    ) || ""
+  );
+  const effectiveVisual = {
+    ...visual,
+    groupBy: currentGroupBy,
+    dataRoles: normalizeBiDataRoles({
+      ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+      dimensions: [currentGroupBy],
+      metrics: [metric],
+      breakdownDimension: breakdownDimension || null
+    }, {
+      groupBy: currentGroupBy,
+      metric,
+      chartType: visual.chartType || "bar"
+    })
+  };
+  const snapshot = buildBiWidgetSnapshot(scopedRows, effectiveVisual);
+  snapshot.quickSightDrill = drillMeta;
+  return snapshot;
+}
+
+function getQuickSightEChartsAdapter() {
+  if (typeof window === "undefined" || !window.MIDPEChartsAdapter || typeof window.MIDPEChartsAdapter !== "object") {
+    return null;
+  }
+  return window.MIDPEChartsAdapter;
+}
+
+function disposeQuickSightChartSurface(surface) {
+  const adapter = getQuickSightEChartsAdapter();
+  if (!adapter || typeof adapter.disposeQuickSightChart !== "function" || !(surface instanceof HTMLElement)) {
+    return false;
+  }
+  return adapter.disposeQuickSightChart(surface);
+}
+
+function disposeQuickSightChartsInContainer(container) {
+  if (!(container instanceof HTMLElement)) {
+    return;
+  }
+  container.querySelectorAll("[data-qs-echart-surface]").forEach((node) => {
+    if (node instanceof HTMLElement) {
+      disposeQuickSightChartSurface(node);
+    }
+  });
+}
+
+function hasCustomQuickSightLabelOffsets(labelOffsets) {
+  const safeOffsets = normalizeBiLabelOffsets(labelOffsets);
+  return Object.keys(safeOffsets).length > 0;
+}
+
+function normalizeQuickSightRenderEngine(value) {
+  const token = trimOrFallback(value, "").toLowerCase();
+  if (token === "echarts" || token === "canvas") {
+    return token;
+  }
+  return "auto";
+}
+
+function getQuickSightRenderEngineMeta(visual) {
+  const preference = normalizeQuickSightRenderEngine(visual?.renderEngine);
+  const adapter = getQuickSightEChartsAdapter();
+  const chartType = normalizeBiChartType(visual?.chartType || "bar");
+  const supportsECharts = !!(adapter && typeof adapter.canRenderChartType === "function" && adapter.canRenderChartType(chartType));
+  const customLabelOffsets = hasCustomQuickSightLabelOffsets(visual?.labelOffsets);
+  const requiresECharts = QUICKSIGHT_ECHARTS_REQUIRED_TYPES.has(chartType);
+  let resolved = "canvas";
+  let note = "Render clasico canvas.";
+  if (requiresECharts && supportsECharts) {
+    resolved = "echarts";
+    note = "Este tipo requiere ECharts en QuickSight.";
+    return { preference, resolved, supportsECharts, customLabelOffsets, note };
+  }
+  if (preference === "canvas") {
+    return { preference, resolved, supportsECharts, customLabelOffsets, note };
+  }
+  if (supportsECharts && !customLabelOffsets) {
+    resolved = "echarts";
+    note = "Render moderno ECharts activo.";
+    return { preference, resolved, supportsECharts, customLabelOffsets, note };
+  }
+  if (!supportsECharts) {
+    note = "Este tipo aun no usa ECharts en QuickSight; se mantiene canvas.";
+  } else if (customLabelOffsets) {
+    note = "Este visual tiene labels movidos manualmente; se mantiene canvas.";
+  }
+  return { preference, resolved, supportsECharts, customLabelOffsets, note };
+}
+
+function getQuickSightChartCapabilities(visualLike = null, fallbackConfig = null) {
+  const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
+  const chartType = normalizeBiChartType(
+    safeVisual.chartType
+    || fallbackConfig?.chartType
+    || "bar"
+  );
+  const base = getBiChartCapabilities(chartType);
+  const renderMeta = getQuickSightRenderEngineMeta({
+    chartType,
+    renderEngine: safeVisual.renderEngine ?? fallbackConfig?.renderEngine,
+    labelOffsets: safeVisual.labelOffsets
+  });
+  const echartsLegendTypes = new Set([
+    "bar",
+    "bar_horizontal",
+    "bar_stacked",
+    "line",
+    "area",
+    "combo",
+    "pie",
+    "donut",
+    "funnel",
+    "scatter",
+    "bubble",
+    "waterfall",
+    "pareto"
+  ]);
+  return {
+    ...base,
+    renderMeta,
+    supportsLegend: base.supportsLegend || (renderMeta.resolved === "echarts" && echartsLegendTypes.has(chartType))
+  };
+}
+
+function shouldUseQuickSightECharts(visual, snapshot) {
+  const renderMeta = getQuickSightRenderEngineMeta(visual);
+  if (renderMeta.preference === "canvas") {
+    return false;
+  }
+  if (renderMeta.resolved !== "echarts") {
+    return false;
+  }
+  if (!snapshot || !Array.isArray(snapshot.rows) || snapshot.rows.length === 0) {
+    return false;
+  }
+  return true;
+}
+
+function bindQuickSightEChartsInteractions(surface, chart, project, visual, snapshot) {
+  if (!(surface instanceof HTMLElement) || !chart || !project || !visual || !snapshot || !Array.isArray(snapshot.rows)) {
+    return;
+  }
+  chart.off("click");
+  chart.on("click", (params) => {
+    if (Date.now() < quickSightSuppressClickUntil) {
+      return;
+    }
+    const rawIndex = Number(params?.data?.rawIndex);
+    const rowIndex = Number.isInteger(rawIndex) && rawIndex >= 0
+      ? rawIndex
+      : (Number.isInteger(params?.dataIndex) ? params.dataIndex : -1);
+    if (rowIndex < 0 || rowIndex >= snapshot.rows.length) {
+      return;
+    }
+    applyQuickSightInteractionFromVisual(project, visual, { rows: snapshot.rows }, rowIndex, params?.event?.event || null);
+  });
+  const interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
+  surface.style.cursor = interactions.clickAction === "none" ? "default" : "pointer";
+}
+
+function normalizeQuickSightInteractionFilterEntry(rawEntry) {
+  const base = normalizeBiCrossFilterEntry(rawEntry);
+  if (!base) {
+    return null;
+  }
+  return {
+    ...base,
+    scope: normalizeBiCrossFilterScope(rawEntry?.scope || rawEntry?.alcance || "all"),
+    visualId: trimOrFallback(rawEntry?.visualId || "", "")
+  };
+}
+
+function normalizeQuickSightInteractionFilters(rawFilters) {
+  const source = Array.isArray(rawFilters)
+    ? rawFilters
+    : (rawFilters ? [rawFilters] : []);
+  const result = [];
+  const seen = new Set();
+  source.forEach((item) => {
+    const normalized = normalizeQuickSightInteractionFilterEntry(item);
+    if (!normalized) {
+      return;
+    }
+    const key = [
+      normalized.groupBy,
+      normalizeLookup(normalized.label),
+      normalized.source,
+      normalized.scope
+    ].join("|");
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    result.push(normalized);
+  });
+  return result;
+}
+
 function syncQuickSightVisualDataRoles(visual, configLike = null) {
   if (!visual || typeof visual !== "object") {
     return;
@@ -19473,24 +21569,54 @@ function syncQuickSightVisualDataRoles(visual, configLike = null) {
   const groupBy = normalizeBiGroupBy(visual.groupBy || fallback.groupBy || "disciplina");
   const metric = normalizeBiMetric(visual.metric || fallback.metric || "count");
   const chartType = normalizeBiChartType(visual.chartType || fallback.chartType || "bar");
+  const capabilities = getBiChartCapabilities(chartType);
   const breakdownDimension = normalizeBiOptionalGroupBy(
-    visual.breakdownDimension
-    || visual.dataRoles?.breakdownDimension
-    || fallback.breakdownDimension
-    || ""
+    getOwnObjectValue(
+      visual,
+      "breakdownDimension",
+      visual.dataRoles?.breakdownDimension ?? fallback.breakdownDimension ?? ""
+    ) || ""
   );
+  const optionalMetric = normalizeBiOptionalMetric(
+    getOwnObjectValue(
+      visual,
+      "optionalMetric",
+      visual.dataRoles?.optionalMetrics?.[0] ?? fallback.optionalMetric ?? ""
+    ) || ""
+  );
+  const dateDimension = normalizeBiDateRole(
+    getOwnObjectValue(
+      visual,
+      "dateDimension",
+      visual.dataRoles?.dateDimension ?? fallback.dateDimension ?? ""
+    ) || ""
+  );
+  const safeOptionalMetric = capabilities.supportsOptionalMetric ? optionalMetric : "";
+  const safeDateDimension = capabilities.supportsDateDimension
+    ? (dateDimension || (capabilities.requiresDateDimension ? "startDate" : ""))
+    : "";
   visual.groupBy = groupBy;
   visual.metric = metric;
   visual.chartType = chartType;
-  visual.breakdownDimension = breakdownDimension;
+  visual.breakdownDimension = capabilities.supportsBreakdown ? breakdownDimension : "";
+  visual.optionalMetric = safeOptionalMetric;
+  visual.dateDimension = safeDateDimension;
   visual.dataRoles = normalizeBiDataRoles({
     ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
     dimensions: [groupBy],
     metrics: [metric],
-    breakdownDimension: breakdownDimension || null
+    optionalMetrics: safeOptionalMetric ? [safeOptionalMetric] : [],
+    breakdownDimension: capabilities.supportsBreakdown && breakdownDimension ? breakdownDimension : null,
+    dateDimension: safeDateDimension || null
   }, { groupBy, metric, chartType });
-  if (!breakdownDimension) {
+  if (!capabilities.supportsBreakdown || !breakdownDimension) {
     visual.dataRoles.breakdownDimension = null;
+  }
+  if (!capabilities.supportsOptionalMetric) {
+    visual.dataRoles.optionalMetrics = [];
+  }
+  if (!capabilities.supportsDateDimension) {
+    visual.dataRoles.dateDimension = null;
   }
 }
 
@@ -19526,6 +21652,7 @@ function normalizeQuickSightVisual(rawVisual, index = 0) {
     ...(source.display ?? source.estiloTarjeta ?? {})
   };
   const normalizedDisplay = normalizeQuickSightDisplaySettings(displaySource);
+  const normalizedInteractions = normalizeQuickSightInteractionSettings(source.interactions ?? source.interaccion, source);
   const normalizedVisual = {
     id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : uid(),
     name: trimOrFallback(source.name, `Visual ${index + 1}`).slice(0, 120),
@@ -19533,15 +21660,26 @@ function normalizeQuickSightVisual(rawVisual, index = 0) {
     groupBy: normalizeBiGroupBy(source.groupBy || source.dimension || "disciplina"),
     breakdownDimension: normalizeBiOptionalGroupBy(source.breakdownDimension || source.grupoColor || source.dimensionColor || source.dataRoles?.breakdownDimension || ""),
     metric: normalizeBiMetric(source.metric || source.metrica || "count"),
+    optionalMetric: normalizeBiOptionalMetric(source.optionalMetric || source.metricaOpcional || source.dataRoles?.optionalMetrics?.[0] || ""),
+    dateDimension: normalizeBiDateRole(source.dateDimension || source.dimensionFecha || source.dataRoles?.dateDimension || ""),
     chartType,
+    renderEngine: normalizeQuickSightRenderEngine(source.renderEngine ?? source.motorRender ?? source.engineRender),
     topN: sanitizeBiTopN(source.topN ?? source.top ?? 12),
     sortMode: normalizeBiSortMode(source.sortMode || source.orden || "value_desc"),
     subtitle: normalizedDisplay.subtitle,
     altText: normalizedDisplay.altText,
     display: normalizedDisplay,
-    visualSettings: normalizeBiVisualSettings(source.visualSettings ?? source.visual ?? source.estiloVisual),
+    visualSettings: applyBiChartTypeVisualDefaults(
+      normalizeBiVisualSettings(source.visualSettings ?? source.visual ?? source.estiloVisual),
+      chartType
+    ),
     chartConfig: normalizeBiChartConfig(source.chartConfig ?? source.configGrafico, chartType),
     chartTypeConfig,
+    interactions: normalizedInteractions,
+    drillState: normalizeQuickSightDrillState(source.drillState ?? source.estadoDrill, {
+      ...source,
+      interactions: normalizedInteractions
+    }),
     dataRoles: normalizeBiDataRoles(source.dataRoles ?? source.rolesDatos, {
       groupBy: source.groupBy || source.dimension || "disciplina",
       metric: source.metric || source.metrica || "count",
@@ -19554,6 +21692,7 @@ function normalizeQuickSightVisual(rawVisual, index = 0) {
     layout: normalizeQuickSightVisualLayout(source.layout ?? source.posicion, index)
   };
   syncQuickSightVisualDataRoles(normalizedVisual);
+  ensureQuickSightVisualDrillState(normalizedVisual);
   return normalizedVisual;
 }
 
@@ -19576,6 +21715,11 @@ function ensureQuickSightState(project) {
       project.quickSightConfig
     )
   }));
+  const drillThroughSelection = normalizeQuickSightDrillThroughSelection(project.quickSightConfig.drillThroughSelection);
+  project.quickSightConfig.drillThroughSelection = drillThroughSelection
+    && project.quickSightVisuals.some((visual) => visual.id === drillThroughSelection.visualId)
+      ? drillThroughSelection
+      : null;
 }
 
 function createQuickSightVisualFromConfig(config, index = 0) {
@@ -19593,6 +21737,25 @@ function createQuickSightVisualFromConfig(config, index = 0) {
   }, index);
   syncQuickSightVisualDataRoles(visual, safe);
   return visual;
+}
+
+function createQuickSightConfigFromVisual(visual, fallbackConfig = null) {
+  const fallback = normalizeQuickSightConfig(fallbackConfig || {});
+  if (!visual || typeof visual !== "object") {
+    return fallback;
+  }
+  return normalizeQuickSightConfig({
+    ...fallback,
+    source: visual.source,
+    groupBy: visual.groupBy,
+    breakdownDimension: visual.breakdownDimension,
+    metric: visual.metric,
+    optionalMetric: getQuickSightVisualOptionalMetric(visual, fallback),
+    dateDimension: normalizeBiDateRole(visual.dataRoles?.dateDimension || fallback.dateDimension || ""),
+    chartType: visual.chartType,
+    topN: visual.topN,
+    sortMode: visual.sortMode
+  });
 }
 
 function normalizeBiChartType(value) {
@@ -20482,6 +22645,18 @@ function normalizeBiVisualSettings(rawSettings) {
     stackMode,
     tooltipMode
   };
+}
+
+function applyBiChartTypeVisualDefaults(settings, chartType) {
+  const safeType = normalizeBiChartType(chartType || "bar");
+  const visual = normalizeBiVisualSettings(settings || {});
+  if (BI_STACKED_BAR_TYPES.has(safeType) && visual.stackMode === "none") {
+    return normalizeBiVisualSettings({
+      ...visual,
+      stackMode: "normal"
+    });
+  }
+  return visual;
 }
 
 function normalizeBiVisualPresets(rawPresets) {

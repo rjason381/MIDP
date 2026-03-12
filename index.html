@@ -674,12 +674,12 @@
                         </select>
                       </label>
                       <label>
-                        Min eje Y (vacío=auto)
-                        <input id="biAxisMinInput" type="number" step="0.01" placeholder="">
+                        Min eje numerico (Automatico)
+                        <input id="biAxisMinInput" type="number" step="0.01" placeholder="Automatico">
                       </label>
                       <label>
-                        Max eje Y (vacío=auto)
-                        <input id="biAxisMaxInput" type="number" step="0.01" placeholder="">
+                        Max eje numerico (Automatico)
+                        <input id="biAxisMaxInput" type="number" step="0.01" placeholder="Automatico">
                       </label>
                       <label class="bi-check-line">
                         <input id="biShowTargetLineCheckbox" type="checkbox">
@@ -976,7 +976,7 @@
                 <span class="qs-brand-mark"></span>
                 <strong>AUTODESK Construction Cloud</strong>
               </div>
-              <button type="button" class="qs-link-button">Configuracion</button>
+              <button id="qsSettingsButton" type="button" class="qs-link-button">Configuracion</button>
             </header>
 
             <div class="qs-menu-row">
@@ -1024,27 +1024,20 @@
                 </div>
                 <button type="button">Datos</button>
                 <button type="button">Insertar</button>
-                <button type="button">Hojas</button>
+                <button id="qsSheetsMenuButton" type="button" title="Una sola hoja por ahora">Hojas</button>
                 <button type="button">Objetos</button>
                 <button type="button">Buscar</button>
               </nav>
               <div class="qs-menu-right">
                 <span class="muted">Guardado automatico activado</span>
                 <span>Ajustar al ancho</span>
-                <button type="button" class="secondary">Publicar</button>
-              </div>
-            </div>
-
-            <div class="qs-analysis-head">
-              <div class="qs-analysis-title">MIDP analysis</div>
-              <div class="qs-analysis-actions">
-                <button id="qsRefreshButton" type="button" class="secondary">Actualizar</button>
+                <button id="qsPublishButton" type="button" class="secondary">Publicar</button>
               </div>
             </div>
 
             <div class="qs-toolbar-row">
               <div class="qs-toolbar-left">
-                <button type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Deshacer" aria-label="Deshacer">
+                <button id="qsUndoButton" type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Deshacer" aria-label="Deshacer">
                   <span class="qs-tool-icon qs-tool-icon-arrow" aria-hidden="true">
                     <svg viewBox="0 0 24 24" class="qs-tool-icon-svg">
                       <path d="M9 14L4 9l5-5"></path>
@@ -1052,7 +1045,7 @@
                     </svg>
                   </span>
                 </button>
-                <button type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Rehacer" aria-label="Rehacer">
+                <button id="qsRedoButton" type="button" class="qs-tool-btn qs-tool-btn-icononly" title="Rehacer" aria-label="Rehacer">
                   <span class="qs-tool-icon qs-tool-icon-arrow" aria-hidden="true">
                     <svg viewBox="0 0 24 24" class="qs-tool-icon-svg">
                       <path d="m15 14 5-5-5-5"></path>
@@ -1071,6 +1064,8 @@
                 </button>
                 <span class="qs-toolbar-label">AGREGAR:</span>
                 <button id="qsAddVisualButton" type="button" class="qs-tool-pill">Visual</button>
+                <button id="qsRefreshButton" type="button" class="qs-tool-btn">Actualizar</button>
+                <button id="qsPresentationModeButton" type="button" class="qs-tool-btn qs-tool-btn-presentation" aria-pressed="false" title="Entrar en modo de visualizacion">Visualizacion</button>
                 <div id="qsZoomMenuWrap" class="qs-zoom-controls">
                   <button id="qsCanvasZoomMenuButton" type="button" class="qs-tool-btn qs-tool-btn-zoom" title="Zoom de hoja" aria-expanded="false">
                     <span class="qs-tool-icon qs-tool-icon-zoom" aria-hidden="true"></span>
@@ -1123,18 +1118,96 @@
                 </div>
                 <p class="qs-panel-caption">CAMBIAR EL TIPO DE ELEMENTO VISUAL</p>
                 <div id="qsChartTypeGrid" class="qs-chart-type-grid">
-                  <button type="button" data-qs-chart-type="line" title="Linea">LIN</button>
-                  <button type="button" data-qs-chart-type="bar" title="Barras">BAR</button>
-                  <button type="button" data-qs-chart-type="combo" title="Combinado">CMB</button>
-                  <button type="button" data-qs-chart-type="pie" title="Circular">PIE</button>
-                  <button type="button" data-qs-chart-type="donut" title="Dona">DON</button>
-                  <button type="button" data-qs-chart-type="area" title="Area">ARA</button>
-                  <button type="button" data-qs-chart-type="treemap" title="Treemap">TRM</button>
-                  <button type="button" data-qs-chart-type="funnel" title="Embudo">FNL</button>
-                  <button type="button" data-qs-chart-type="scatter" title="Dispersion">SCT</button>
-                  <button type="button" data-qs-chart-type="bubble" title="Burbujas">BBL</button>
-                  <button type="button" data-qs-chart-type="waterfall" title="Waterfall">WFL</button>
-                  <button type="button" data-qs-chart-type="radar" title="Radar">RDR</button>
+                  <button type="button" data-qs-chart-type="line" title="Linea" aria-label="Linea">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/line.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">LIN</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="bar" title="Barras" aria-label="Barras">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/bar.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">BAR</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="bar_horizontal" title="Barras horizontales" aria-label="Barras horizontales">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/bar-horizontal.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">BRH</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="bar_stacked" title="Barras apiladas" aria-label="Barras apiladas">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/bar-stacked.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">BST</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="combo" title="Combinado" aria-label="Combinado">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/combo.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">CMB</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="pie" title="Circular" aria-label="Circular">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/pie.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">PIE</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="donut" title="Dona" aria-label="Dona">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/donut.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">DON</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="area" title="Area" aria-label="Area">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/area.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">ARA</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="treemap" title="Treemap" aria-label="Treemap">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/treemap.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">TRM</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="funnel" title="Embudo" aria-label="Embudo">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/funnel.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">FNL</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="scatter" title="Dispersion" aria-label="Dispersion">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/scatter.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">SCT</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="bubble" title="Burbujas" aria-label="Burbujas">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/bubble.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">BBL</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="waterfall" title="Waterfall" aria-label="Waterfall">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/waterfall.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">WFL</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="radar" title="Radar" aria-label="Radar">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/radar.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">RDR</span>
+                  </button>
+                  <button type="button" data-qs-chart-type="pareto" title="Pareto" aria-label="Pareto">
+                    <span class="qs-chart-type-icon" aria-hidden="true">
+                      <img class="qs-chart-type-image" src="assets/qs-icons/pareto.png" alt="">
+                    </span>
+                    <span class="qs-chart-type-code">PRT</span>
+                  </button>
                 </div>
                 <div class="qs-role-block">
                   <p class="qs-role-label">EJE Y</p>
@@ -1144,6 +1217,16 @@
                   <p class="qs-role-label">VALOR</p>
                   <div id="qsRoleMetricList" class="qs-role-list"></div>
                   <button type="button" id="qsAddMetricGhostButton" class="qs-role-ghost">Agregar una medida</button>
+                </div>
+                <div id="qsRoleOptionalMetricBlock" class="qs-role-block hidden">
+                  <p class="qs-role-label">EJE X</p>
+                  <div id="qsRoleOptionalMetricList" class="qs-role-list"></div>
+                  <label class="hidden" aria-hidden="true">
+                    Metrica eje X
+                    <select id="qsOptionalMetricSelect">
+                      <option value="">(Automatico: UP Base total)</option>
+                    </select>
+                  </label>
                 </div>
                 <div class="qs-role-block">
                   <p class="qs-role-label">GRUPO/COLOR</p>
@@ -1155,6 +1238,8 @@
                     Tipo de grafico
                     <select id="qsChartTypeSelect">
                       <option value="bar">Barras</option>
+                      <option value="bar_horizontal">Barras horizontales</option>
+                      <option value="bar_stacked">Barras apiladas</option>
                       <option value="line">Lineas</option>
                       <option value="area">Area</option>
                       <option value="combo">Combinado</option>
@@ -1205,7 +1290,7 @@
                 <div class="qs-canvas-head">
                   <div class="qs-sheet-controls">
                     <strong id="qsSheetTitle">Hoja 1</strong>
-                    <button type="button" class="qs-sheet-plus">+</button>
+                    <button id="qsSheetAddButton" type="button" class="qs-sheet-plus" title="Una sola hoja por ahora">+</button>
                   </div>
                   <span id="qsCanvasMetaText" class="muted"></span>
                 </div>
@@ -1379,6 +1464,41 @@
     </aside>
   </div>
 
+  <div id="qsDrillThroughOverlay" class="drawer-overlay hidden">
+    <aside id="qsDrillThroughDrawer" class="drawer-panel qs-drillthrough-drawer" aria-modal="true" role="dialog">
+      <div class="drawer-header">
+        <div>
+          <h3 id="qsDrillThroughTitle">Drill-through QuickSight</h3>
+          <p id="qsDrillThroughSubtitle" class="muted"></p>
+        </div>
+        <button id="closeQsDrillThroughButton" type="button" class="secondary">Cerrar</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <p id="qsDrillThroughMeta" class="muted"></p>
+          <div id="qsDrillThroughKpis" class="qs-drillthrough-kpis"></div>
+        </div>
+
+        <div class="drawer-section">
+          <div class="table-tools qs-drillthrough-tools">
+            <label class="qs-drillthrough-search">
+              Buscar detalle
+              <input id="qsDrillThroughSearchInput" type="text" maxlength="80" placeholder="Buscar en filas subyacentes">
+            </label>
+            <button id="qsDrillThroughExportButton" type="button" class="secondary">Exportar CSV</button>
+          </div>
+          <div class="table-wrap compact-table qs-drillthrough-table-wrap">
+            <table>
+              <thead id="qsDrillThroughHeader"></thead>
+              <tbody id="qsDrillThroughBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
   <div id="projectChooserOverlay" class="overlay hidden">
     <div class="overlay-card">
       <h3>Selecciona proyecto</h3>
@@ -1400,6 +1520,12 @@
     </div>
   </div>
 
+  <script src="./midp-storage.js"></script>
+  <script src="./bi-core.js"></script>
+  <script src="./bi-local-data.js"></script>
+  <script src="./bi-project-query.js"></script>
+  <script src="./node_modules/echarts/dist/echarts.min.js"></script>
+  <script src="./bi-echarts-adapter.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

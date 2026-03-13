@@ -22,6 +22,20 @@
   const STACKED_BAR_TYPES = new Set(["bar_stacked"]);
   const PIE_LIKE_TYPES = new Set(["pie", "donut", "funnel"]);
   const NO_GRID_TYPES = new Set(["pie", "donut", "treemap", "funnel"]);
+  const SHARE_PERCENT_TYPES = new Set([
+    "bar",
+    "bar_horizontal",
+    "bar_stacked",
+    "line",
+    "area",
+    "combo",
+    "pie",
+    "donut",
+    "treemap",
+    "funnel",
+    "waterfall",
+    "pareto"
+  ]);
 
   function trimString(value, fallback = "") {
     if (typeof value !== "string") {
@@ -323,15 +337,57 @@
     return `${safeValue.toFixed(digits).replace(/\.?0+$/, "")}%`;
   }
 
+  function getPayloadTotalValue(payload) {
+    const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    const total = rows.reduce((sum, row) => sum + normalizeNumber(row?.value, 0), 0);
+    return Number.isFinite(total) && total > 0 ? total : Number.NaN;
+  }
+
+  function shouldUseSharePercent(payload) {
+    const visual = payload?.visualSettings || {};
+    const numberFormat = trimString(visual.numberFormat, "auto").toLowerCase();
+    const chartType = normalizeChartType(payload?.chartType);
+    if (numberFormat !== "percent") {
+      return false;
+    }
+    if (isPercentMetric(payload?.metric)) {
+      return false;
+    }
+    return SHARE_PERCENT_TYPES.has(chartType);
+  }
+
+  function resolveSharePercentValue(payload, rawValue, params, options = {}) {
+    const source = getParamSource(params);
+    if (PIE_LIKE_TYPES.has(normalizeChartType(payload?.chartType))) {
+      const piePercent = Number.isFinite(normalizeNumber(options.piePercent, Number.NaN))
+        ? normalizeNumber(options.piePercent, Number.NaN)
+        : normalizeNumber(source?.percent, Number.NaN);
+      if (Number.isFinite(piePercent)) {
+        return piePercent;
+      }
+    }
+    const total = getPayloadTotalValue(payload);
+    const numeric = normalizeNumber(rawValue, Number.NaN);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(numeric)) {
+      return Number.NaN;
+    }
+    return (numeric / total) * 100;
+  }
+
   function formatVisualValue(value, payload, options = {}) {
     const visual = payload?.visualSettings || {};
     const decimals = clampNumber(visual.valueDecimals, 0, 4, 1);
     const numberFormat = trimString(visual.numberFormat, "auto").toLowerCase();
     const percentHint = options.percentHint === true;
+    const sharePercent = options.sharePercent === true;
+    const sharePercentValue = normalizeNumber(options.sharePercentValue, Number.NaN);
     if (!Number.isFinite(normalizeNumber(value, Number.NaN))) {
       return "";
     }
     if (numberFormat === "percent" || (numberFormat === "auto" && percentHint)) {
+      if (sharePercent && Number.isFinite(sharePercentValue)) {
+        return formatPercentValue(sharePercentValue, decimals);
+      }
       return formatPercentValue(value, decimals);
     }
     if (numberFormat === "currency_pen") {
@@ -357,8 +413,15 @@
     if ((chartType === "pie" || chartType === "donut") && numberFormat === "percent" && Number.isFinite(piePercent)) {
       return formatPercentValue(piePercent, clampNumber(visual.valueDecimals, 0, 4, 1));
     }
+    const sharePercentValue = shouldUseSharePercent(payload)
+      ? resolveSharePercentValue(payload, rawValue, params, { piePercent })
+      : Number.NaN;
     const formatted = Number.isFinite(rawValue)
-      ? formatVisualValue(rawValue, payload, { percentHint: isPercentMetric(payload?.metric) })
+      ? formatVisualValue(rawValue, payload, {
+        percentHint: isPercentMetric(payload?.metric),
+        sharePercent: Number.isFinite(sharePercentValue),
+        sharePercentValue
+      })
       : "";
     return formatted || trimString(row?.valueText, String(rawValue ?? ""));
   }
@@ -377,10 +440,26 @@
   function buildAxisLabelOptions(payload) {
     const visual = payload.visualSettings || {};
     const labelMaxChars = clampNumber(visual.labelMaxChars, 4, 40, 16);
+    const rotation = clampNumber(visual.categoryLabelRotation, 0, 90, 0);
+    return {
+      ...buildAxisTextStyle(payload),
+      rotate: rotation,
+      interval: rotation > 0 ? 0 : "auto",
+      hideOverlap: rotation > 0 ? false : true,
+      formatter(value) {
+        if (rotation > 0) {
+          return String(value ?? "");
+        }
+        return truncateLabel(value, labelMaxChars);
+      }
+    };
+  }
+
+  function buildValueAxisLabelOptions(payload) {
     return {
       ...buildAxisTextStyle(payload),
       formatter(value) {
-        return truncateLabel(value, labelMaxChars);
+        return resolveFormattedValueText(payload, null, null, { rawValue: value });
       }
     };
   }
@@ -452,6 +531,7 @@
       return undefined;
     }
     const visual = payload.visualSettings || {};
+    const categoryRotation = clampNumber(visual.categoryLabelRotation, 0, 90, 0);
     const legendEntries = getLegendEntries(payload, chartType);
     const position = normalizeLegendPosition(visual.legendPosition);
     const hasLegend = !!visual.showLegend && legendEntries.length > 0;
@@ -473,6 +553,16 @@
       grid.left += legendEntries.length > 10 ? 152 : 128;
     } else if (position === "right" && legendEntries.length > 1) {
       grid.right += legendEntries.length > 10 ? 152 : 128;
+    }
+    if (categoryRotation > 0) {
+      const extra = categoryRotation >= 75
+        ? 78
+        : (categoryRotation >= 45 ? 56 : 34);
+      if (HORIZONTAL_BAR_TYPES.has(chartType)) {
+        grid.left += extra;
+      } else {
+        grid.bottom += extra;
+      }
     }
     return grid;
   }
@@ -1144,6 +1234,7 @@
       : rows.map((row, index) => row?.groupLabel || row?.label || `Item ${index + 1}`);
     const axisLabel = buildAxisLabelOptions(payload);
     const axisTextStyle = buildAxisTextStyle(payload);
+    const valueAxisLabel = buildValueAxisLabelOptions(payload);
     const tooltip = {
       trigger: new Set(["bar", "bar_horizontal", "bar_stacked", "line", "area", "combo"]).has(chartType) ? "axis" : "item",
       confine: true,
@@ -1208,7 +1299,7 @@
         min: normalizeAxisLimit(visual.axisMin),
         max: normalizeAxisLimit(visual.axisMax),
         nameTextStyle: axisTextStyle,
-        axisLabel: axisTextStyle,
+        axisLabel: valueAxisLabel,
         splitLine: {
           show: !!visual.showGrid,
           lineStyle: buildGridLineStyle(visual)
@@ -1239,7 +1330,7 @@
         min: normalizeAxisLimit(visual.axisMin),
         max: normalizeAxisLimit(visual.axisMax),
         nameTextStyle: axisTextStyle,
-        axisLabel: axisTextStyle,
+        axisLabel: valueAxisLabel,
         splitLine: {
           show: !!visual.showGrid,
           lineStyle: buildGridLineStyle(visual)
@@ -1270,7 +1361,7 @@
         min: Number.isFinite(Number(visual.axisMin)) ? Number(visual.axisMin) : meta.minValue,
         max: Number.isFinite(Number(visual.axisMax)) ? Number(visual.axisMax) : meta.maxValue,
         nameTextStyle: axisTextStyle,
-        axisLabel: axisTextStyle,
+        axisLabel: valueAxisLabel,
         splitLine: {
           show: !!visual.showGrid,
           lineStyle: buildGridLineStyle(visual)
@@ -1301,7 +1392,7 @@
           min: normalizeAxisLimit(visual.axisMin),
           max: normalizeAxisLimit(visual.axisMax),
           nameTextStyle: axisTextStyle,
-          axisLabel: axisTextStyle,
+          axisLabel: valueAxisLabel,
           splitLine: {
             show: !!visual.showGrid,
             lineStyle: buildGridLineStyle(visual)
@@ -1335,7 +1426,7 @@
         min: normalizeAxisLimit(visual.axisMin),
         max: normalizeAxisLimit(visual.axisMax),
         nameTextStyle: axisTextStyle,
-        axisLabel: axisTextStyle,
+        axisLabel: valueAxisLabel,
         splitLine: {
           show: !!visual.showGrid,
           lineStyle: buildGridLineStyle(visual)
@@ -1373,7 +1464,7 @@
         min: normalizeAxisLimit(visual.axisMin),
         max: normalizeAxisLimit(visual.axisMax),
         nameTextStyle: axisTextStyle,
-        axisLabel: axisTextStyle,
+        axisLabel: valueAxisLabel,
         splitLine: {
           show: !!visual.showGrid,
           lineStyle: buildGridLineStyle(visual)

@@ -323,6 +323,67 @@
         rows.push(row);
       });
 
+      const externalModels = Array.isArray(project.accModels) ? project.accModels : [];
+      externalModels.forEach((model) => {
+        const modelSource = normalizeSource(
+          model?.source
+          || model?.datasetSource
+          || model?.analyticsSource
+          || model?.id
+          || ""
+        );
+        if (!modelSource || modelSource === "all") {
+          return;
+        }
+        const propertyRows = Array.isArray(model?.propertyRows) ? model.propertyRows : [];
+        propertyRows.forEach((entry, index) => {
+          const customValues = entry?.customValues && typeof entry.customValues === "object" && !Array.isArray(entry.customValues)
+            ? Object.fromEntries(Object.entries(entry.customValues).map(([key, value]) => [key, trimOrFallback(String(value ?? ""), "")]))
+            : {};
+          const customText = Object.values(customValues).filter((value) => !!value).join(" ");
+          const itemLabel = trimOrFallback(
+            entry?.itemLabel
+            || entry?.name
+            || entry?.label,
+            `Elemento ${index + 1}`
+          );
+          const row = {
+            source: modelSource,
+            sourceLabel: trimOrFallback(model?.datasetLabel || model?.name, getSourceLabel(modelSource)),
+            itemId: trimOrFallback(entry?.id, ""),
+            itemLabel,
+            ref: "",
+            code: trimOrFallback(entry?.code, ""),
+            startDate: "",
+            endDate: "",
+            monthStart: "",
+            monthEnd: "",
+            baseUnits: 1,
+            programmedPercent: null,
+            realProgress: null,
+            weightedProgrammed: null,
+            weightedReal: null,
+            invalidDates: false,
+            statusLabel: trimOrFallback(model?.type, "Modelo"),
+            createdAt: trimOrFallback(model?.importedAt, ""),
+            projectLabel: project.name,
+            disciplineLabel: "",
+            systemLabel: "",
+            packageLabel: "",
+            milestoneLabel: "",
+            creatorLabel: "",
+            phaseLabel: "",
+            sectorLabel: "",
+            levelLabel: "",
+            typeLabel: "",
+            customValues,
+            customText
+          };
+          row.searchBlob = buildSearchBlob(row);
+          rows.push(row);
+        });
+      });
+
       const totalBySource = new Map();
       rows.forEach((row) => {
         const current = totalBySource.get(row.source) || 0;

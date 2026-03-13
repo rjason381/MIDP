@@ -116,6 +116,9 @@
     const filterRows = typeof safeOptions.filterRows === "function"
       ? safeOptions.filterRows
       : (rows) => (Array.isArray(rows) ? rows.slice() : []);
+    const getExternalSchemaFieldDefs = typeof safeOptions.getExternalSchemaFieldDefs === "function"
+      ? safeOptions.getExternalSchemaFieldDefs
+      : () => [];
     const trimOrFallback = typeof safeOptions.trimOrFallback === "function"
       ? safeOptions.trimOrFallback
       : trimString;
@@ -140,6 +143,18 @@
           });
         });
       });
+
+      if (selectedSource !== "all") {
+        getExternalSchemaFieldDefs(project, selectedSource).forEach((field) => {
+          catalog.push({
+            source: getSourceLabel(selectedSource),
+            name: trimOrFallback(field.label || field.name, "Campo"),
+            type: trimOrFallback(field.type, "text"),
+            groupBy: `field:${trimOrFallback(field.id, "")}`,
+            metric: ""
+          });
+        });
+      }
 
       if (selectedSources.includes("deliverable")) {
         getCustomFieldDefs(project).forEach((field) => {

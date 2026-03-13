@@ -52,7 +52,7 @@ Esta auditoria se basa en lectura de codigo del repo. No incluye una prueba manu
 6. Inconsistencia entre capacidades del renderer y capacidades expuestas por la UI.
    - QuickSight solo habilita configuracion de leyenda para `pie` y `donut` via `supportsLegend` en [app.js:10030](app.js#L10030) y [app.js:10046](app.js#L10046).
    - El panel de propiedades depende de esa bandera en [app.js:8682](app.js#L8682).
-   - El adapter de `ECharts` si sabe resolver leyendas para mas tipos en [bi-echarts-adapter.js:151](bi-echarts-adapter.js#L151).
+   - El adapter de `ECharts` si sabe resolver leyendas para mas tipos en [analytics-echarts-adapter.js:151](analytics-echarts-adapter.js#L151).
    - Impacto: el motor ya puede mas de lo que la UI permite configurar.
 
 7. El selector principal de tipos no refleja todo lo ya soportado.
@@ -178,7 +178,7 @@ Cambios ya aplicados despues de esta auditoria:
 - `Agregar una medida` y `Agregar una dimension` ya no quedan como click vacio; ahora responden segun el tipo y el contexto del visual
 - QuickSight ya entra en modo mas compacto, agrega `Visualizacion` para ver solo la pizarra y cada visual puede maximizarse/minimizarse sin alterar su layout guardado
 - el layout de QuickSight ya contiene bien la altura del shell y el panel de propiedades vuelve a tener scroll interno usable
-- se corrigio el traslape entre vistas: los tabs ocultos vuelven a ganar siempre frente a estilos especificos como `#tab-quicksight`, evitando que QuickSight se monte sobre `Listas`, `MIDP`, `Control de Flujos de Revision` o `Dechini BI`
+- se corrigio el traslape entre vistas: los tabs ocultos vuelven a ganar siempre frente a estilos especificos como `#tab-quicksight`, evitando que QuickSight se monte sobre `Listas`, `MIDP`, `Control de Flujos de Revision` o el studio legacy oculto
 - se corrigio un bug de integridad CSS en QuickSight: `.hidden` quedaba anulado por reglas como `.qs-role-block`, haciendo visible el bloque `EJE X` opcional incluso en graficos que no lo soportan
 - el renderer `ECharts` de QuickSight ya limpia `optionalMetric` cuando el tipo no lo soporta y el grafico de barras ahora separa mejor categorias vs `GRUPO/COLOR`, evitando mezclar ambos en una sola etiqueta del eje X
 - el bloque legacy `Metrica eje X` quedo oculto de forma robusta con `hidden` real en DOM, para que ya no vuelva a filtrarse visualmente en tipos como `bar`

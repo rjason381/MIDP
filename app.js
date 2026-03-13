@@ -10,19 +10,19 @@ const DRAFT_META_END = "__meta_endDate";
 const DRAFT_META_BASE_UNITS = "__meta_baseUnits";
 const DRAFT_META_REAL_PROGRESS = "__meta_realProgress";
 const TRACKING_MAX_NOTE = 120;
-const BI_MAX_WIDGETS = 12;
-const BI_DETAIL_ROW_LIMIT = 500;
-const BI_WIDGET_TABLE_LIMIT = 12;
-const BI_CANVAS_MIN_WIDTH = 280;
-const BI_CANVAS_MIN_HEIGHT = 220;
-const BI_CANVAS_SURFACE_HEIGHT = 780;
-const BI_CANVAS_SURFACE_MIN_WIDTH = 1200;
-const BI_CANVAS_SURFACE_MIN_EDIT_WIDTH = 760;
-const BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT = 420;
-const BI_CANVAS_SURFACE_MAX_EDIT_WIDTH = 6000;
-const BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT = 4000;
-const BI_CANVAS_AUTO_EXPAND_MARGIN = 120;
-const BI_CANVAS_AUTO_EXPAND_STEP = 240;
+const ANALYTICS_MAX_WIDGETS = 12;
+const ANALYTICS_DETAIL_ROW_LIMIT = 500;
+const ANALYTICS_WIDGET_TABLE_LIMIT = 12;
+const ANALYTICS_CANVAS_MIN_WIDTH = 280;
+const ANALYTICS_CANVAS_MIN_HEIGHT = 220;
+const ANALYTICS_CANVAS_SURFACE_HEIGHT = 780;
+const ANALYTICS_CANVAS_SURFACE_MIN_WIDTH = 1200;
+const ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH = 760;
+const ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT = 420;
+const ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH = 6000;
+const ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT = 4000;
+const ANALYTICS_CANVAS_AUTO_EXPAND_MARGIN = 120;
+const ANALYTICS_CANVAS_AUTO_EXPAND_STEP = 240;
 const QUICKSIGHT_CANVAS_MIN_WIDTH = 1200;
 const QUICKSIGHT_CANVAS_MIN_HEIGHT = 760;
 const QUICKSIGHT_CANVAS_DEFAULT_WIDTH = 1800;
@@ -39,16 +39,17 @@ const QUICKSIGHT_VISUAL_GAP_X = 24;
 const QUICKSIGHT_VISUAL_GAP_Y = 24;
 const QUICKSIGHT_CANVAS_PADDING = 20;
 const QUICKSIGHT_DRILL_PATH_SLOTS = 3;
-const BI_CANVAS_ZOOM_DEFAULT = 100;
-const BI_CANVAS_ZOOM_MIN = 25;
-const BI_CANVAS_ZOOM_MAX = 300;
-const BI_CANVAS_ZOOM_STEP = 10;
-const BI_CANVAS_ZOOM_PRESETS = [25, 50, 75, 100, 200];
-const BI_COLOR_ROWS_LIMIT = 40;
-const BI_EXPORT_WIDGET_SCALE = 2;
-const BI_EXPORT_BOARD_SCALE = 2;
-const BI_CUSTOM_CONTENT_TYPES = new Set(["table", "scorecard", "pivot", "sankey", "timeline"]);
-const BI_CHART_TYPES = new Set([
+const ANALYTICS_CANVAS_ZOOM_DEFAULT = 100;
+const ANALYTICS_CANVAS_ZOOM_MIN = 25;
+const ANALYTICS_CANVAS_ZOOM_MAX = 300;
+const ANALYTICS_CANVAS_ZOOM_STEP = 10;
+const ANALYTICS_CANVAS_ZOOM_PRESETS = [25, 50, 75, 100, 200];
+const ANALYTICS_COLOR_ROWS_LIMIT = 40;
+const ANALYTICS_EXPORT_WIDGET_SCALE = 2;
+const ANALYTICS_EXPORT_BOARD_SCALE = 2;
+const ANALYTICS_CUSTOM_CONTENT_TYPES = new Set(["table", "scorecard", "pivot", "sankey", "timeline", "viewer"]);
+const LEGACY_ANALYTICS_STUDIO_ENABLED = false;
+const ANALYTICS_CHART_TYPES = new Set([
   "bar",
   "bar_horizontal",
   "bar_stacked",
@@ -63,6 +64,7 @@ const BI_CHART_TYPES = new Set([
   "gauge",
   "table",
   "pivot",
+  "viewer",
   "scorecard",
   "waterfall",
   "radar",
@@ -75,11 +77,11 @@ const BI_CHART_TYPES = new Set([
   "sankey",
   "timeline"
 ]);
-const BI_BAR_FAMILY_TYPES = new Set(["bar", "bar_horizontal", "bar_stacked"]);
-const BI_HORIZONTAL_BAR_TYPES = new Set(["bar_horizontal"]);
-const BI_STACKED_BAR_TYPES = new Set(["bar_stacked"]);
+const ANALYTICS_BAR_FAMILY_TYPES = new Set(["bar", "bar_horizontal", "bar_stacked"]);
+const ANALYTICS_HORIZONTAL_BAR_TYPES = new Set(["bar_horizontal"]);
+const ANALYTICS_STACKED_BAR_TYPES = new Set(["bar_stacked"]);
 const QUICKSIGHT_ECHARTS_REQUIRED_TYPES = new Set(["bar_horizontal", "bar_stacked"]);
-const BI_ALLOWED_FONT_FAMILIES = new Set([
+const ANALYTICS_ALLOWED_FONT_FAMILIES = new Set([
   "Segoe UI",
   "Arial",
   "Tahoma",
@@ -89,7 +91,7 @@ const BI_ALLOWED_FONT_FAMILIES = new Set([
   "Times New Roman",
   "Courier New"
 ]);
-const BI_FIXED_FIELD_ALIASES = new Set([
+const ANALYTICS_FIXED_FIELD_ALIASES = new Set([
   "proyecto",
   "creador",
   "fase",
@@ -237,19 +239,19 @@ let matrixSelectionAnchor = null;
 let matrixSelectionRange = null;
 let deliverableSelectionAnchor = null;
 let deliverableSelectionRange = null;
-let biRailMode = "data";
-let biDataPanelOpen = false;
-let biInspectorPanelOpen = false;
-let biOtherPanelOpen = false;
-const BI_STUDIO_PANEL_MIN_WIDTH = 290;
-const BI_STUDIO_PANEL_MAX_WIDTH = 620;
-const BI_STUDIO_PANEL_DEFAULT_WIDTH = 360;
-let biStudioLeftWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
-let biStudioRightWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
-let biStudioPanelResize = null;
-let biFilterFocusTimer = null;
-let biVisualScopeMode = "widget";
-let selectedBiWidgetId = "";
+let legacyStudioRailMode = "data";
+let legacyStudioDataPanelOpen = false;
+let legacyStudioInspectorPanelOpen = false;
+let legacyStudioOtherPanelOpen = false;
+const LEGACY_STUDIO_PANEL_MIN_WIDTH = 290;
+const LEGACY_STUDIO_PANEL_MAX_WIDTH = 620;
+const LEGACY_STUDIO_PANEL_DEFAULT_WIDTH = 360;
+let legacyStudioLeftWidth = LEGACY_STUDIO_PANEL_DEFAULT_WIDTH;
+let legacyStudioRightWidth = LEGACY_STUDIO_PANEL_DEFAULT_WIDTH;
+let legacyStudioPanelResize = null;
+let legacyStudioFilterFocusTimer = null;
+let legacyStudioVisualScopeMode = "widget";
+let selectedLegacyStudioWidgetId = "";
 let selectedQuickSightVisualId = "";
 let quickSightVisualInteraction = null;
 let quickSightSuppressClickUntil = 0;
@@ -269,25 +271,54 @@ const quickSightPanelState = {
 let quickSightEditMenuOpen = false;
 let quickSightZoomMenuOpen = false;
 let quickSightPropsTab = "visual";
+let quickSightModelLinkEditingId = "";
+let quickSightApsStatus = {
+  enabled: false,
+  configured: false,
+  authenticated: false,
+  clientId: "",
+  callbackUrl: "",
+  userName: "",
+  userEmail: "",
+  userId: "",
+  expiresAt: "",
+  tokenClaims: null,
+  scopes: []
+};
+const QUICK_SIGHT_APS_VIEWER_VERSION = "7.117";
+let quickSightApsViewerAssetsPromise = null;
+let quickSightApsViewerRuntimePromise = null;
+const quickSightApsViewerInstances = new Map();
+let quickSightAccBrowserState = {
+  projects: [],
+  activeHubId: "",
+  activeHubName: "",
+  activeProjectId: "",
+  activeProjectName: "",
+  entries: [],
+  breadcrumb: [],
+  selectedModel: null
+};
+let quickSightAccDebugReport = "Sin diagnostico ejecutado.";
 const quickSightPropsSectionState = {
   visual: Object.create(null),
   interactions: Object.create(null)
 };
-let biPendingImageWidgetId = "";
-let biCommandPaletteOpen = false;
-let biCommandPaletteSelection = 0;
-let biCommandVisibleIds = [];
-let biPendingRenderRafId = 0;
-const biWidgetSnapshotsByProject = {};
-let biCanvasInteraction = null;
-let biWheelZoomRafId = 0;
-let biPendingWheelZoomStep = 0;
+let legacyStudioPendingImageWidgetId = "";
+let legacyStudioCommandPaletteOpen = false;
+let legacyStudioCommandPaletteSelection = 0;
+let legacyStudioCommandVisibleIds = [];
+let legacyStudioPendingRenderRafId = 0;
+const legacyStudioWidgetSnapshotsByProject = {};
+let legacyStudioCanvasInteraction = null;
+let legacyStudioWheelZoomRafId = 0;
+let legacyStudioPendingWheelZoomStep = 0;
 const pendingRealAdvanceLogs = [];
 const pendingPackageRealAdvanceLogs = [];
 const pendingReviewControlRealAdvanceLogs = [];
 const draftValuesByProject = {};
-const biRuntimeStatsByProject = {};
-const BI_STUDIO_UI_PREFS_KEY = "midp_bi_studio_ui_v1";
+const legacyStudioRuntimeStatsByProject = {};
+const LEGACY_STUDIO_UI_PREFS_KEY = "midp_legacy_studio_ui_v1";
 const SIDEBAR_COLLAPSED_PREF_KEY = "midp_sidebar_collapsed_v1";
 let sidebarCollapsed = false;
 const els = {};
@@ -296,44 +327,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindElements();
   await hydrateStorageState();
   restoreSidebarCollapsedPreference();
-  applyBiControlHints();
+  applyLegacyStudioControlHints();
   wireEvents();
-  restoreBiStudioUiPreferences();
-  if (!biDataPanelOpen && !biInspectorPanelOpen && !biOtherPanelOpen) {
-    applyBiRailMode("data", { announce: false, forceOpen: true });
+  restoreLegacyStudioUiPreferences();
+  if (!legacyStudioDataPanelOpen && !legacyStudioInspectorPanelOpen && !legacyStudioOtherPanelOpen) {
+    applyLegacyStudioRailMode("data", { announce: false, forceOpen: true });
   } else {
-    refreshBiStudioPanelsUi();
+    refreshLegacyStudioPanelsUi();
   }
   ensureActiveProject();
   renderAll();
+  void refreshQuickSightApsStatus({ silent: true });
 
   window.addEventListener("beforeunload", () => {
     flushPendingSave();
   });
-  window.addEventListener("resize", () => {
-    updateBiStudioOverlayOffset();
-  });
-  document.addEventListener("pointerup", () => {
-    if (activeTab === "bi") {
-      updateBiWorkspaceInsets();
-    }
-  });
-  document.addEventListener("scroll", () => {
-    if (activeTab === "bi") {
-      updateBiStudioOverlayOffset();
-    }
-  }, true);
   document.addEventListener("pointermove", (event) => {
-    handleBiStudioPanelResizeMove(event);
+    handleLegacyStudioPanelResizeMove(event);
   });
   document.addEventListener("pointerup", (event) => {
-    if (biStudioPanelResize && event.pointerId === biStudioPanelResize.pointerId) {
-      stopBiStudioPanelResize();
+    if (legacyStudioPanelResize && event.pointerId === legacyStudioPanelResize.pointerId) {
+      stopLegacyStudioPanelResize();
     }
   });
   document.addEventListener("pointercancel", (event) => {
-    if (biStudioPanelResize && event.pointerId === biStudioPanelResize.pointerId) {
-      stopBiStudioPanelResize();
+    if (legacyStudioPanelResize && event.pointerId === legacyStudioPanelResize.pointerId) {
+      stopLegacyStudioPanelResize();
     }
   });
   document.addEventListener("pointermove", (event) => {
@@ -351,37 +370,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-function normalizeBiStudioPanelWidth(value, fallback = BI_STUDIO_PANEL_DEFAULT_WIDTH) {
+function normalizeLegacyStudioPanelWidth(value, fallback = LEGACY_STUDIO_PANEL_DEFAULT_WIDTH) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return fallback;
   }
-  return Math.min(BI_STUDIO_PANEL_MAX_WIDTH, Math.max(BI_STUDIO_PANEL_MIN_WIDTH, Math.round(numeric)));
+  return Math.min(LEGACY_STUDIO_PANEL_MAX_WIDTH, Math.max(LEGACY_STUDIO_PANEL_MIN_WIDTH, Math.round(numeric)));
 }
 
-function applyBiStudioPanelWidths() {
-  if (!(els.biStudioShell instanceof HTMLElement)) {
+function applyLegacyStudioPanelWidths() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
     return;
   }
-  const normalizedLeft = normalizeBiStudioPanelWidth(biStudioLeftWidth);
-  const normalizedRight = normalizeBiStudioPanelWidth(biStudioRightWidth);
-  biStudioLeftWidth = normalizedLeft;
-  biStudioRightWidth = normalizedRight;
-  els.biStudioShell.style.setProperty("--bi-left-panel-width", `${normalizedLeft}px`);
-  els.biStudioShell.style.setProperty("--bi-right-panel-width", `${normalizedRight}px`);
+  if (!(els.legacyStudioStudioShell instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedLeft = normalizeLegacyStudioPanelWidth(legacyStudioLeftWidth);
+  const normalizedRight = normalizeLegacyStudioPanelWidth(legacyStudioRightWidth);
+  legacyStudioLeftWidth = normalizedLeft;
+  legacyStudioRightWidth = normalizedRight;
+  els.legacyStudioStudioShell.style.setProperty("--bi-left-panel-width", `${normalizedLeft}px`);
+  els.legacyStudioStudioShell.style.setProperty("--bi-right-panel-width", `${normalizedRight}px`);
 }
 
-function stopBiStudioPanelResize() {
-  if (!biStudioPanelResize) {
+function stopLegacyStudioPanelResize() {
+  if (!legacyStudioPanelResize) {
     return;
   }
-  biStudioPanelResize = null;
+  legacyStudioPanelResize = null;
   document.body.classList.remove("bi-resizing-panels");
-  saveBiStudioUiPreferences();
-  updateBiStudioOverlayOffset();
+  saveLegacyStudioUiPreferences();
+  updateLegacyStudioOverlayOffset();
 }
 
-function startBiStudioPanelResize(mode, event) {
+function startLegacyStudioPanelResize(mode, event) {
   if (window.innerWidth <= 1180) {
     return;
   }
@@ -389,35 +411,35 @@ function startBiStudioPanelResize(mode, event) {
     return;
   }
   const normalizedMode = mode === "left" ? "left" : "middle";
-  biStudioPanelResize = {
+  legacyStudioPanelResize = {
     mode: normalizedMode,
     pointerId: event.pointerId,
     startX: event.clientX,
-    leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
-    rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
+    leftWidth: normalizeLegacyStudioPanelWidth(legacyStudioLeftWidth),
+    rightWidth: normalizeLegacyStudioPanelWidth(legacyStudioRightWidth)
   };
   document.body.classList.add("bi-resizing-panels");
   event.preventDefault();
 }
 
-function handleBiStudioPanelResizeMove(event) {
-  if (!biStudioPanelResize) {
+function handleLegacyStudioPanelResizeMove(event) {
+  if (!legacyStudioPanelResize) {
     return;
   }
   if (!(event instanceof PointerEvent)) {
     return;
   }
-  if (event.pointerId !== biStudioPanelResize.pointerId) {
+  if (event.pointerId !== legacyStudioPanelResize.pointerId) {
     return;
   }
-  const deltaX = event.clientX - biStudioPanelResize.startX;
-  if (biStudioPanelResize.mode === "left") {
-    biStudioLeftWidth = normalizeBiStudioPanelWidth(biStudioPanelResize.leftWidth - deltaX);
+  const deltaX = event.clientX - legacyStudioPanelResize.startX;
+  if (legacyStudioPanelResize.mode === "left") {
+    legacyStudioLeftWidth = normalizeLegacyStudioPanelWidth(legacyStudioPanelResize.leftWidth - deltaX);
   } else {
-    biStudioRightWidth = normalizeBiStudioPanelWidth(biStudioPanelResize.rightWidth - deltaX);
+    legacyStudioRightWidth = normalizeLegacyStudioPanelWidth(legacyStudioPanelResize.rightWidth - deltaX);
   }
-  applyBiStudioPanelWidths();
-  updateBiWorkspaceInsets();
+  applyLegacyStudioPanelWidths();
+  updateLegacyStudioWorkspaceInsets();
 }
 
 function getMidpStorageApi() {
@@ -483,34 +505,40 @@ async function hydrateStorageState() {
     state = normalizeState(hydratedState);
   }
 
-  await storageAdapter.hydrateJson(BI_STUDIO_UI_PREFS_KEY, null);
+  await storageAdapter.hydrateJson(LEGACY_STUDIO_UI_PREFS_KEY, null);
   await storageAdapter.hydrateString(SIDEBAR_COLLAPSED_PREF_KEY, "");
 }
 
-function restoreBiStudioUiPreferences() {
-  const parsed = storageAdapter.getJson(BI_STUDIO_UI_PREFS_KEY, null);
-  if (parsed) {
-    biRailMode = normalizeBiRailMode(parsed?.mode || "data");
-    biDataPanelOpen = !!parsed?.dataOpen;
-    biInspectorPanelOpen = !!parsed?.inspectorOpen;
-    biOtherPanelOpen = !!parsed?.otherOpen;
-    biStudioLeftWidth = normalizeBiStudioPanelWidth(parsed?.leftWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
-    biStudioRightWidth = normalizeBiStudioPanelWidth(parsed?.rightWidth, BI_STUDIO_PANEL_DEFAULT_WIDTH);
-  } else {
-    biStudioLeftWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
-    biStudioRightWidth = BI_STUDIO_PANEL_DEFAULT_WIDTH;
+function restoreLegacyStudioUiPreferences() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
   }
-  applyBiStudioPanelWidths();
+  const parsed = storageAdapter.getJson(LEGACY_STUDIO_UI_PREFS_KEY, null);
+  if (parsed) {
+    legacyStudioRailMode = normalizeLegacyStudioRailMode(parsed?.mode || "data");
+    legacyStudioDataPanelOpen = !!parsed?.dataOpen;
+    legacyStudioInspectorPanelOpen = !!parsed?.inspectorOpen;
+    legacyStudioOtherPanelOpen = !!parsed?.otherOpen;
+    legacyStudioLeftWidth = normalizeLegacyStudioPanelWidth(parsed?.leftWidth, LEGACY_STUDIO_PANEL_DEFAULT_WIDTH);
+    legacyStudioRightWidth = normalizeLegacyStudioPanelWidth(parsed?.rightWidth, LEGACY_STUDIO_PANEL_DEFAULT_WIDTH);
+  } else {
+    legacyStudioLeftWidth = LEGACY_STUDIO_PANEL_DEFAULT_WIDTH;
+    legacyStudioRightWidth = LEGACY_STUDIO_PANEL_DEFAULT_WIDTH;
+  }
+  applyLegacyStudioPanelWidths();
 }
 
-function saveBiStudioUiPreferences() {
-  storageAdapter.setJson(BI_STUDIO_UI_PREFS_KEY, {
-    mode: normalizeBiRailMode(biRailMode),
-    dataOpen: !!biDataPanelOpen,
-    inspectorOpen: !!biInspectorPanelOpen,
-    otherOpen: !!biOtherPanelOpen,
-    leftWidth: normalizeBiStudioPanelWidth(biStudioLeftWidth),
-    rightWidth: normalizeBiStudioPanelWidth(biStudioRightWidth)
+function saveLegacyStudioUiPreferences() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  storageAdapter.setJson(LEGACY_STUDIO_UI_PREFS_KEY, {
+    mode: normalizeLegacyStudioRailMode(legacyStudioRailMode),
+    dataOpen: !!legacyStudioDataPanelOpen,
+    inspectorOpen: !!legacyStudioInspectorPanelOpen,
+    otherOpen: !!legacyStudioOtherPanelOpen,
+    leftWidth: normalizeLegacyStudioPanelWidth(legacyStudioLeftWidth),
+    rightWidth: normalizeLegacyStudioPanelWidth(legacyStudioRightWidth)
   });
 }
 
@@ -615,6 +643,9 @@ function bindElements() {
   els.qsZoomFitWidthLabel = document.getElementById("qsZoomFitWidthLabel");
   els.qsDataSummaryText = document.getElementById("qsDataSummaryText");
   els.qsSourceSelect = document.getElementById("qsSourceSelect");
+  els.qsOpenModelLinkButton = document.getElementById("qsOpenModelLinkButton");
+  els.qsModelsStatusText = document.getElementById("qsModelsStatusText");
+  els.qsModelsList = document.getElementById("qsModelsList");
   els.qsFieldsSearchInput = document.getElementById("qsFieldsSearchInput");
   els.qsFieldsList = document.getElementById("qsFieldsList");
   els.qsRoleDimensionList = document.getElementById("qsRoleDimensionList");
@@ -647,173 +678,199 @@ function bindElements() {
   els.qsDrillThroughHeader = document.getElementById("qsDrillThroughHeader");
   els.qsDrillThroughBody = document.getElementById("qsDrillThroughBody");
   els.closeQsDrillThroughButton = document.getElementById("closeQsDrillThroughButton");
+  els.qsModelLinkOverlay = document.getElementById("qsModelLinkOverlay");
+  els.qsModelLinkDrawer = document.getElementById("qsModelLinkDrawer");
+  els.qsModelLinkAuthStatus = document.getElementById("qsModelLinkAuthStatus");
+  els.qsAccBrowserStatusText = document.getElementById("qsAccBrowserStatusText");
+  els.qsAccProjectsList = document.getElementById("qsAccProjectsList");
+  els.qsAccBreadcrumb = document.getElementById("qsAccBreadcrumb");
+  els.qsAccEntriesList = document.getElementById("qsAccEntriesList");
+  els.qsAccSelectedModelCard = document.getElementById("qsAccSelectedModelCard");
+  els.qsCloseModelLinkButton = document.getElementById("qsCloseModelLinkButton");
+  els.qsApsLoginButton = document.getElementById("qsApsLoginButton");
+  els.qsApsLogoutButton = document.getElementById("qsApsLogoutButton");
+  els.qsApsRefreshStatusButton = document.getElementById("qsApsRefreshStatusButton");
+  els.qsApsDebugButton = document.getElementById("qsApsDebugButton");
+  els.qsSyncModelPropertiesButton = document.getElementById("qsSyncModelPropertiesButton");
+  els.qsAccDebugPanel = document.getElementById("qsAccDebugPanel");
+  els.qsAccDebugOutput = document.getElementById("qsAccDebugOutput");
+  els.qsModelNameInput = document.getElementById("qsModelNameInput");
+  els.qsModelTypeSelect = document.getElementById("qsModelTypeSelect");
+  els.qsModelProjectIdInput = document.getElementById("qsModelProjectIdInput");
+  els.qsModelVersionUrnInput = document.getElementById("qsModelVersionUrnInput");
+  els.qsModelViewerUrnInput = document.getElementById("qsModelViewerUrnInput");
+  els.qsModelGuidInput = document.getElementById("qsModelGuidInput");
+  els.qsModelScopesInput = document.getElementById("qsModelScopesInput");
+  els.qsModelNamespaceSelect = document.getElementById("qsModelNamespaceSelect");
+  els.qsModelPropertiesJsonInput = document.getElementById("qsModelPropertiesJsonInput");
+  els.qsSaveModelLinkButton = document.getElementById("qsSaveModelLinkButton");
   els.qsShell = document.getElementById("qsShell");
   els.qsFrame = document.querySelector("#tab-quicksight .qs-frame");
   els.qsDataPanel = document.getElementById("qsDataPanel");
   els.qsVisualsPanel = document.getElementById("qsVisualsPanel");
   els.qsPropsPanel = document.getElementById("qsPropsPanel");
-  els.biRefreshButton = document.getElementById("biRefreshButton");
-  els.biOpenCommandPaletteButton = document.getElementById("biOpenCommandPaletteButton");
-  els.biExportBoardPngButton = document.getElementById("biExportBoardPngButton");
-  els.biExportRowsButton = document.getElementById("biExportRowsButton");
-  els.biAddTextWidgetButton = document.getElementById("biAddTextWidgetButton");
-  els.biAddImageWidgetButton = document.getElementById("biAddImageWidgetButton");
-  els.biAutoLayoutButton = document.getElementById("biAutoLayoutButton");
-  els.biGenerateDashboardButton = document.getElementById("biGenerateDashboardButton");
-  els.biImageUploadInput = document.getElementById("biImageUploadInput");
-  els.biStartDateInput = document.getElementById("biStartDateInput");
-  els.biEndDateInput = document.getElementById("biEndDateInput");
-  els.biTextFilterInput = document.getElementById("biTextFilterInput");
-  els.biGlobalSourceSelect = document.getElementById("biGlobalSourceSelect");
-  els.biCrossFilterScopeSelect = document.getElementById("biCrossFilterScopeSelect");
-  els.biInvalidOnlyCheckbox = document.getElementById("biInvalidOnlyCheckbox");
-  els.biKpiGrid = document.getElementById("biKpiGrid");
-  els.biWidgetsMetaText = document.getElementById("biWidgetsMetaText");
-  els.biWidgetNameInput = document.getElementById("biWidgetNameInput");
-  els.biWidgetSourceSelect = document.getElementById("biWidgetSourceSelect");
-  els.biWidgetGroupBySelect = document.getElementById("biWidgetGroupBySelect");
-  els.biWidgetMetricSelect = document.getElementById("biWidgetMetricSelect");
-  els.biDataRolesSection = document.getElementById("biDataRolesSection");
-  els.biWidgetBreakdownSelect = document.getElementById("biWidgetBreakdownSelect");
-  els.biWidgetOptionalMetricSelect = document.getElementById("biWidgetOptionalMetricSelect");
-  els.biWidgetDateDimensionSelect = document.getElementById("biWidgetDateDimensionSelect");
-  els.biWidgetChartTypeSelect = document.getElementById("biWidgetChartTypeSelect");
-  els.biChartTypeButtons = document.getElementById("biChartTypeButtons");
-  els.biSelectedDimensionChip = document.getElementById("biSelectedDimensionChip");
-  els.biSelectedMetricChip = document.getElementById("biSelectedMetricChip");
-  els.biWidgetTopNInput = document.getElementById("biWidgetTopNInput");
-  els.biWidgetSortModeSelect = document.getElementById("biWidgetSortModeSelect");
-  els.biUpdateWidgetButton = document.getElementById("biUpdateWidgetButton");
-  els.biAddWidgetButton = document.getElementById("biAddWidgetButton");
-  els.biCatalogSourceSelect = document.getElementById("biCatalogSourceSelect");
-  els.biCatalogSearchInput = document.getElementById("biCatalogSearchInput");
-  els.biCatalogSummaryText = document.getElementById("biCatalogSummaryText");
-  els.biCatalogFieldsList = document.getElementById("biCatalogFieldsList");
-  els.biCrossFilterText = document.getElementById("biCrossFilterText");
-  els.biClearCrossFilterButton = document.getElementById("biClearCrossFilterButton");
-  els.biInsightsGrid = document.getElementById("biInsightsGrid");
-  els.biCommandPaletteOverlay = document.getElementById("biCommandPaletteOverlay");
-  els.biCloseCommandPaletteButton = document.getElementById("biCloseCommandPaletteButton");
-  els.biCommandPaletteInput = document.getElementById("biCommandPaletteInput");
-  els.biCommandPaletteList = document.getElementById("biCommandPaletteList");
-  els.biStudioShell = document.getElementById("biStudioShell");
-  els.biStudioLeftResizeHandle = document.getElementById("biStudioLeftResizeHandle");
-  els.biStudioMiddleResizeHandle = document.getElementById("biStudioMiddleResizeHandle");
-  els.biStudioLeft = document.getElementById("biStudioLeft");
-  els.biStudioRight = document.getElementById("biStudioRight");
-  els.biStudioOtherPanel = document.getElementById("biStudioOtherPanel");
-  els.biStudioTitle = document.getElementById("biStudioTitle");
-  els.biHideLeftPanelButton = document.getElementById("biHideLeftPanelButton");
-  els.biHideDataPanelButton = document.getElementById("biHideDataPanelButton");
-  els.biSourceSection = document.getElementById("biSourceSection");
-  els.biDimensionSection = document.getElementById("biDimensionSection");
-  els.biMetricSection = document.getElementById("biMetricSection");
-  els.biChartSection = document.getElementById("biChartSection");
-  els.biChartVisualSettingsSection = document.getElementById("biChartVisualSettingsSection");
-  els.biChartConfigIntro = document.getElementById("biChartConfigIntro");
-  els.biChartConfigGroups = document.getElementById("biChartConfigGroups");
-  els.biElementConfigSection = document.getElementById("biElementConfigSection");
-  els.biElementConfigTitle = document.getElementById("biElementConfigTitle");
-  els.biElementConfigBody = document.getElementById("biElementConfigBody");
-  els.biElementConfigHint = document.getElementById("biElementConfigHint");
-  els.biBoardSection = document.getElementById("biBoardSection");
-  els.biColorSection = document.getElementById("biColorSection");
-  els.biFilterSection = document.getElementById("biFilterSection");
-  els.biPerformanceSection = document.getElementById("biPerformanceSection");
-  els.biSettingsSection = document.getElementById("biSettingsSection");
-  els.biBuilderSection = document.getElementById("biBuilderSection");
-  els.biCanvasPresetSelect = document.getElementById("biCanvasPresetSelect");
-  els.biCanvasWidthInput = document.getElementById("biCanvasWidthInput");
-  els.biCanvasHeightInput = document.getElementById("biCanvasHeightInput");
-  els.biCanvasZoomSelect = document.getElementById("biCanvasZoomSelect");
-  els.biZoomMenuWrap = document.getElementById("biZoomMenuWrap");
-  els.biCanvasZoomMenuButton = document.getElementById("biCanvasZoomMenuButton");
-  els.biCanvasZoomMenu = document.getElementById("biCanvasZoomMenu");
-  els.biZoomFitAllButton = document.getElementById("biZoomFitAllButton");
-  els.biZoomFitWidthButton = document.getElementById("biZoomFitWidthButton");
-  els.biZoomDefaultButton = document.getElementById("biZoomDefaultButton");
-  els.biZoomFitAllLabel = document.getElementById("biZoomFitAllLabel");
-  els.biZoomFitWidthLabel = document.getElementById("biZoomFitWidthLabel");
-  els.biApplyCanvasSizeButton = document.getElementById("biApplyCanvasSizeButton");
-  els.biResetCanvasSizeButton = document.getElementById("biResetCanvasSizeButton");
-  els.biShowCanvasGridCheckbox = document.getElementById("biShowCanvasGridCheckbox");
-  els.biSnapToGridCheckbox = document.getElementById("biSnapToGridCheckbox");
-  els.biGridSnapSizeInput = document.getElementById("biGridSnapSizeInput");
-  els.biPerformanceModeSelect = document.getElementById("biPerformanceModeSelect");
-  els.biOptimizeNowButton = document.getElementById("biOptimizeNowButton");
-  els.biResetPerformanceButton = document.getElementById("biResetPerformanceButton");
-  els.biPerfRenderMsText = document.getElementById("biPerfRenderMsText");
-  els.biPerfWidgetsText = document.getElementById("biPerfWidgetsText");
-  els.biPerfPointsText = document.getElementById("biPerfPointsText");
-  els.biPerfRowsText = document.getElementById("biPerfRowsText");
-  els.biPerfSummaryText = document.getElementById("biPerfSummaryText");
-  els.biColorSourceSelect = document.getElementById("biColorSourceSelect");
-  els.biColorGroupBySelect = document.getElementById("biColorGroupBySelect");
-  els.biColorLegendList = document.getElementById("biColorLegendList");
-  els.biColorSummaryText = document.getElementById("biColorSummaryText");
-  els.biAutoColorButton = document.getElementById("biAutoColorButton");
-  els.biClearColorButton = document.getElementById("biClearColorButton");
-  els.biShowLegendCheckbox = document.getElementById("biShowLegendCheckbox");
-  els.biShowGridCheckbox = document.getElementById("biShowGridCheckbox");
-  els.biShowAxisLabelsCheckbox = document.getElementById("biShowAxisLabelsCheckbox");
-  els.biShowDataLabelsCheckbox = document.getElementById("biShowDataLabelsCheckbox");
-  els.biAxisXLabelInput = document.getElementById("biAxisXLabelInput");
-  els.biAxisYLabelInput = document.getElementById("biAxisYLabelInput");
-  els.biLabelMaxCharsInput = document.getElementById("biLabelMaxCharsInput");
-  els.biValueDecimalsInput = document.getElementById("biValueDecimalsInput");
-  els.biFontSizeInput = document.getElementById("biFontSizeInput");
-  els.biFontFamilyTitleSelect = document.getElementById("biFontFamilyTitleSelect");
-  els.biFontFamilyAxisSelect = document.getElementById("biFontFamilyAxisSelect");
-  els.biFontFamilyLabelSelect = document.getElementById("biFontFamilyLabelSelect");
-  els.biFontFamilyTooltipSelect = document.getElementById("biFontFamilyTooltipSelect");
-  els.biFontSizeTitleInput = document.getElementById("biFontSizeTitleInput");
-  els.biFontSizeAxisInput = document.getElementById("biFontSizeAxisInput");
-  els.biFontSizeLabelsInput = document.getElementById("biFontSizeLabelsInput");
-  els.biFontSizeTooltipInput = document.getElementById("biFontSizeTooltipInput");
-  els.biLabelColorModeSelect = document.getElementById("biLabelColorModeSelect");
-  els.biLabelColorInput = document.getElementById("biLabelColorInput");
-  els.biLineWidthInput = document.getElementById("biLineWidthInput");
-  els.biSeriesLineStyleSelect = document.getElementById("biSeriesLineStyleSelect");
-  els.biSeriesMarkerStyleSelect = document.getElementById("biSeriesMarkerStyleSelect");
-  els.biSeriesMarkerSizeInput = document.getElementById("biSeriesMarkerSizeInput");
-  els.biAreaOpacityInput = document.getElementById("biAreaOpacityInput");
-  els.biSmoothLinesCheckbox = document.getElementById("biSmoothLinesCheckbox");
-  els.biResetVisualSettingsButton = document.getElementById("biResetVisualSettingsButton");
-  els.biApplyVisualScopeButton = document.getElementById("biApplyVisualScopeButton");
-  els.biResetVisualScopeButton = document.getElementById("biResetVisualScopeButton");
-  els.biUiModeSelect = document.getElementById("biUiModeSelect");
-  els.biVisualScopeSelect = document.getElementById("biVisualScopeSelect");
-  els.biVisualScopeMeta = document.getElementById("biVisualScopeMeta");
-  els.biWidgetShowTitleCheckbox = document.getElementById("biWidgetShowTitleCheckbox");
-  els.biWidgetShowBorderCheckbox = document.getElementById("biWidgetShowBorderCheckbox");
-  els.biWidgetShowBackgroundCheckbox = document.getElementById("biWidgetShowBackgroundCheckbox");
-  els.biWidgetChromeMeta = document.getElementById("biWidgetChromeMeta");
-  els.biVisualPresetSelect = document.getElementById("biVisualPresetSelect");
-  els.biApplyVisualPresetButton = document.getElementById("biApplyVisualPresetButton");
-  els.biSavePresetNameInput = document.getElementById("biSavePresetNameInput");
-  els.biSaveVisualPresetButton = document.getElementById("biSaveVisualPresetButton");
-  els.biNumberFormatSelect = document.getElementById("biNumberFormatSelect");
-  els.biValuePrefixInput = document.getElementById("biValuePrefixInput");
-  els.biValueSuffixInput = document.getElementById("biValueSuffixInput");
-  els.biLegendPositionSelect = document.getElementById("biLegendPositionSelect");
-  els.biLegendMaxItemsInput = document.getElementById("biLegendMaxItemsInput");
-  els.biAxisScaleSelect = document.getElementById("biAxisScaleSelect");
-  els.biAxisMinInput = document.getElementById("biAxisMinInput");
-  els.biAxisMaxInput = document.getElementById("biAxisMaxInput");
-  els.biShowTargetLineCheckbox = document.getElementById("biShowTargetLineCheckbox");
-  els.biTargetLineValueInput = document.getElementById("biTargetLineValueInput");
-  els.biTargetLineLabelInput = document.getElementById("biTargetLineLabelInput");
-  els.biTargetLineColorInput = document.getElementById("biTargetLineColorInput");
-  els.biBarWidthRatioInput = document.getElementById("biBarWidthRatioInput");
-  els.biGridOpacityInput = document.getElementById("biGridOpacityInput");
-  els.biGridDashInput = document.getElementById("biGridDashInput");
-  els.biStackModeSelect = document.getElementById("biStackModeSelect");
-  els.biTooltipModeSelect = document.getElementById("biTooltipModeSelect");
-  els.biRailButtons = document.querySelectorAll("[data-bi-rail-mode]");
-  els.biWidgetsGrid = document.getElementById("biWidgetsGrid");
-  els.biRowsMetaText = document.getElementById("biRowsMetaText");
-  els.biRowsHeader = document.getElementById("biRowsHeader");
-  els.biRowsBody = document.getElementById("biRowsBody");
+  els.legacyStudioRefreshButton = document.getElementById("biRefreshButton");
+  els.legacyStudioOpenCommandPaletteButton = document.getElementById("biOpenCommandPaletteButton");
+  els.legacyStudioExportBoardPngButton = document.getElementById("biExportBoardPngButton");
+  els.legacyStudioExportRowsButton = document.getElementById("biExportRowsButton");
+  els.legacyStudioAddTextWidgetButton = document.getElementById("biAddTextWidgetButton");
+  els.legacyStudioAddImageWidgetButton = document.getElementById("biAddImageWidgetButton");
+  els.legacyStudioAutoLayoutButton = document.getElementById("biAutoLayoutButton");
+  els.legacyStudioGenerateDashboardButton = document.getElementById("biGenerateDashboardButton");
+  els.legacyStudioImageUploadInput = document.getElementById("biImageUploadInput");
+  els.legacyStudioStartDateInput = document.getElementById("biStartDateInput");
+  els.legacyStudioEndDateInput = document.getElementById("biEndDateInput");
+  els.legacyStudioTextFilterInput = document.getElementById("biTextFilterInput");
+  els.legacyStudioGlobalSourceSelect = document.getElementById("biGlobalSourceSelect");
+  els.legacyStudioCrossFilterScopeSelect = document.getElementById("biCrossFilterScopeSelect");
+  els.legacyStudioInvalidOnlyCheckbox = document.getElementById("biInvalidOnlyCheckbox");
+  els.legacyStudioKpiGrid = document.getElementById("biKpiGrid");
+  els.legacyStudioWidgetsMetaText = document.getElementById("biWidgetsMetaText");
+  els.legacyStudioWidgetNameInput = document.getElementById("biWidgetNameInput");
+  els.legacyStudioWidgetSourceSelect = document.getElementById("biWidgetSourceSelect");
+  els.legacyStudioWidgetGroupBySelect = document.getElementById("biWidgetGroupBySelect");
+  els.legacyStudioWidgetMetricSelect = document.getElementById("biWidgetMetricSelect");
+  els.legacyStudioDataRolesSection = document.getElementById("biDataRolesSection");
+  els.legacyStudioWidgetBreakdownSelect = document.getElementById("biWidgetBreakdownSelect");
+  els.legacyStudioWidgetOptionalMetricSelect = document.getElementById("biWidgetOptionalMetricSelect");
+  els.legacyStudioWidgetDateDimensionSelect = document.getElementById("biWidgetDateDimensionSelect");
+  els.legacyStudioWidgetChartTypeSelect = document.getElementById("biWidgetChartTypeSelect");
+  els.legacyStudioChartTypeButtons = document.getElementById("biChartTypeButtons");
+  els.legacyStudioSelectedDimensionChip = document.getElementById("biSelectedDimensionChip");
+  els.legacyStudioSelectedMetricChip = document.getElementById("biSelectedMetricChip");
+  els.legacyStudioWidgetTopNInput = document.getElementById("biWidgetTopNInput");
+  els.legacyStudioWidgetSortModeSelect = document.getElementById("biWidgetSortModeSelect");
+  els.legacyStudioUpdateWidgetButton = document.getElementById("biUpdateWidgetButton");
+  els.legacyStudioAddWidgetButton = document.getElementById("biAddWidgetButton");
+  els.legacyStudioCatalogSourceSelect = document.getElementById("biCatalogSourceSelect");
+  els.legacyStudioCatalogSearchInput = document.getElementById("biCatalogSearchInput");
+  els.legacyStudioCatalogSummaryText = document.getElementById("biCatalogSummaryText");
+  els.legacyStudioCatalogFieldsList = document.getElementById("biCatalogFieldsList");
+  els.legacyStudioCrossFilterText = document.getElementById("biCrossFilterText");
+  els.legacyStudioClearCrossFilterButton = document.getElementById("biClearCrossFilterButton");
+  els.legacyStudioInsightsGrid = document.getElementById("biInsightsGrid");
+  els.legacyStudioCommandPaletteOverlay = document.getElementById("biCommandPaletteOverlay");
+  els.legacyStudioCloseCommandPaletteButton = document.getElementById("biCloseCommandPaletteButton");
+  els.legacyStudioCommandPaletteInput = document.getElementById("biCommandPaletteInput");
+  els.legacyStudioCommandPaletteList = document.getElementById("biCommandPaletteList");
+  els.legacyStudioStudioShell = document.getElementById("biStudioShell");
+  els.legacyStudioStudioLeftResizeHandle = document.getElementById("biStudioLeftResizeHandle");
+  els.legacyStudioStudioMiddleResizeHandle = document.getElementById("biStudioMiddleResizeHandle");
+  els.legacyStudioStudioLeft = document.getElementById("biStudioLeft");
+  els.legacyStudioStudioRight = document.getElementById("biStudioRight");
+  els.legacyStudioStudioOtherPanel = document.getElementById("biStudioOtherPanel");
+  els.legacyStudioStudioTitle = document.getElementById("biStudioTitle");
+  els.legacyStudioHideLeftPanelButton = document.getElementById("biHideLeftPanelButton");
+  els.legacyStudioHideDataPanelButton = document.getElementById("biHideDataPanelButton");
+  els.legacyStudioSourceSection = document.getElementById("biSourceSection");
+  els.legacyStudioDimensionSection = document.getElementById("biDimensionSection");
+  els.legacyStudioMetricSection = document.getElementById("biMetricSection");
+  els.legacyStudioChartSection = document.getElementById("biChartSection");
+  els.legacyStudioChartVisualSettingsSection = document.getElementById("biChartVisualSettingsSection");
+  els.legacyStudioChartConfigIntro = document.getElementById("biChartConfigIntro");
+  els.legacyStudioChartConfigGroups = document.getElementById("biChartConfigGroups");
+  els.legacyStudioElementConfigSection = document.getElementById("biElementConfigSection");
+  els.legacyStudioElementConfigTitle = document.getElementById("biElementConfigTitle");
+  els.legacyStudioElementConfigBody = document.getElementById("biElementConfigBody");
+  els.legacyStudioElementConfigHint = document.getElementById("biElementConfigHint");
+  els.legacyStudioBoardSection = document.getElementById("biBoardSection");
+  els.legacyStudioColorSection = document.getElementById("biColorSection");
+  els.legacyStudioFilterSection = document.getElementById("biFilterSection");
+  els.legacyStudioPerformanceSection = document.getElementById("biPerformanceSection");
+  els.legacyStudioSettingsSection = document.getElementById("biSettingsSection");
+  els.legacyStudioBuilderSection = document.getElementById("biBuilderSection");
+  els.legacyStudioCanvasPresetSelect = document.getElementById("biCanvasPresetSelect");
+  els.legacyStudioCanvasWidthInput = document.getElementById("biCanvasWidthInput");
+  els.legacyStudioCanvasHeightInput = document.getElementById("biCanvasHeightInput");
+  els.legacyStudioCanvasZoomSelect = document.getElementById("biCanvasZoomSelect");
+  els.legacyStudioZoomMenuWrap = document.getElementById("biZoomMenuWrap");
+  els.legacyStudioCanvasZoomMenuButton = document.getElementById("biCanvasZoomMenuButton");
+  els.legacyStudioCanvasZoomMenu = document.getElementById("biCanvasZoomMenu");
+  els.legacyStudioZoomFitAllButton = document.getElementById("biZoomFitAllButton");
+  els.legacyStudioZoomFitWidthButton = document.getElementById("biZoomFitWidthButton");
+  els.legacyStudioZoomDefaultButton = document.getElementById("biZoomDefaultButton");
+  els.legacyStudioZoomFitAllLabel = document.getElementById("biZoomFitAllLabel");
+  els.legacyStudioZoomFitWidthLabel = document.getElementById("biZoomFitWidthLabel");
+  els.legacyStudioApplyCanvasSizeButton = document.getElementById("biApplyCanvasSizeButton");
+  els.legacyStudioResetCanvasSizeButton = document.getElementById("biResetCanvasSizeButton");
+  els.legacyStudioShowCanvasGridCheckbox = document.getElementById("biShowCanvasGridCheckbox");
+  els.legacyStudioSnapToGridCheckbox = document.getElementById("biSnapToGridCheckbox");
+  els.legacyStudioGridSnapSizeInput = document.getElementById("biGridSnapSizeInput");
+  els.legacyStudioPerformanceModeSelect = document.getElementById("biPerformanceModeSelect");
+  els.legacyStudioOptimizeNowButton = document.getElementById("biOptimizeNowButton");
+  els.legacyStudioResetPerformanceButton = document.getElementById("biResetPerformanceButton");
+  els.legacyStudioPerfRenderMsText = document.getElementById("biPerfRenderMsText");
+  els.legacyStudioPerfWidgetsText = document.getElementById("biPerfWidgetsText");
+  els.legacyStudioPerfPointsText = document.getElementById("biPerfPointsText");
+  els.legacyStudioPerfRowsText = document.getElementById("biPerfRowsText");
+  els.legacyStudioPerfSummaryText = document.getElementById("biPerfSummaryText");
+  els.legacyStudioColorSourceSelect = document.getElementById("biColorSourceSelect");
+  els.legacyStudioColorGroupBySelect = document.getElementById("biColorGroupBySelect");
+  els.legacyStudioColorLegendList = document.getElementById("biColorLegendList");
+  els.legacyStudioColorSummaryText = document.getElementById("biColorSummaryText");
+  els.legacyStudioAutoColorButton = document.getElementById("biAutoColorButton");
+  els.legacyStudioClearColorButton = document.getElementById("biClearColorButton");
+  els.legacyStudioShowLegendCheckbox = document.getElementById("biShowLegendCheckbox");
+  els.legacyStudioShowGridCheckbox = document.getElementById("biShowGridCheckbox");
+  els.legacyStudioShowAxisLabelsCheckbox = document.getElementById("biShowAxisLabelsCheckbox");
+  els.legacyStudioShowDataLabelsCheckbox = document.getElementById("biShowDataLabelsCheckbox");
+  els.legacyStudioAxisXLabelInput = document.getElementById("biAxisXLabelInput");
+  els.legacyStudioAxisYLabelInput = document.getElementById("biAxisYLabelInput");
+  els.legacyStudioLabelMaxCharsInput = document.getElementById("biLabelMaxCharsInput");
+  els.legacyStudioValueDecimalsInput = document.getElementById("biValueDecimalsInput");
+  els.legacyStudioFontSizeInput = document.getElementById("biFontSizeInput");
+  els.legacyStudioFontFamilyTitleSelect = document.getElementById("biFontFamilyTitleSelect");
+  els.legacyStudioFontFamilyAxisSelect = document.getElementById("biFontFamilyAxisSelect");
+  els.legacyStudioFontFamilyLabelSelect = document.getElementById("biFontFamilyLabelSelect");
+  els.legacyStudioFontFamilyTooltipSelect = document.getElementById("biFontFamilyTooltipSelect");
+  els.legacyStudioFontSizeTitleInput = document.getElementById("biFontSizeTitleInput");
+  els.legacyStudioFontSizeAxisInput = document.getElementById("biFontSizeAxisInput");
+  els.legacyStudioFontSizeLabelsInput = document.getElementById("biFontSizeLabelsInput");
+  els.legacyStudioFontSizeTooltipInput = document.getElementById("biFontSizeTooltipInput");
+  els.legacyStudioLabelColorModeSelect = document.getElementById("biLabelColorModeSelect");
+  els.legacyStudioLabelColorInput = document.getElementById("biLabelColorInput");
+  els.legacyStudioLineWidthInput = document.getElementById("biLineWidthInput");
+  els.legacyStudioSeriesLineStyleSelect = document.getElementById("biSeriesLineStyleSelect");
+  els.legacyStudioSeriesMarkerStyleSelect = document.getElementById("biSeriesMarkerStyleSelect");
+  els.legacyStudioSeriesMarkerSizeInput = document.getElementById("biSeriesMarkerSizeInput");
+  els.legacyStudioAreaOpacityInput = document.getElementById("biAreaOpacityInput");
+  els.legacyStudioSmoothLinesCheckbox = document.getElementById("biSmoothLinesCheckbox");
+  els.legacyStudioResetVisualSettingsButton = document.getElementById("biResetVisualSettingsButton");
+  els.legacyStudioApplyVisualScopeButton = document.getElementById("biApplyVisualScopeButton");
+  els.legacyStudioResetVisualScopeButton = document.getElementById("biResetVisualScopeButton");
+  els.legacyStudioUiModeSelect = document.getElementById("biUiModeSelect");
+  els.legacyStudioVisualScopeSelect = document.getElementById("biVisualScopeSelect");
+  els.legacyStudioVisualScopeMeta = document.getElementById("biVisualScopeMeta");
+  els.legacyStudioWidgetShowTitleCheckbox = document.getElementById("biWidgetShowTitleCheckbox");
+  els.legacyStudioWidgetShowBorderCheckbox = document.getElementById("biWidgetShowBorderCheckbox");
+  els.legacyStudioWidgetShowBackgroundCheckbox = document.getElementById("biWidgetShowBackgroundCheckbox");
+  els.legacyStudioWidgetChromeMeta = document.getElementById("biWidgetChromeMeta");
+  els.legacyStudioVisualPresetSelect = document.getElementById("biVisualPresetSelect");
+  els.legacyStudioApplyVisualPresetButton = document.getElementById("biApplyVisualPresetButton");
+  els.legacyStudioSavePresetNameInput = document.getElementById("biSavePresetNameInput");
+  els.legacyStudioSaveVisualPresetButton = document.getElementById("biSaveVisualPresetButton");
+  els.legacyStudioNumberFormatSelect = document.getElementById("biNumberFormatSelect");
+  els.legacyStudioValuePrefixInput = document.getElementById("biValuePrefixInput");
+  els.legacyStudioValueSuffixInput = document.getElementById("biValueSuffixInput");
+  els.legacyStudioLegendPositionSelect = document.getElementById("biLegendPositionSelect");
+  els.legacyStudioLegendMaxItemsInput = document.getElementById("biLegendMaxItemsInput");
+  els.legacyStudioAxisScaleSelect = document.getElementById("biAxisScaleSelect");
+  els.legacyStudioAxisMinInput = document.getElementById("biAxisMinInput");
+  els.legacyStudioAxisMaxInput = document.getElementById("biAxisMaxInput");
+  els.legacyStudioShowTargetLineCheckbox = document.getElementById("biShowTargetLineCheckbox");
+  els.legacyStudioTargetLineValueInput = document.getElementById("biTargetLineValueInput");
+  els.legacyStudioTargetLineLabelInput = document.getElementById("biTargetLineLabelInput");
+  els.legacyStudioTargetLineColorInput = document.getElementById("biTargetLineColorInput");
+  els.legacyStudioBarWidthRatioInput = document.getElementById("biBarWidthRatioInput");
+  els.legacyStudioGridOpacityInput = document.getElementById("biGridOpacityInput");
+  els.legacyStudioGridDashInput = document.getElementById("biGridDashInput");
+  els.legacyStudioStackModeSelect = document.getElementById("biStackModeSelect");
+  els.legacyStudioTooltipModeSelect = document.getElementById("biTooltipModeSelect");
+  els.legacyStudioRailButtons = document.querySelectorAll("[data-bi-rail-mode]");
+  els.legacyStudioWidgetsGrid = document.getElementById("biWidgetsGrid");
+  els.legacyStudioRowsMetaText = document.getElementById("biRowsMetaText");
+  els.legacyStudioRowsHeader = document.getElementById("biRowsHeader");
+  els.legacyStudioRowsBody = document.getElementById("biRowsBody");
   els.openAddReviewMilestoneButton = document.getElementById("openAddReviewMilestoneButton");
   els.toggleReviewFlowEditButton = document.getElementById("toggleReviewFlowEditButton");
   els.addBlankReviewMilestoneButton = document.getElementById("addBlankReviewMilestoneButton");
@@ -841,7 +898,7 @@ function bindElements() {
   els.closeChooserButton = document.getElementById("closeChooserButton");
 }
 
-function applyBiControlHints() {
+function applyLegacyStudioControlHints() {
   const hints = {
     biVisualScopeSelect: "Define si el estilo se aplica a todo el proyecto o solo al widget seleccionado.",
     biShowLegendCheckbox: "Muestra u oculta la leyenda del grafico.",
@@ -915,7 +972,7 @@ function requireFieldsEditMode(message = "Activa Editar para modificar Listas.")
   return false;
 }
 
-function requireReviewFlowEditMode(message = "Activa Editar para modificar Hitos de Flujo de Revisión.") {
+function requireReviewFlowEditMode(message = "Activa Editar para modificar Hitos de Flujo de RevisiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n.") {
   if (reviewFlowEditMode) {
     return true;
   }
@@ -935,7 +992,6 @@ function wireEvents() {
     renderDeliverablesPanel(getActiveProject());
     renderReviewFlowPanel(getActiveProject());
     renderReviewControlsPanel(getActiveProject());
-    renderBiPanel(getActiveProject());
     renderQuickSightPanel(getActiveProject());
     setStatus("Cambios guardados localmente.");
   });
@@ -954,7 +1010,6 @@ function wireEvents() {
       renderPackageControlsPanel(getActiveProject());
       renderReviewFlowPanel(getActiveProject());
       renderReviewControlsPanel(getActiveProject());
-      renderBiPanel(getActiveProject());
       renderQuickSightPanel(getActiveProject());
     }, SEARCH_DEBOUNCE_MS);
   });
@@ -1014,55 +1069,86 @@ function wireEvents() {
       return;
     }
     ensureQuickSightState(project);
-    const nextSource = normalizeBiSource(els.qsSourceSelect?.value || project.quickSightConfig.source || "all");
-    const nextGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
-    const nextBreakdown = normalizeBiOptionalGroupBy(
+    const nextSource = normalizeQuickSightSourceSelection(
+      project,
+      els.qsSourceSelect?.value || project.quickSightConfig.source || "deliverable",
+      getQuickSightPanelBaseRows(project)
+    );
+    const nextGroupBy = normalizeAnalyticsGroupBy(els.qsGroupBySelect?.value || project.quickSightConfig.groupBy || "disciplina");
+    const nextBreakdown = normalizeAnalyticsOptionalGroupBy(
       els.qsBreakdownSelect instanceof HTMLSelectElement
         ? els.qsBreakdownSelect.value
         : (project.quickSightConfig.breakdownDimension || "")
     );
-    const nextMetric = normalizeBiMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
-    const nextChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || project.quickSightConfig.chartType || "bar");
-    const nextOptionalMetric = normalizeBiOptionalMetric(
+    const nextMetric = normalizeAnalyticsMetric(els.qsMetricSelect?.value || project.quickSightConfig.metric || "count");
+    const nextTypeToken = normalizeQuickSightVisualTypeToken(
+      els.qsChartTypeSelect?.value
+      || getQuickSightVisualTypeToken(
+        project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null,
+        project.quickSightConfig
+      )
+      || project.quickSightConfig.chartType
+      || "bar"
+    );
+    const nextKind = nextTypeToken === "text" ? "text" : "chart";
+    const nextChartType = nextKind === "text"
+      ? getQuickSightResolvedChartType(
+        project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null,
+        project.quickSightConfig
+      )
+      : normalizeAnalyticsChartType(nextTypeToken);
+    const nextOptionalMetric = normalizeAnalyticsOptionalMetric(
       els.qsOptionalMetricSelect instanceof HTMLSelectElement
         ? els.qsOptionalMetricSelect.value
         : (project.quickSightConfig.optionalMetric || "")
     );
-    const nextTopN = sanitizeBiTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
+    const nextTopN = sanitizeAnalyticsTopN(els.qsTopNInput?.value ?? project.quickSightConfig.topN ?? 12);
     const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
     if (selectedVisual) {
+      syncQuickSightVisualKindState(selectedVisual, nextTypeToken, project.quickSightConfig);
       selectedVisual.source = nextSource;
       selectedVisual.groupBy = nextGroupBy;
       selectedVisual.breakdownDimension = nextBreakdown;
       selectedVisual.metric = nextMetric;
-      selectedVisual.chartType = nextChartType;
-      selectedVisual.topN = nextTopN;
-      syncQuickSightVisualDataRoles(selectedVisual, {
-        groupBy: nextGroupBy,
-        breakdownDimension: nextBreakdown,
-        metric: nextMetric,
-        chartType: nextChartType,
-        optionalMetric: nextOptionalMetric,
-        dateDimension: project.quickSightConfig.dateDimension || ""
-      });
-      selectedVisual.display = normalizeQuickSightDisplaySettings(selectedVisual.display);
-      selectedVisual.visualSettings = applyBiChartTypeVisualDefaults(
-        normalizeBiVisualSettings(selectedVisual.visualSettings),
-        selectedVisual.chartType
-      );
-      selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
-      const safeTypeMap = normalizeBiChartTypeConfigMap(selectedVisual.chartTypeConfig);
-      if (!safeTypeMap[selectedVisual.chartType]) {
-        safeTypeMap[selectedVisual.chartType] = normalizeBiChartTypeSpecificConfig({}, selectedVisual.chartType);
+      if (selectedVisual.kind !== "text") {
+        selectedVisual.chartType = nextChartType;
       }
-      selectedVisual.chartTypeConfig = safeTypeMap;
+      selectedVisual.topN = nextTopN;
+      if (selectedVisual.kind !== "text") {
+        syncQuickSightVisualDataRoles(selectedVisual, {
+          groupBy: nextGroupBy,
+          breakdownDimension: nextBreakdown,
+          metric: nextMetric,
+          chartType: nextChartType,
+          optionalMetric: nextOptionalMetric,
+          dateDimension: project.quickSightConfig.dateDimension || ""
+        });
+      }
+      selectedVisual.display = normalizeQuickSightDisplaySettings(selectedVisual.display);
+      if (selectedVisual.kind === "text") {
+        selectedVisual.textConfig = normalizeAnalyticsTextConfig(selectedVisual.textConfig);
+      } else {
+        selectedVisual.visualSettings = applyAnalyticsChartTypeVisualDefaults(
+          normalizeAnalyticsVisualSettings(selectedVisual.visualSettings),
+          selectedVisual.chartType
+        );
+        selectedVisual.chartConfig = normalizeAnalyticsChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
+        const safeTypeMap = normalizeAnalyticsChartTypeConfigMap(selectedVisual.chartTypeConfig);
+        if (!safeTypeMap[selectedVisual.chartType]) {
+          safeTypeMap[selectedVisual.chartType] = normalizeAnalyticsChartTypeSpecificConfig({}, selectedVisual.chartType);
+        }
+        selectedVisual.chartTypeConfig = safeTypeMap;
+      }
     } else {
       project.quickSightConfig.source = nextSource;
       project.quickSightConfig.groupBy = nextGroupBy;
       project.quickSightConfig.breakdownDimension = nextBreakdown;
       project.quickSightConfig.metric = nextMetric;
       project.quickSightConfig.optionalMetric = nextOptionalMetric;
-      project.quickSightConfig.chartType = nextChartType;
+      project.quickSightConfig.kind = nextKind;
+      if (nextKind !== "text") {
+        project.quickSightConfig.chartType = nextChartType;
+      }
       project.quickSightConfig.topN = nextTopN;
     }
     project.quickSightConfig.fieldsSearch = trimOrFallback(els.qsFieldsSearchInput?.value, "").slice(0, 80);
@@ -1078,8 +1164,33 @@ function wireEvents() {
   };
 
   const getQuickSightRoleUiLabels = (chartType) => {
-    const type = normalizeBiChartType(chartType || "bar");
-    if (BI_HORIZONTAL_BAR_TYPES.has(type)) {
+    const typeToken = normalizeQuickSightVisualTypeToken(chartType || "bar");
+    if (typeToken === "text") {
+      return {
+        dimension: "CONTENIDO",
+        metric: "VALOR",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    if (typeToken === "viewer") {
+      return {
+        dimension: "MODELO",
+        metric: "DETALLE",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    const type = normalizeAnalyticsChartType(typeToken);
+    if (type === "table") {
+      return {
+        dimension: "COLUMNAS DIMENSION",
+        metric: "COLUMNAS METRICA",
+        optionalMetric: "EJE X",
+        breakdown: "GRUPO/COLOR"
+      };
+    }
+    if (ANALYTICS_HORIZONTAL_BAR_TYPES.has(type)) {
       return {
         dimension: "EJE Y",
         metric: "EJE X / VALOR",
@@ -1095,7 +1206,7 @@ function wireEvents() {
         breakdown: "GRUPO/COLOR"
       };
     }
-    if (BI_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
+    if (ANALYTICS_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
       return {
         dimension: "EJE X",
         metric: "EJE Y / VALOR",
@@ -1114,18 +1225,24 @@ function wireEvents() {
   const getQuickSightRolePickerContext = (project) => {
     ensureQuickSightState(project);
     const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
-    const chartType = normalizeBiChartType(
+    const typeToken = normalizeQuickSightVisualTypeToken(
       els.qsChartTypeSelect?.value
-      || selectedVisual?.chartType
-      || project.quickSightConfig.chartType
+      || getQuickSightVisualTypeToken(selectedVisual, project.quickSightConfig)
       || "bar"
     );
+    const kind = typeToken === "text" ? "text" : getQuickSightVisualKind(selectedVisual, project.quickSightConfig);
+    const chartType = typeToken === "text"
+      ? getQuickSightResolvedChartType(selectedVisual, project.quickSightConfig)
+      : normalizeAnalyticsChartType(typeToken);
     const capabilities = getQuickSightChartCapabilities(selectedVisual ? {
       ...selectedVisual,
+      kind,
       chartType
-    } : { chartType }, project.quickSightConfig);
+    } : { kind, chartType }, project.quickSightConfig);
     return {
       selectedVisual,
+      kind,
+      typeToken,
       chartType,
       capabilities
     };
@@ -1151,7 +1268,11 @@ function wireEvents() {
     if (!project) {
       return;
     }
-    const { capabilities } = getQuickSightRolePickerContext(project);
+    const { capabilities, kind } = getQuickSightRolePickerContext(project);
+    if (kind === "text") {
+      setStatus("Texto no usa dimensiones ni métricas. Edita su contenido en Propiedades.");
+      return;
+    }
     if (nextRole === "optionalMetric" && !capabilities.supportsOptionalMetric) {
       setStatus("Este tipo usa una sola medida principal. EJE X adicional se habilita en Scatter y Bubble.");
       return;
@@ -1171,14 +1292,54 @@ function wireEvents() {
     if (!project || !nextRole) {
       return;
     }
+    const pickerContext = getQuickSightRolePickerContext(project);
     const roleLabels = getQuickSightRoleUiLabels(
       els.qsChartTypeSelect?.value
-      || project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId)?.chartType
+      || getQuickSightVisualTypeToken(
+        project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null,
+        project.quickSightConfig
+      )
       || project.quickSightConfig.chartType
       || "bar"
     );
+    if (pickerContext.chartType === "table" && pickerContext.selectedVisual) {
+      if (nextRole === "dimension") {
+        const nextDimension = normalizeAnalyticsOptionalGroupBy(rawValue);
+        if (!nextDimension) {
+          closeQuickSightRolePicker({ rerender: true });
+          return;
+        }
+        const before = getQuickSightTableDimensionRoles(pickerContext.selectedVisual, project.quickSightConfig);
+        updateQuickSightTableRoleSelections(pickerContext.selectedVisual, { appendDimension: nextDimension }, project.quickSightConfig);
+        quickSightRolePickerOpen = "";
+        quickSightRolePickerFocusRole = "";
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(before.includes(nextDimension)
+          ? `${getAnalyticsGroupLabel(nextDimension, project)} ya estaba en la tabla.`
+          : `${roleLabels.dimension}: ${getAnalyticsGroupLabel(nextDimension, project)} agregada.`);
+        return;
+      }
+      if (nextRole === "metric") {
+        const nextMetric = normalizeAnalyticsOptionalMetric(rawValue);
+        if (!nextMetric) {
+          closeQuickSightRolePicker({ rerender: true });
+          return;
+        }
+        const before = getQuickSightTableMetricRoles(pickerContext.selectedVisual, project.quickSightConfig);
+        updateQuickSightTableRoleSelections(pickerContext.selectedVisual, { appendMetric: nextMetric }, project.quickSightConfig);
+        quickSightRolePickerOpen = "";
+        quickSightRolePickerFocusRole = "";
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(before.includes(nextMetric)
+          ? `${getAnalyticsMetricLabel(nextMetric)} ya estaba en la tabla.`
+          : `${roleLabels.metric}: ${getAnalyticsMetricLabel(nextMetric)} agregada.`);
+        return;
+      }
+    }
     if (nextRole === "dimension" && els.qsGroupBySelect instanceof HTMLSelectElement) {
-      const nextGroupBy = normalizeBiGroupBy(rawValue || els.qsGroupBySelect.value);
+      const nextGroupBy = normalizeAnalyticsGroupBy(rawValue || els.qsGroupBySelect.value);
       if (!nextGroupBy) {
         closeQuickSightRolePicker({ rerender: true });
         return;
@@ -1187,11 +1348,11 @@ function wireEvents() {
       quickSightRolePickerOpen = "";
       quickSightRolePickerFocusRole = "";
       handleQuickSightConfigChange();
-      setStatus(`${roleLabels.dimension} actualizado: ${getBiGroupLabel(nextGroupBy, project)}.`);
+      setStatus(`${roleLabels.dimension} actualizado: ${getAnalyticsGroupLabel(nextGroupBy, project)}.`);
       return;
     }
     if (nextRole === "metric" && els.qsMetricSelect instanceof HTMLSelectElement) {
-      const nextMetric = normalizeBiMetric(rawValue || els.qsMetricSelect.value);
+      const nextMetric = normalizeAnalyticsMetric(rawValue || els.qsMetricSelect.value);
       if (!nextMetric) {
         closeQuickSightRolePicker({ rerender: true });
         return;
@@ -1200,28 +1361,28 @@ function wireEvents() {
       quickSightRolePickerOpen = "";
       quickSightRolePickerFocusRole = "";
       handleQuickSightConfigChange();
-      setStatus(`${roleLabels.metric} actualizado: ${getBiMetricLabel(nextMetric)}.`);
+      setStatus(`${roleLabels.metric} actualizado: ${getAnalyticsMetricLabel(nextMetric)}.`);
       return;
     }
     if (nextRole === "optionalMetric" && els.qsOptionalMetricSelect instanceof HTMLSelectElement) {
-      const nextMetric = normalizeBiOptionalMetric(rawValue);
+      const nextMetric = normalizeAnalyticsOptionalMetric(rawValue);
       els.qsOptionalMetricSelect.value = nextMetric;
       quickSightRolePickerOpen = "";
       quickSightRolePickerFocusRole = "";
       handleQuickSightConfigChange();
       setStatus(nextMetric
-        ? `${roleLabels.optionalMetric} actualizado: ${getBiMetricLabel(nextMetric)}.`
+        ? `${roleLabels.optionalMetric} actualizado: ${getAnalyticsMetricLabel(nextMetric)}.`
         : `${roleLabels.optionalMetric} restaurado a Automatico: UP Base total.`);
       return;
     }
     if (nextRole === "breakdown" && els.qsBreakdownSelect instanceof HTMLSelectElement) {
-      const nextBreakdown = normalizeBiOptionalGroupBy(rawValue);
+      const nextBreakdown = normalizeAnalyticsOptionalGroupBy(rawValue);
       els.qsBreakdownSelect.value = nextBreakdown;
       quickSightRolePickerOpen = "";
       quickSightRolePickerFocusRole = "";
       handleQuickSightConfigChange();
       setStatus(nextBreakdown
-        ? `${roleLabels.breakdown} actualizado: ${getBiGroupLabel(nextBreakdown, project)}.`
+        ? `${roleLabels.breakdown} actualizado: ${getAnalyticsGroupLabel(nextBreakdown, project)}.`
         : `${roleLabels.breakdown} limpiado.`);
     }
   };
@@ -1235,6 +1396,179 @@ function wireEvents() {
       node.addEventListener("change", handleQuickSightConfigChange);
     });
 
+  els.qsOpenModelLinkButton?.addEventListener("click", () => {
+    openQuickSightModelLinkDrawer("");
+  });
+
+  els.qsCloseModelLinkButton?.addEventListener("click", () => {
+    closeQuickSightModelLinkDrawer();
+  });
+
+  els.qsModelLinkOverlay?.addEventListener("click", (event) => {
+    if (event.target === els.qsModelLinkOverlay) {
+      closeQuickSightModelLinkDrawer();
+    }
+  });
+
+  els.qsSaveModelLinkButton?.addEventListener("click", () => {
+    saveQuickSightModelFromDrawer();
+  });
+
+  els.qsApsRefreshStatusButton?.addEventListener("click", () => {
+    void (async () => {
+      const status = await refreshQuickSightApsStatus();
+      if (status.configured && status.authenticated) {
+        try {
+          await loadQuickSightAccProjects();
+        } catch (error) {
+          setQuickSightAccBrowserStatus(`No se pudieron cargar proyectos ACC: ${String(error.message || error)}`);
+        }
+      }
+    })();
+  });
+
+  els.qsApsDebugButton?.addEventListener("click", () => {
+    void debugQuickSightAccBrowser().catch((error) => {
+      setQuickSightAccBrowserStatus(`No se pudo ejecutar el diagnostico ACC: ${String(error.message || error)}`);
+      setQuickSightAccDebugReport(String(error.message || error));
+      if (els.qsAccDebugPanel instanceof HTMLDetailsElement) {
+        els.qsAccDebugPanel.open = true;
+      }
+    });
+  });
+
+  els.qsSyncModelPropertiesButton?.addEventListener("click", () => {
+    void syncQuickSightModelPropertiesFromAps();
+  });
+
+  els.qsApsLoginButton?.addEventListener("click", () => {
+    if (!isQuickSightServedFromHttp()) {
+      setStatus("Abre MIDP desde http://127.0.0.1:8080/ para conectar APS.");
+      return;
+    }
+    window.open("/api/aps/auth/login", "_blank", "noopener");
+  });
+
+  els.qsApsLogoutButton?.addEventListener("click", async () => {
+    if (!isQuickSightServedFromHttp()) {
+      setStatus("APS no funciona en modo file://.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/aps/auth/logout", { method: "GET", headers: { Accept: "application/json" } });
+      if (!response.ok) {
+        throw new Error(`APS logout ${response.status}`);
+      }
+      await refreshQuickSightApsStatus({ silent: true });
+      resetQuickSightAccBrowserState();
+      renderQuickSightAccBrowser();
+      setStatus("Sesion APS cerrada.");
+    } catch {
+      setStatus("No se pudo cerrar la sesion APS.");
+    }
+  });
+
+  els.qsAccProjectsList?.addEventListener("click", (event) => {
+    if (!isQuickSightServedFromHttp()) {
+      setStatus("Abre MIDP desde http://127.0.0.1:8080/ para navegar ACC.");
+      return;
+    }
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest("[data-qs-acc-project-id]")
+      : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const projectId = trimOrFallback(target.dataset.qsAccProjectId, "");
+    if (!projectId) {
+      return;
+    }
+    void loadQuickSightAccProjectTopFolders(projectId).catch((error) => {
+      setQuickSightAccBrowserStatus(`No se pudieron cargar carpetas: ${String(error.message || error)}`);
+    });
+  });
+
+  els.qsAccEntriesList?.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest("[data-qs-acc-entry-action]")
+      : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = trimOrFallback(target.dataset.qsAccEntryAction, "");
+    if (action === "back") {
+      void goBackQuickSightAccFolder().catch((error) => {
+        setQuickSightAccBrowserStatus(`No se pudo volver de carpeta: ${String(error.message || error)}`);
+      });
+      return;
+    }
+    const entryId = trimOrFallback(target.dataset.qsAccEntryId, "");
+    const entry = quickSightAccBrowserState.entries.find((item) => item.id === entryId);
+    if (!entry) {
+      return;
+    }
+    if (action === "open-folder" && entry.kind === "folder") {
+      void loadQuickSightAccFolderContents(entry.folderId, entry.name).catch((error) => {
+        setQuickSightAccBrowserStatus(`No se pudo abrir la carpeta: ${String(error.message || error)}`);
+      });
+      return;
+    }
+    if (action === "select-model" && entry.kind === "model") {
+      applyQuickSightAccModelSelection(entry);
+      setQuickSightAccBrowserStatus(`Modelo seleccionado: ${entry.name}.`);
+    }
+  });
+
+  els.qsModelsList?.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest("[data-qs-model-action]")
+      : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = trimOrFallback(target.dataset.qsModelAction, "");
+    const modelId = trimOrFallback(target.dataset.qsModelId, "");
+    const source = normalizeAnalyticsSource(target.dataset.qsModelSource || "");
+    const project = getActiveProject();
+    if (!project) {
+      return;
+    }
+    if (action === "use") {
+      if (els.qsSourceSelect instanceof HTMLSelectElement && source) {
+        els.qsSourceSelect.value = source;
+      }
+      handleQuickSightConfigChange();
+      setStatus(`Dataset activo: ${getAnalyticsSourceMeta(project, source).datasetLabel}.`);
+      return;
+    }
+    if (action === "edit") {
+      openQuickSightModelLinkDrawer(modelId);
+      return;
+    }
+    if (action === "sync") {
+      openQuickSightModelLinkDrawer(modelId);
+      window.setTimeout(() => {
+        void (async () => {
+          const synced = await syncQuickSightModelPropertiesFromAps();
+          if (synced) {
+            saveQuickSightModelFromDrawer();
+          }
+        })();
+      }, 0);
+      return;
+    }
+    if (action === "remove") {
+      const removed = removeQuickSightModel(project, modelId);
+      if (!removed) {
+        setStatus("No se pudo quitar el modelo.");
+        return;
+      }
+      saveState();
+      renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+      setStatus("Modelo ACC / RVT quitado.");
+    }
+  });
+
   els.qsChartTypeGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -1244,7 +1578,7 @@ function wireEvents() {
     if (!(button instanceof HTMLElement)) {
       return;
     }
-    const nextType = normalizeBiChartType(button.dataset.qsChartType || "");
+    const nextType = normalizeQuickSightVisualTypeToken(button.dataset.qsChartType || "");
     if (els.qsChartTypeSelect instanceof HTMLSelectElement) {
       els.qsChartTypeSelect.value = nextType;
     }
@@ -1254,6 +1588,27 @@ function wireEvents() {
   els.qsRoleDimensionList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const removeButton = target.closest("[data-qs-role-remove='dimension']");
+    if (removeButton instanceof HTMLElement) {
+      const project = getActiveProject();
+      const selectedVisual = project?.quickSightVisuals?.find((item) => item.id === selectedQuickSightVisualId) || null;
+      const dimensionKey = normalizeAnalyticsOptionalGroupBy(removeButton.dataset.qsRoleValue || "");
+      if (project && selectedVisual && isQuickSightTableChartType(selectedVisual.chartType) && dimensionKey) {
+        updateQuickSightTableRoleSelections(selectedVisual, { removeDimension: dimensionKey }, project.quickSightConfig);
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(`Columna dimension retirada: ${getAnalyticsGroupLabel(dimensionKey, project)}.`);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (target.closest("[data-qs-role-action='append-dimension']")) {
+      event.preventDefault();
+      event.stopPropagation();
+      openQuickSightRolePicker("dimension");
       return;
     }
     if (target.closest("[data-qs-role-picker-select]")) {
@@ -1277,6 +1632,27 @@ function wireEvents() {
   els.qsRoleMetricList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const removeButton = target.closest("[data-qs-role-remove='metric']");
+    if (removeButton instanceof HTMLElement) {
+      const project = getActiveProject();
+      const selectedVisual = project?.quickSightVisuals?.find((item) => item.id === selectedQuickSightVisualId) || null;
+      const metricKey = normalizeAnalyticsOptionalMetric(removeButton.dataset.qsRoleValue || "");
+      if (project && selectedVisual && isQuickSightTableChartType(selectedVisual.chartType) && metricKey) {
+        updateQuickSightTableRoleSelections(selectedVisual, { removeMetric: metricKey }, project.quickSightConfig);
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(`Columna metrica retirada: ${getAnalyticsMetricLabel(metricKey)}.`);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (target.closest("[data-qs-role-action='append-metric']")) {
+      event.preventDefault();
+      event.stopPropagation();
+      openQuickSightRolePicker("metric");
       return;
     }
     if (target.closest("[data-qs-role-picker-select]")) {
@@ -1350,7 +1726,7 @@ function wireEvents() {
     }
     ensureQuickSightState(project);
     const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
-    const chartType = normalizeBiChartType(
+    const chartType = normalizeAnalyticsChartType(
       els.qsChartTypeSelect?.value
       || selectedVisual?.chartType
       || project.quickSightConfig.chartType
@@ -1360,6 +1736,10 @@ function wireEvents() {
       ...selectedVisual,
       chartType
     } : { chartType }, project.quickSightConfig);
+    if (chartType === "table") {
+      openQuickSightRolePicker("metric");
+      return;
+    }
     if (!capabilities.supportsOptionalMetric || !(els.qsOptionalMetricSelect instanceof HTMLSelectElement)) {
       els.qsMetricSelect?.focus();
       setStatus("Este tipo usa una sola medida principal. EJE X adicional se habilita en Scatter y Bubble.");
@@ -1375,7 +1755,7 @@ function wireEvents() {
     }
     ensureQuickSightState(project);
     const selectedVisual = project.quickSightVisuals.find((item) => item.id === selectedQuickSightVisualId) || null;
-    const chartType = normalizeBiChartType(
+    const chartType = normalizeAnalyticsChartType(
       els.qsChartTypeSelect?.value
       || selectedVisual?.chartType
       || project.quickSightConfig.chartType
@@ -1385,6 +1765,10 @@ function wireEvents() {
       ...selectedVisual,
       chartType
     } : { chartType }, project.quickSightConfig);
+    if (chartType === "table") {
+      openQuickSightRolePicker("dimension");
+      return;
+    }
     if (!capabilities.supportsBreakdown || !(els.qsBreakdownSelect instanceof HTMLSelectElement)) {
       setStatus("Este tipo de visual no usa GRUPO/COLOR.");
       return;
@@ -1408,8 +1792,8 @@ function wireEvents() {
         return null;
       }
       return {
-        groupBy: normalizeBiOptionalGroupBy(parsed.groupBy || ""),
-        metric: normalizeBiOptionalMetric(parsed.metric || ""),
+        groupBy: normalizeAnalyticsOptionalGroupBy(parsed.groupBy || ""),
+        metric: normalizeAnalyticsOptionalMetric(parsed.metric || ""),
         name: trimOrFallback(parsed.name, "")
       };
     } catch {
@@ -1421,28 +1805,58 @@ function wireEvents() {
     if (!payload || typeof payload !== "object") {
       return;
     }
+    const project = getActiveProject();
+    const selectedVisual = project?.quickSightVisuals?.find((item) => item.id === selectedQuickSightVisualId) || null;
+    const chartType = normalizeAnalyticsChartType(
+      els.qsChartTypeSelect?.value
+      || selectedVisual?.chartType
+      || project?.quickSightConfig?.chartType
+      || "bar"
+    );
+    if (chartType === "table" && selectedVisual) {
+      if (role === "dimension" && payload.groupBy) {
+        const before = getQuickSightTableDimensionRoles(selectedVisual, project.quickSightConfig);
+        updateQuickSightTableRoleSelections(selectedVisual, { appendDimension: payload.groupBy }, project.quickSightConfig);
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(before.includes(payload.groupBy)
+          ? `${getAnalyticsGroupLabel(payload.groupBy, project)} ya estaba en la tabla.`
+          : `Columna dimension agregada: ${getAnalyticsGroupLabel(payload.groupBy, project)}.`);
+        return;
+      }
+      if (role === "metric" && payload.metric) {
+        const before = getQuickSightTableMetricRoles(selectedVisual, project.quickSightConfig);
+        updateQuickSightTableRoleSelections(selectedVisual, { appendMetric: payload.metric }, project.quickSightConfig);
+        saveState();
+        renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+        setStatus(before.includes(payload.metric)
+          ? `${getAnalyticsMetricLabel(payload.metric)} ya estaba en la tabla.`
+          : `Columna metrica agregada: ${getAnalyticsMetricLabel(payload.metric)}.`);
+        return;
+      }
+    }
     if (role === "dimension" && payload.groupBy && els.qsGroupBySelect instanceof HTMLSelectElement) {
       els.qsGroupBySelect.value = payload.groupBy;
       handleQuickSightConfigChange();
-      setStatus(`Dimension asignada: ${getBiGroupLabel(payload.groupBy)}.`);
+      setStatus(`Dimension asignada: ${getAnalyticsGroupLabel(payload.groupBy)}.`);
       return;
     }
     if (role === "metric" && payload.metric && els.qsMetricSelect instanceof HTMLSelectElement) {
       els.qsMetricSelect.value = payload.metric;
       handleQuickSightConfigChange();
-      setStatus(`Metrica asignada: ${getBiMetricLabel(payload.metric)}.`);
+      setStatus(`Metrica asignada: ${getAnalyticsMetricLabel(payload.metric)}.`);
       return;
     }
     if (role === "optionalMetric" && payload.metric && els.qsOptionalMetricSelect instanceof HTMLSelectElement) {
       els.qsOptionalMetricSelect.value = payload.metric;
       handleQuickSightConfigChange();
-      setStatus(`EJE X asignado: ${getBiMetricLabel(payload.metric)}.`);
+      setStatus(`EJE X asignado: ${getAnalyticsMetricLabel(payload.metric)}.`);
       return;
     }
     if (role === "breakdown" && payload.groupBy && els.qsBreakdownSelect instanceof HTMLSelectElement) {
       els.qsBreakdownSelect.value = payload.groupBy;
       handleQuickSightConfigChange();
-      setStatus(`GRUPO/COLOR asignado: ${getBiGroupLabel(payload.groupBy)}.`);
+      setStatus(`GRUPO/COLOR asignado: ${getAnalyticsGroupLabel(payload.groupBy)}.`);
       return;
     }
     setStatus("Ese campo no aplica para ese rol.");
@@ -1628,17 +2042,17 @@ function wireEvents() {
       project.quickSightConfig.canvasHeight = defaults.canvasHeight;
       project.quickSightConfig.canvasZoom = defaults.canvasZoom;
     } else {
-      project.quickSightConfig.canvasWidth = sanitizeBiCanvasDimension(
+      project.quickSightConfig.canvasWidth = sanitizeAnalyticsCanvasDimension(
         els.qsCanvasWidthInput?.value,
         project.quickSightConfig.canvasWidth,
         QUICKSIGHT_CANVAS_MIN_WIDTH,
-        BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+        ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH
       );
-      project.quickSightConfig.canvasHeight = sanitizeBiCanvasDimension(
+      project.quickSightConfig.canvasHeight = sanitizeAnalyticsCanvasDimension(
         els.qsCanvasHeightInput?.value,
         project.quickSightConfig.canvasHeight,
         QUICKSIGHT_CANVAS_MIN_HEIGHT,
-        BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+        ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
       );
       project.quickSightConfig.canvasZoom = sanitizeQuickSightCanvasZoom(
         els.qsCanvasZoomSelect?.value,
@@ -1843,20 +2257,20 @@ function wireEvents() {
     const legacyValue = trimOrFallback(item.dataset.qsValue || "", "");
     const applyAsBreakdown = !!(event.shiftKey || event.altKey);
     if (groupByValue) {
-      const nextGroupBy = normalizeBiGroupBy(groupByValue);
+      const nextGroupBy = normalizeAnalyticsGroupBy(groupByValue);
       if (applyAsBreakdown) {
         if (els.qsBreakdownSelect) {
           els.qsBreakdownSelect.value = nextGroupBy;
         }
-        setStatus(`GRUPO/COLOR seleccionado: ${getBiGroupLabel(nextGroupBy, project)}.`);
+        setStatus(`GRUPO/COLOR seleccionado: ${getAnalyticsGroupLabel(nextGroupBy, project)}.`);
       } else {
         if (els.qsGroupBySelect) {
           els.qsGroupBySelect.value = nextGroupBy;
         }
-        setStatus(`Dimension seleccionada: ${getBiGroupLabel(nextGroupBy, project)}.`);
+        setStatus(`Dimension seleccionada: ${getAnalyticsGroupLabel(nextGroupBy, project)}.`);
       }
     } else if (metricValue) {
-      const nextMetric = normalizeBiMetric(metricValue);
+      const nextMetric = normalizeAnalyticsMetric(metricValue);
       const assignAsOptionalMetric = (
         (event.shiftKey || event.altKey)
         && !els.qsRoleOptionalMetricBlock?.classList.contains("hidden")
@@ -1864,18 +2278,18 @@ function wireEvents() {
       );
       if (assignAsOptionalMetric) {
         els.qsOptionalMetricSelect.value = nextMetric;
-        setStatus(`Metrica eje X seleccionada: ${getBiMetricLabel(nextMetric)}.`);
+        setStatus(`Metrica eje X seleccionada: ${getAnalyticsMetricLabel(nextMetric)}.`);
       } else if (els.qsMetricSelect) {
         els.qsMetricSelect.value = nextMetric;
-        setStatus(`Metrica seleccionada: ${getBiMetricLabel(nextMetric)}.`);
+        setStatus(`Metrica seleccionada: ${getAnalyticsMetricLabel(nextMetric)}.`);
       }
     } else if (legacyKind === "dimension" && legacyValue) {
-      const nextGroupBy = normalizeBiGroupBy(legacyValue);
+      const nextGroupBy = normalizeAnalyticsGroupBy(legacyValue);
       if (els.qsGroupBySelect) {
         els.qsGroupBySelect.value = nextGroupBy;
       }
     } else if (legacyKind === "metric" && legacyValue) {
-      const nextMetric = normalizeBiMetric(legacyValue);
+      const nextMetric = normalizeAnalyticsMetric(legacyValue);
       if (els.qsMetricSelect) {
         els.qsMetricSelect.value = nextMetric;
       }
@@ -1895,8 +2309,8 @@ function wireEvents() {
     if (!(item instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
       return;
     }
-    const groupBy = normalizeBiOptionalGroupBy(item.dataset.qsGroupby || "");
-    const metric = normalizeBiOptionalMetric(item.dataset.qsMetric || "");
+    const groupBy = normalizeAnalyticsOptionalGroupBy(item.dataset.qsGroupby || "");
+    const metric = normalizeAnalyticsOptionalMetric(item.dataset.qsMetric || "");
     if (!groupBy && !metric) {
       event.preventDefault();
       return;
@@ -2153,6 +2567,8 @@ function wireEvents() {
 
     if (prop === "name") {
       visual.name = trimOrFallback(String(rawValue), visual.name).slice(0, 120);
+    } else if (prop === "textContent") {
+      visual.textContent = normalizeQuickSightTextContent(rawValue, visual.textContent);
     } else if (prop === "layoutX" || prop === "layoutY" || prop === "layoutW" || prop === "layoutH") {
       const currentLayout = normalizeQuickSightVisualLayout(visual.layout, 0);
       let nextX = currentLayout.x;
@@ -2180,32 +2596,36 @@ function wireEvents() {
       }, 0);
       visual.layout = clampQuickSightVisualLayoutToCanvas(visual.layout, project.quickSightConfig);
     } else if (prop === "source") {
-      visual.source = normalizeBiSource(rawValue || visual.source);
+      visual.source = normalizeAnalyticsSource(rawValue || visual.source);
       visual.drillState = createDefaultQuickSightDrillState();
     } else if (prop === "groupBy") {
-      visual.groupBy = normalizeBiGroupBy(rawValue || visual.groupBy);
+      visual.groupBy = normalizeAnalyticsGroupBy(rawValue || visual.groupBy);
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
       visual.drillState = createDefaultQuickSightDrillState();
     } else if (prop === "breakdownDimension") {
-      visual.breakdownDimension = normalizeBiOptionalGroupBy(rawValue || "");
+      visual.breakdownDimension = normalizeAnalyticsOptionalGroupBy(rawValue || "");
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
     } else if (prop === "metric") {
-      visual.metric = normalizeBiMetric(rawValue || visual.metric);
+      visual.metric = normalizeAnalyticsMetric(rawValue || visual.metric);
       syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
     } else if (prop === "optionalMetric") {
       syncQuickSightVisualDataRoles(visual, {
         ...project.quickSightConfig,
-        optionalMetric: normalizeBiOptionalMetric(rawValue || "")
+        optionalMetric: normalizeAnalyticsOptionalMetric(rawValue || "")
       });
     } else if (prop === "chartType") {
-      visual.chartType = normalizeBiChartType(rawValue || visual.chartType);
-      syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+      const nextTypeToken = normalizeQuickSightVisualTypeToken(rawValue || getQuickSightVisualTypeToken(visual, project.quickSightConfig));
+      syncQuickSightVisualKindState(visual, nextTypeToken, project.quickSightConfig);
+      if (visual.kind !== "text") {
+        visual.chartType = normalizeAnalyticsChartType(nextTypeToken || visual.chartType);
+        syncQuickSightVisualDataRoles(visual, project.quickSightConfig);
+      }
     } else if (prop === "renderEngine") {
-      visual.renderEngine = normalizeQuickSightRenderEngine(rawValue);
+      visual.renderEngine = "echarts";
     } else if (prop === "topN") {
-      visual.topN = sanitizeBiTopN(rawValue || visual.topN);
+      visual.topN = sanitizeAnalyticsTopN(rawValue || visual.topN);
     } else if (prop === "sortMode") {
-      visual.sortMode = normalizeBiSortMode(rawValue || visual.sortMode);
+      visual.sortMode = normalizeAnalyticsSortMode(rawValue || visual.sortMode);
     } else if (prop.startsWith("display:")) {
       const key = prop.slice("display:".length);
       const currentDisplay = normalizeQuickSightDisplaySettings(visual.display);
@@ -2217,8 +2637,8 @@ function wireEvents() {
       visual.altText = visual.display.altText;
     } else if (prop.startsWith("visual:")) {
       const key = prop.slice("visual:".length);
-      const currentVisual = normalizeBiVisualSettings(visual.visualSettings);
-      visual.visualSettings = normalizeBiVisualSettings({
+      const currentVisual = normalizeAnalyticsVisualSettings(visual.visualSettings);
+      visual.visualSettings = normalizeAnalyticsVisualSettings({
         ...currentVisual,
         [key]: rawValue
       });
@@ -2242,12 +2662,19 @@ function wireEvents() {
       visual.drillState = normalizeQuickSightDrillState(visual.drillState, visual);
     } else if (prop.startsWith("type:")) {
       const key = prop.slice("type:".length);
-      const chartType = normalizeBiChartType(visual.chartType || "bar");
-      const currentTypeConfig = getBiSpecificChartConfigForWidget(visual, chartType);
-      setBiSpecificChartConfigForWidget(visual, chartType, {
-        ...currentTypeConfig,
-        [key]: rawValue
-      });
+      if (getQuickSightVisualKind(visual, project.quickSightConfig) === "text") {
+        visual.textConfig = normalizeAnalyticsTextConfig({
+          ...normalizeAnalyticsTextConfig(visual.textConfig),
+          [key]: rawValue
+        });
+      } else {
+        const chartType = getQuickSightResolvedChartType(visual, project.quickSightConfig);
+        const currentTypeConfig = getAnalyticsSpecificChartConfigForWidget(visual, chartType);
+        setAnalyticsSpecificChartConfigForWidget(visual, chartType, {
+          ...currentTypeConfig,
+          [key]: rawValue
+        });
+      }
     }
 
     ensureQuickSightVisualDrillState(visual);
@@ -2256,19 +2683,33 @@ function wireEvents() {
       project.quickSightConfig.drillThroughSelection = null;
       quickSightDrillThroughQuery = "";
     }
-    visual.chartConfig = normalizeBiChartConfig(visual.chartConfig, visual.chartType);
-    const safeTypeMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
-    const safeType = normalizeBiChartType(visual.chartType);
-    if (!safeTypeMap[safeType]) {
-      safeTypeMap[safeType] = normalizeBiChartTypeSpecificConfig({}, safeType);
+    if (getQuickSightVisualKind(visual, project.quickSightConfig) === "text") {
+      visual.textConfig = normalizeAnalyticsTextConfig(visual.textConfig);
+    } else {
+      visual.chartConfig = normalizeAnalyticsChartConfig(visual.chartConfig, visual.chartType);
+      const safeTypeMap = normalizeAnalyticsChartTypeConfigMap(visual.chartTypeConfig);
+      const safeType = normalizeAnalyticsChartType(visual.chartType);
+      if (!safeTypeMap[safeType]) {
+        safeTypeMap[safeType] = normalizeAnalyticsChartTypeSpecificConfig({}, safeType);
+      }
+      visual.chartTypeConfig = safeTypeMap;
     }
-    visual.chartTypeConfig = safeTypeMap;
     saveState();
     renderQuickSightPanel(project);
   };
 
-  els.qsPropertiesBody?.addEventListener("input", handleQuickSightPropertiesChange);
   els.qsPropertiesBody?.addEventListener("change", handleQuickSightPropertiesChange);
+  els.qsPropertiesBody?.addEventListener("keydown", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    if (event.key !== "Enter" || target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    event.preventDefault();
+    target.blur();
+  });
   els.qsPropertiesBody?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -2309,7 +2750,7 @@ function wireEvents() {
         }
         saveState();
         renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
-        setStatus(`Drill QuickSight: volvimos a ${getBiGroupLabel(result.currentGroupBy, project)}.`);
+        setStatus(`Drill QuickSight: volvimos a ${getAnalyticsGroupLabel(result.currentGroupBy, project)}.`);
         return;
       }
       if (action === "drill-reset") {
@@ -2343,52 +2784,52 @@ function wireEvents() {
     renderQuickSightPanel(project || null);
   });
 
-  const handleBiConfigChange = () => {
+  const handleAnalyticsConfigChange = () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    project.biConfig.startDate = sanitizeDateInput(els.biStartDateInput?.value || "");
-    project.biConfig.endDate = sanitizeDateInput(els.biEndDateInput?.value || "");
-    project.biConfig.textFilter = trimOrFallback(els.biTextFilterInput?.value, "").slice(0, 120);
-    project.biConfig.source = normalizeBiSource(els.biGlobalSourceSelect?.value || "all");
-    project.biConfig.crossFilterScope = normalizeBiCrossFilterScope(els.biCrossFilterScopeSelect?.value || "all");
-    project.biConfig.invalidOnly = !!els.biInvalidOnlyCheckbox?.checked;
-    project.biConfig.uiMode = normalizeBiUiMode(els.biUiModeSelect?.value || project.biConfig.uiMode || "basic");
+    ensureAnalyticsState(project);
+    project.biConfig.startDate = sanitizeDateInput(els.legacyStudioStartDateInput?.value || "");
+    project.biConfig.endDate = sanitizeDateInput(els.legacyStudioEndDateInput?.value || "");
+    project.biConfig.textFilter = trimOrFallback(els.legacyStudioTextFilterInput?.value, "").slice(0, 120);
+    project.biConfig.source = normalizeAnalyticsSource(els.legacyStudioGlobalSourceSelect?.value || "all");
+    project.biConfig.crossFilterScope = normalizeAnalyticsCrossFilterScope(els.legacyStudioCrossFilterScopeSelect?.value || "all");
+    project.biConfig.invalidOnly = !!els.legacyStudioInvalidOnlyCheckbox?.checked;
+    project.biConfig.uiMode = normalizeAnalyticsUiMode(els.legacyStudioUiModeSelect?.value || project.biConfig.uiMode || "basic");
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
   };
 
-  [els.biStartDateInput, els.biEndDateInput, els.biTextFilterInput, els.biGlobalSourceSelect, els.biCrossFilterScopeSelect, els.biInvalidOnlyCheckbox, els.biUiModeSelect]
+  [els.legacyStudioStartDateInput, els.legacyStudioEndDateInput, els.legacyStudioTextFilterInput, els.legacyStudioGlobalSourceSelect, els.legacyStudioCrossFilterScopeSelect, els.legacyStudioInvalidOnlyCheckbox, els.legacyStudioUiModeSelect]
     .forEach((node) => {
       if (!node) {
         return;
       }
-      node.addEventListener("input", handleBiConfigChange);
-      node.addEventListener("change", handleBiConfigChange);
+      node.addEventListener("input", handleAnalyticsConfigChange);
+      node.addEventListener("change", handleAnalyticsConfigChange);
     });
 
-  const applyBiVisualFromControls = (announceMessage) => {
+  const applyAnalyticsVisualFromControls = (announceMessage) => {
     const project = getActiveProject();
     if (!project) {
       return false;
     }
-    ensureBiState(project);
-    const target = resolveBiVisualTarget(project);
+    ensureAnalyticsState(project);
+    const target = resolveAnalyticsVisualTarget(project);
     if (target.mode === "widget" && !target.widget) {
       setStatus("Selecciona un widget para aplicar configuracion por widget.");
       return false;
     }
-    const nextVisual = collectBiVisualSettingsFromInputs();
+    const nextVisual = collectAnalyticsVisualSettingsFromInputs();
     if (target.mode === "widget" && target.widget) {
       target.widget.visualOverride = nextVisual;
     } else {
       project.biConfig.visual = nextVisual;
     }
-    syncBiInputs(project.biConfig);
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiWidgets(project, filteredRows);
+    syncAnalyticsInputs(project.biConfig);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsWidgets(project, filteredRows);
     saveState();
     if (announceMessage) {
       setStatus(announceMessage);
@@ -2396,91 +2837,91 @@ function wireEvents() {
     return true;
   };
 
-  const handleBiVisualSettingsChange = () => {
-    applyBiVisualFromControls("");
+  const handleAnalyticsVisualSettingsChange = () => {
+    applyAnalyticsVisualFromControls("");
   };
 
   [
-    els.biShowLegendCheckbox,
-    els.biShowGridCheckbox,
-    els.biShowAxisLabelsCheckbox,
-    els.biShowDataLabelsCheckbox,
-    els.biAxisXLabelInput,
-    els.biAxisYLabelInput,
-    els.biLabelMaxCharsInput,
-    els.biValueDecimalsInput,
-    els.biNumberFormatSelect,
-    els.biValuePrefixInput,
-    els.biValueSuffixInput,
-    els.biFontSizeInput,
-    els.biFontFamilyTitleSelect,
-    els.biFontFamilyAxisSelect,
-    els.biFontFamilyLabelSelect,
-    els.biFontFamilyTooltipSelect,
-    els.biFontSizeTitleInput,
-    els.biFontSizeAxisInput,
-    els.biFontSizeLabelsInput,
-    els.biFontSizeTooltipInput,
-    els.biLabelColorModeSelect,
-    els.biLabelColorInput,
-    els.biLineWidthInput,
-    els.biSeriesLineStyleSelect,
-    els.biSeriesMarkerStyleSelect,
-    els.biSeriesMarkerSizeInput,
-    els.biAreaOpacityInput,
-    els.biLegendPositionSelect,
-    els.biLegendMaxItemsInput,
-    els.biAxisScaleSelect,
-    els.biAxisMinInput,
-    els.biAxisMaxInput,
-    els.biShowTargetLineCheckbox,
-    els.biTargetLineValueInput,
-    els.biTargetLineLabelInput,
-    els.biTargetLineColorInput,
-    els.biBarWidthRatioInput,
-    els.biGridOpacityInput,
-    els.biGridDashInput,
-    els.biStackModeSelect,
-    els.biTooltipModeSelect,
-    els.biSmoothLinesCheckbox
+    els.legacyStudioShowLegendCheckbox,
+    els.legacyStudioShowGridCheckbox,
+    els.legacyStudioShowAxisLabelsCheckbox,
+    els.legacyStudioShowDataLabelsCheckbox,
+    els.legacyStudioAxisXLabelInput,
+    els.legacyStudioAxisYLabelInput,
+    els.legacyStudioLabelMaxCharsInput,
+    els.legacyStudioValueDecimalsInput,
+    els.legacyStudioNumberFormatSelect,
+    els.legacyStudioValuePrefixInput,
+    els.legacyStudioValueSuffixInput,
+    els.legacyStudioFontSizeInput,
+    els.legacyStudioFontFamilyTitleSelect,
+    els.legacyStudioFontFamilyAxisSelect,
+    els.legacyStudioFontFamilyLabelSelect,
+    els.legacyStudioFontFamilyTooltipSelect,
+    els.legacyStudioFontSizeTitleInput,
+    els.legacyStudioFontSizeAxisInput,
+    els.legacyStudioFontSizeLabelsInput,
+    els.legacyStudioFontSizeTooltipInput,
+    els.legacyStudioLabelColorModeSelect,
+    els.legacyStudioLabelColorInput,
+    els.legacyStudioLineWidthInput,
+    els.legacyStudioSeriesLineStyleSelect,
+    els.legacyStudioSeriesMarkerStyleSelect,
+    els.legacyStudioSeriesMarkerSizeInput,
+    els.legacyStudioAreaOpacityInput,
+    els.legacyStudioLegendPositionSelect,
+    els.legacyStudioLegendMaxItemsInput,
+    els.legacyStudioAxisScaleSelect,
+    els.legacyStudioAxisMinInput,
+    els.legacyStudioAxisMaxInput,
+    els.legacyStudioShowTargetLineCheckbox,
+    els.legacyStudioTargetLineValueInput,
+    els.legacyStudioTargetLineLabelInput,
+    els.legacyStudioTargetLineColorInput,
+    els.legacyStudioBarWidthRatioInput,
+    els.legacyStudioGridOpacityInput,
+    els.legacyStudioGridDashInput,
+    els.legacyStudioStackModeSelect,
+    els.legacyStudioTooltipModeSelect,
+    els.legacyStudioSmoothLinesCheckbox
   ].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", handleBiVisualSettingsChange);
-    node.addEventListener("change", handleBiVisualSettingsChange);
+    node.addEventListener("input", handleAnalyticsVisualSettingsChange);
+    node.addEventListener("change", handleAnalyticsVisualSettingsChange);
   });
 
-  const applyBiWidgetChromeFromControls = () => {
+  const applyAnalyticsWidgetChromeFromControls = () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const widget = getBiSelectedWidget(project);
+    ensureAnalyticsState(project);
+    const widget = getAnalyticsSelectedWidget(project);
     if (!widget) {
       setStatus("Selecciona un widget para configurar fondo, borde y titulo.");
-      syncBiInputs(project.biConfig);
+      syncAnalyticsInputs(project.biConfig);
       return;
     }
-    widget.showTitle = !!els.biWidgetShowTitleCheckbox?.checked;
-    widget.showBorder = !!els.biWidgetShowBorderCheckbox?.checked;
-    widget.showBackground = !!els.biWidgetShowBackgroundCheckbox?.checked;
+    widget.showTitle = !!els.legacyStudioWidgetShowTitleCheckbox?.checked;
+    widget.showBorder = !!els.legacyStudioWidgetShowBorderCheckbox?.checked;
+    widget.showBackground = !!els.legacyStudioWidgetShowBackgroundCheckbox?.checked;
     saveState();
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiWidgets(project, filteredRows);
-    syncBiInputs(project.biConfig);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsWidgets(project, filteredRows);
+    syncAnalyticsInputs(project.biConfig);
   };
 
-  [els.biWidgetShowTitleCheckbox, els.biWidgetShowBorderCheckbox, els.biWidgetShowBackgroundCheckbox].forEach((node) => {
+  [els.legacyStudioWidgetShowTitleCheckbox, els.legacyStudioWidgetShowBorderCheckbox, els.legacyStudioWidgetShowBackgroundCheckbox].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", applyBiWidgetChromeFromControls);
-    node.addEventListener("change", applyBiWidgetChromeFromControls);
+    node.addEventListener("input", applyAnalyticsWidgetChromeFromControls);
+    node.addEventListener("change", applyAnalyticsWidgetChromeFromControls);
   });
 
-  [els.biElementConfigBody].forEach((container) => {
+  [els.legacyStudioElementConfigBody].forEach((container) => {
     if (!(container instanceof HTMLElement)) {
       return;
     }
@@ -2492,7 +2933,7 @@ function wireEvents() {
       if (!target.dataset.biSpecificKey) {
         return;
       }
-      applyBiSpecificConfigChange(target, {
+      applyAnalyticsSpecificConfigChange(target, {
         refreshInspector: event.type === "change"
       });
     };
@@ -2500,30 +2941,30 @@ function wireEvents() {
     container.addEventListener("change", handler);
   });
 
-  els.biVisualScopeSelect?.addEventListener("change", () => {
-    biVisualScopeMode = normalizeBiVisualScopeMode(els.biVisualScopeSelect?.value || biVisualScopeMode || "widget");
+  els.legacyStudioVisualScopeSelect?.addEventListener("change", () => {
+    legacyStudioVisualScopeMode = normalizeAnalyticsVisualScopeMode(els.legacyStudioVisualScopeSelect?.value || legacyStudioVisualScopeMode || "widget");
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    syncBiInputs(project.biConfig);
-    setStatus(biVisualScopeMode === "widget"
+    ensureAnalyticsState(project);
+    syncAnalyticsInputs(project.biConfig);
+    setStatus(legacyStudioVisualScopeMode === "widget"
       ? "Configuracion enfocada en widget seleccionado."
       : "Configuracion global del proyecto activa.");
   });
 
-  els.biApplyVisualScopeButton?.addEventListener("click", () => {
-    applyBiVisualFromControls("Configuracion visual aplicada.");
+  els.legacyStudioApplyVisualScopeButton?.addEventListener("click", () => {
+    applyAnalyticsVisualFromControls("Configuracion visual aplicada.");
   });
 
-  els.biResetVisualScopeButton?.addEventListener("click", () => {
+  els.legacyStudioResetVisualScopeButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const target = resolveBiVisualTarget(project);
+    ensureAnalyticsState(project);
+    const target = resolveAnalyticsVisualTarget(project);
     if (target.mode === "widget") {
       if (!target.widget) {
         setStatus("Selecciona un widget para limpiar su configuracion.");
@@ -2531,156 +2972,156 @@ function wireEvents() {
       }
       target.widget.visualOverride = null;
       saveState();
-      syncBiInputs(project.biConfig);
-      const filteredRows = queryBiProjectRows(project, project.biConfig);
-      renderBiWidgets(project, filteredRows);
+      syncAnalyticsInputs(project.biConfig);
+      const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+      renderAnalyticsWidgets(project, filteredRows);
       setStatus(`Configuracion del widget "${target.widget.name}" limpiada (usa la global).`);
       return;
     }
-    project.biConfig.visual = createDefaultBiVisualSettings();
+    project.biConfig.visual = createDefaultAnalyticsVisualSettings();
     saveState();
-    syncBiInputs(project.biConfig);
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiWidgets(project, filteredRows);
+    syncAnalyticsInputs(project.biConfig);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsWidgets(project, filteredRows);
     setStatus("Configuracion global restablecida.");
   });
 
-  els.biApplyVisualPresetButton?.addEventListener("click", () => {
+  els.legacyStudioApplyVisualPresetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const presetId = trimOrFallback(els.biVisualPresetSelect?.value, "");
-    const preset = resolveBiVisualPreset(project, presetId);
+    ensureAnalyticsState(project);
+    const presetId = trimOrFallback(els.legacyStudioVisualPresetSelect?.value, "");
+    const preset = resolveAnalyticsVisualPreset(project, presetId);
     if (!preset) {
       setStatus("Preset visual no disponible.");
       return;
     }
     project.biConfig.activeVisualPreset = presetId;
-    const target = resolveBiVisualTarget(project);
+    const target = resolveAnalyticsVisualTarget(project);
     if (target.mode === "widget" && !target.widget) {
       setStatus("Selecciona un widget para aplicar el preset.");
       return;
     }
     if (target.mode === "widget" && target.widget) {
-      target.widget.visualOverride = normalizeBiVisualSettings(preset);
+      target.widget.visualOverride = normalizeAnalyticsVisualSettings(preset);
       setStatus(`Preset aplicado al widget "${target.widget.name}".`);
     } else {
-      project.biConfig.visual = normalizeBiVisualSettings(preset);
+      project.biConfig.visual = normalizeAnalyticsVisualSettings(preset);
       setStatus("Preset aplicado a todo el proyecto.");
     }
     saveState();
-    syncBiInputs(project.biConfig);
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiWidgets(project, filteredRows);
+    syncAnalyticsInputs(project.biConfig);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsWidgets(project, filteredRows);
   });
 
-  els.biSaveVisualPresetButton?.addEventListener("click", () => {
+  els.legacyStudioSaveVisualPresetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const rawName = trimOrFallback(els.biSavePresetNameInput?.value, "");
+    ensureAnalyticsState(project);
+    const rawName = trimOrFallback(els.legacyStudioSavePresetNameInput?.value, "");
     const presetName = rawName.slice(0, 30);
     if (!presetName) {
       setStatus("Escribe un nombre para guardar el preset.");
       return;
     }
-    saveCustomBiVisualPreset(project, presetName, collectBiVisualSettingsFromInputs());
-    if (els.biSavePresetNameInput) {
-      els.biSavePresetNameInput.value = "";
+    saveCustomAnalyticsVisualPreset(project, presetName, collectAnalyticsVisualSettingsFromInputs());
+    if (els.legacyStudioSavePresetNameInput) {
+      els.legacyStudioSavePresetNameInput.value = "";
     }
-    refreshBiVisualPresetOptions(project);
+    refreshAnalyticsVisualPresetOptions(project);
     saveState();
     setStatus(`Preset "${presetName}" guardado.`);
   });
 
-  els.biResetVisualSettingsButton?.addEventListener("click", () => {
+  els.legacyStudioResetVisualSettingsButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const target = resolveBiVisualTarget(project);
-    const defaults = createDefaultBiVisualSettings();
+    ensureAnalyticsState(project);
+    const target = resolveAnalyticsVisualTarget(project);
+    const defaults = createDefaultAnalyticsVisualSettings();
     if (target.mode === "widget" && target.widget) {
       target.widget.visualOverride = defaults;
     } else {
       project.biConfig.visual = defaults;
     }
-    syncBiInputs(project.biConfig);
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiWidgets(project, filteredRows);
+    syncAnalyticsInputs(project.biConfig);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsWidgets(project, filteredRows);
     saveState();
     setStatus(target.mode === "widget" && target.widget
       ? `Estilo del widget "${target.widget.name}" restablecido.`
       : "Configuracion visual restablecida.");
   });
 
-  const handleBiCatalogChange = () => {
-    renderBiFieldCatalog(getActiveProject());
+  const handleAnalyticsCatalogChange = () => {
+    renderAnalyticsFieldCatalog(getActiveProject());
   };
-  [els.biCatalogSourceSelect, els.biCatalogSearchInput].forEach((node) => {
+  [els.legacyStudioCatalogSourceSelect, els.legacyStudioCatalogSearchInput].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", handleBiCatalogChange);
-    node.addEventListener("change", handleBiCatalogChange);
+    node.addEventListener("input", handleAnalyticsCatalogChange);
+    node.addEventListener("change", handleAnalyticsCatalogChange);
   });
 
-  if (els.biRailButtons && els.biRailButtons.length) {
-    els.biRailButtons.forEach((button) => {
+  if (els.legacyStudioRailButtons && els.legacyStudioRailButtons.length) {
+    els.legacyStudioRailButtons.forEach((button) => {
       button.addEventListener("click", (event) => {
         event.preventDefault();
         if (!(button instanceof HTMLElement)) {
           return;
         }
         button.blur();
-        applyBiRailMode(button.dataset.biRailMode || "data");
+        applyLegacyStudioRailMode(button.dataset.legacyStudioRailMode || "data");
       });
     });
   }
 
-  els.biHideLeftPanelButton?.addEventListener("click", () => {
-    applyBiRailMode(biRailMode, { forceClose: true });
+  els.legacyStudioHideLeftPanelButton?.addEventListener("click", () => {
+    applyLegacyStudioRailMode(legacyStudioRailMode, { forceClose: true });
   });
 
-  els.biHideDataPanelButton?.addEventListener("click", () => {
-    applyBiRailMode("data", { forceClose: true });
+  els.legacyStudioHideDataPanelButton?.addEventListener("click", () => {
+    applyLegacyStudioRailMode("data", { forceClose: true });
   });
 
-  [els.biStudioLeftResizeHandle, els.biStudioMiddleResizeHandle].forEach((handle) => {
+  [els.legacyStudioStudioLeftResizeHandle, els.legacyStudioStudioMiddleResizeHandle].forEach((handle) => {
     if (!(handle instanceof HTMLElement)) {
       return;
     }
     handle.addEventListener("pointerdown", (event) => {
       const mode = trimOrFallback(handle.dataset.biPanelResizer, "middle");
-      startBiStudioPanelResize(mode, event);
+      startLegacyStudioPanelResize(mode, event);
     });
   });
 
-  els.biOpenCommandPaletteButton?.addEventListener("click", () => {
-    toggleBiCommandPalette();
+  els.legacyStudioOpenCommandPaletteButton?.addEventListener("click", () => {
+    toggleLegacyStudioCommandPalette();
   });
 
-  els.biCloseCommandPaletteButton?.addEventListener("click", () => {
-    closeBiCommandPalette();
+  els.legacyStudioCloseCommandPaletteButton?.addEventListener("click", () => {
+    closeLegacyStudioCommandPalette();
   });
 
-  els.biCommandPaletteOverlay?.addEventListener("click", (event) => {
-    if (event.target === els.biCommandPaletteOverlay) {
-      closeBiCommandPalette();
+  els.legacyStudioCommandPaletteOverlay?.addEventListener("click", (event) => {
+    if (event.target === els.legacyStudioCommandPaletteOverlay) {
+      closeLegacyStudioCommandPalette();
     }
   });
 
-  els.biCommandPaletteInput?.addEventListener("input", () => {
-    biCommandPaletteSelection = 0;
-    renderBiCommandPalette(getActiveProject());
+  els.legacyStudioCommandPaletteInput?.addEventListener("input", () => {
+    legacyStudioCommandPaletteSelection = 0;
+    renderLegacyStudioCommandPalette(getActiveProject());
   });
 
-  els.biCommandPaletteList?.addEventListener("click", (event) => {
+  els.legacyStudioCommandPaletteList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -2693,10 +3134,10 @@ function wireEvents() {
     if (!commandId) {
       return;
     }
-    runBiCommandById(commandId);
+    runLegacyStudioCommandById(commandId);
   });
 
-  els.biInsightsGrid?.addEventListener("click", (event) => {
+  els.legacyStudioInsightsGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -2711,160 +3152,160 @@ function wireEvents() {
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
     if (insightAction === "filter_group" && insightValue) {
-      const groupBy = normalizeBiGroupBy(action.dataset.biInsightGroupby || "disciplina");
+      const groupBy = normalizeAnalyticsGroupBy(action.dataset.biInsightGroupby || "disciplina");
       project.biConfig.crossFilters = [{
         groupBy,
         label: insightValue,
         source: "all"
       }];
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       saveState();
-      setStatus(`Insight aplicado: ${getBiGroupLabel(groupBy, project)} = ${insightValue}`);
+      setStatus(`Insight aplicado: ${getAnalyticsGroupLabel(groupBy, project)} = ${insightValue}`);
       return;
     }
     if (insightAction === "invalid_dates") {
       project.biConfig.invalidOnly = true;
-      if (els.biInvalidOnlyCheckbox) {
-        els.biInvalidOnlyCheckbox.checked = true;
+      if (els.legacyStudioInvalidOnlyCheckbox) {
+        els.legacyStudioInvalidOnlyCheckbox.checked = true;
       }
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       saveState();
       setStatus("Insight aplicado: solo fechas invertidas.");
     }
   });
 
-  els.biCanvasPresetSelect?.addEventListener("change", () => {
-    const raw = trimOrFallback(els.biCanvasPresetSelect?.value, "");
+  els.legacyStudioCanvasPresetSelect?.addEventListener("change", () => {
+    const raw = trimOrFallback(els.legacyStudioCanvasPresetSelect?.value, "");
     if (!raw) {
       return;
     }
     const [rawWidth, rawHeight] = raw.split("x");
-    const width = sanitizeBiCanvasDimension(rawWidth, BI_CANVAS_SURFACE_MIN_WIDTH, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
-    const height = sanitizeBiCanvasDimension(rawHeight, BI_CANVAS_SURFACE_HEIGHT, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
-    if (els.biCanvasWidthInput) {
-      els.biCanvasWidthInput.value = String(width);
+    const width = sanitizeAnalyticsCanvasDimension(rawWidth, ANALYTICS_CANVAS_SURFACE_MIN_WIDTH, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+    const height = sanitizeAnalyticsCanvasDimension(rawHeight, ANALYTICS_CANVAS_SURFACE_HEIGHT, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+    if (els.legacyStudioCanvasWidthInput) {
+      els.legacyStudioCanvasWidthInput.value = String(width);
     }
-    if (els.biCanvasHeightInput) {
-      els.biCanvasHeightInput.value = String(height);
+    if (els.legacyStudioCanvasHeightInput) {
+      els.legacyStudioCanvasHeightInput.value = String(height);
     }
   });
 
-  const applyBiCanvasSize = (resetToDefault = false) => {
+  const applyAnalyticsCanvasSize = (resetToDefault = false) => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const currentSize = getBiCanvasSizeFromConfig(project.biConfig);
+    ensureAnalyticsState(project);
+    const currentSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
     const widthValue = resetToDefault
-      ? BI_CANVAS_SURFACE_MIN_WIDTH
-      : (els.biCanvasWidthInput?.value || currentSize.width);
+      ? ANALYTICS_CANVAS_SURFACE_MIN_WIDTH
+      : (els.legacyStudioCanvasWidthInput?.value || currentSize.width);
     const heightValue = resetToDefault
-      ? BI_CANVAS_SURFACE_HEIGHT
-      : (els.biCanvasHeightInput?.value || currentSize.height);
-    project.biConfig.canvasWidth = sanitizeBiCanvasDimension(
+      ? ANALYTICS_CANVAS_SURFACE_HEIGHT
+      : (els.legacyStudioCanvasHeightInput?.value || currentSize.height);
+    project.biConfig.canvasWidth = sanitizeAnalyticsCanvasDimension(
       widthValue,
-      BI_CANVAS_SURFACE_MIN_WIDTH,
-      BI_CANVAS_SURFACE_MIN_EDIT_WIDTH,
-      BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+      ANALYTICS_CANVAS_SURFACE_MIN_WIDTH,
+      ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH,
+      ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH
     );
-    project.biConfig.canvasHeight = sanitizeBiCanvasDimension(
+    project.biConfig.canvasHeight = sanitizeAnalyticsCanvasDimension(
       heightValue,
-      BI_CANVAS_SURFACE_HEIGHT,
-      BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
-      BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+      ANALYTICS_CANVAS_SURFACE_HEIGHT,
+      ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
+      ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
     );
-    if (resetToDefault && els.biCanvasPresetSelect) {
-      els.biCanvasPresetSelect.value = "";
+    if (resetToDefault && els.legacyStudioCanvasPresetSelect) {
+      els.legacyStudioCanvasPresetSelect.value = "";
     }
     saveState();
-    renderBiPanel(project);
-    applyBiRailMode("board", { announce: false, forceOpen: true });
+    renderLegacyStudioPanel(project);
+    applyLegacyStudioRailMode("board", { announce: false, forceOpen: true });
     setStatus(`Pizarra actualizada: ${project.biConfig.canvasWidth} x ${project.biConfig.canvasHeight}px.`);
   };
 
-  els.biApplyCanvasSizeButton?.addEventListener("click", () => {
-    applyBiCanvasSize(false);
+  els.legacyStudioApplyCanvasSizeButton?.addEventListener("click", () => {
+    applyAnalyticsCanvasSize(false);
   });
 
-  els.biResetCanvasSizeButton?.addEventListener("click", () => {
-    applyBiCanvasSize(true);
+  els.legacyStudioResetCanvasSizeButton?.addEventListener("click", () => {
+    applyAnalyticsCanvasSize(true);
   });
 
-  const applyBiCanvasZoom = (rawZoomValue, statusPrefix = "Zoom de pizarra") => {
+  const applyAnalyticsCanvasZoom = (rawZoomValue, statusPrefix = "Zoom de pizarra") => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    project.biConfig.canvasZoom = sanitizeBiCanvasZoom(
+    ensureAnalyticsState(project);
+    project.biConfig.canvasZoom = sanitizeAnalyticsCanvasZoom(
       rawZoomValue,
       project.biConfig.canvasZoom
     );
-    if (els.biCanvasZoomSelect) {
-      syncBiZoomSelectControl(els.biCanvasZoomSelect, project.biConfig.canvasZoom);
+    if (els.legacyStudioCanvasZoomSelect) {
+      syncAnalyticsZoomSelectControl(els.legacyStudioCanvasZoomSelect, project.biConfig.canvasZoom);
     }
-    updateBiZoomMenuUi(project);
+    updateAnalyticsZoomMenuUi(project);
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus(`${statusPrefix}: ${project.biConfig.canvasZoom}%.`);
   };
 
-  [els.biCanvasZoomSelect].forEach((node) => {
+  [els.legacyStudioCanvasZoomSelect].forEach((node) => {
     if (!(node instanceof HTMLSelectElement)) {
       return;
     }
     node.addEventListener("input", () => {
-      applyBiCanvasZoom(node.value, "Zoom de pizarra");
+      applyAnalyticsCanvasZoom(node.value, "Zoom de pizarra");
     });
     node.addEventListener("change", () => {
-      applyBiCanvasZoom(node.value, "Zoom de pizarra");
+      applyAnalyticsCanvasZoom(node.value, "Zoom de pizarra");
     });
   });
 
-  const closeBiZoomMenu = () => {
-    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+  const closeAnalyticsZoomMenu = () => {
+    if (!(els.legacyStudioCanvasZoomMenu instanceof HTMLElement)) {
       return;
     }
-    els.biCanvasZoomMenu.classList.add("hidden");
-    if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
-      els.biCanvasZoomMenuButton.setAttribute("aria-expanded", "false");
+    els.legacyStudioCanvasZoomMenu.classList.add("hidden");
+    if (els.legacyStudioCanvasZoomMenuButton instanceof HTMLButtonElement) {
+      els.legacyStudioCanvasZoomMenuButton.setAttribute("aria-expanded", "false");
     }
   };
 
-  const openBiZoomMenu = () => {
-    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+  const openAnalyticsZoomMenu = () => {
+    if (!(els.legacyStudioCanvasZoomMenu instanceof HTMLElement)) {
       return;
     }
-    els.biCanvasZoomMenu.classList.remove("hidden");
-    if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
-      els.biCanvasZoomMenuButton.setAttribute("aria-expanded", "true");
+    els.legacyStudioCanvasZoomMenu.classList.remove("hidden");
+    if (els.legacyStudioCanvasZoomMenuButton instanceof HTMLButtonElement) {
+      els.legacyStudioCanvasZoomMenuButton.setAttribute("aria-expanded", "true");
     }
   };
 
-  const toggleBiZoomMenu = () => {
-    if (!(els.biCanvasZoomMenu instanceof HTMLElement)) {
+  const toggleAnalyticsZoomMenu = () => {
+    if (!(els.legacyStudioCanvasZoomMenu instanceof HTMLElement)) {
       return;
     }
-    if (els.biCanvasZoomMenu.classList.contains("hidden")) {
-      openBiZoomMenu();
+    if (els.legacyStudioCanvasZoomMenu.classList.contains("hidden")) {
+      openAnalyticsZoomMenu();
     } else {
-      closeBiZoomMenu();
+      closeAnalyticsZoomMenu();
     }
   };
 
-  if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
-    els.biCanvasZoomMenuButton.addEventListener("click", (event) => {
+  if (els.legacyStudioCanvasZoomMenuButton instanceof HTMLButtonElement) {
+    els.legacyStudioCanvasZoomMenuButton.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      toggleBiZoomMenu();
+      toggleAnalyticsZoomMenu();
     });
   }
 
-  if (els.biCanvasZoomMenu instanceof HTMLElement) {
-    els.biCanvasZoomMenu.addEventListener("click", (event) => {
+  if (els.legacyStudioCanvasZoomMenu instanceof HTMLElement) {
+    els.legacyStudioCanvasZoomMenu.addEventListener("click", (event) => {
       const target = event.target instanceof HTMLElement
         ? event.target.closest("[data-bi-zoom-value], [data-bi-zoom-action]")
         : null;
@@ -2875,59 +3316,59 @@ function wireEvents() {
       event.stopPropagation();
       const project = getActiveProject();
       if (!project) {
-        closeBiZoomMenu();
+        closeAnalyticsZoomMenu();
         return;
       }
-      ensureBiState(project);
+      ensureAnalyticsState(project);
       const zoomValue = target.dataset.biZoomValue;
       const action = trimOrFallback(target.dataset.biZoomAction, "");
       if (zoomValue) {
-        applyBiCanvasZoom(zoomValue, "Zoom de pizarra");
-        closeBiZoomMenu();
+        applyAnalyticsCanvasZoom(zoomValue, "Zoom de pizarra");
+        closeAnalyticsZoomMenu();
         return;
       }
       if (action === "fit-all" || action === "fit-width") {
         const fitMode = action === "fit-width" ? "width" : "all";
-        const fitZoom = getBiCanvasFitZoom(project, fitMode);
+        const fitZoom = getAnalyticsCanvasFitZoom(project, fitMode);
         const statusLabel = action === "fit-width" ? "Zoom ajustado al ancho" : "Zoom ajustado a vista";
-        applyBiCanvasZoom(fitZoom, statusLabel);
-        closeBiZoomMenu();
+        applyAnalyticsCanvasZoom(fitZoom, statusLabel);
+        closeAnalyticsZoomMenu();
         return;
       }
       if (action === "in" || action === "out") {
         const step = action === "in" ? 1 : -1;
-        const nextZoom = getBiSteppedCanvasZoom(project.biConfig.canvasZoom, step);
-        applyBiCanvasZoom(nextZoom, "Zoom de pizarra");
-        closeBiZoomMenu();
+        const nextZoom = getAnalyticsSteppedCanvasZoom(project.biConfig.canvasZoom, step);
+        applyAnalyticsCanvasZoom(nextZoom, "Zoom de pizarra");
+        closeAnalyticsZoomMenu();
         return;
       }
     });
   }
 
   document.addEventListener("click", (event) => {
-    if (!(els.biCanvasZoomMenu instanceof HTMLElement) || els.biCanvasZoomMenu.classList.contains("hidden")) {
+    if (!(els.legacyStudioCanvasZoomMenu instanceof HTMLElement) || els.legacyStudioCanvasZoomMenu.classList.contains("hidden")) {
       return;
     }
     const targetNode = event.target instanceof Node ? event.target : null;
     if (!targetNode) {
-      closeBiZoomMenu();
+      closeAnalyticsZoomMenu();
       return;
     }
-    if (els.biZoomMenuWrap instanceof HTMLElement && els.biZoomMenuWrap.contains(targetNode)) {
+    if (els.legacyStudioZoomMenuWrap instanceof HTMLElement && els.legacyStudioZoomMenuWrap.contains(targetNode)) {
       return;
     }
-    closeBiZoomMenu();
+    closeAnalyticsZoomMenu();
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
     }
-    closeBiZoomMenu();
+    closeAnalyticsZoomMenu();
   });
 
-  els.biWidgetsGrid?.addEventListener("wheel", (event) => {
-    if (activeTab !== "bi") {
+  els.legacyStudioWidgetsGrid?.addEventListener("wheel", (event) => {
+    if (activeTab !== "legacy-studio") {
       return;
     }
     if (!(event.ctrlKey || event.metaKey)) {
@@ -2939,121 +3380,121 @@ function wireEvents() {
     }
     event.preventDefault();
     const step = event.deltaY < 0 ? 1 : -1;
-    biPendingWheelZoomStep += step;
-    if (biWheelZoomRafId) {
+    legacyStudioPendingWheelZoomStep += step;
+    if (legacyStudioWheelZoomRafId) {
       return;
     }
-    biWheelZoomRafId = window.requestAnimationFrame(() => {
-      biWheelZoomRafId = 0;
-      const accumulated = biPendingWheelZoomStep;
-      biPendingWheelZoomStep = 0;
+    legacyStudioWheelZoomRafId = window.requestAnimationFrame(() => {
+      legacyStudioWheelZoomRafId = 0;
+      const accumulated = legacyStudioPendingWheelZoomStep;
+      legacyStudioPendingWheelZoomStep = 0;
       if (!accumulated) {
         return;
       }
-      const nextZoom = getBiSteppedCanvasZoom(project.biConfig.canvasZoom, accumulated > 0 ? 1 : -1);
-      applyBiCanvasZoom(nextZoom, "Zoom de pizarra");
+      const nextZoom = getAnalyticsSteppedCanvasZoom(project.biConfig.canvasZoom, accumulated > 0 ? 1 : -1);
+      applyAnalyticsCanvasZoom(nextZoom, "Zoom de pizarra");
     });
   }, { passive: false });
 
-  const handleBiBoardGridSettingsChange = () => {
+  const handleAnalyticsBoardGridSettingsChange = () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    project.biConfig.showCanvasGrid = !!els.biShowCanvasGridCheckbox?.checked;
-    project.biConfig.snapToGrid = !!els.biSnapToGridCheckbox?.checked;
-    project.biConfig.gridSnapSize = sanitizeBiInteger(els.biGridSnapSizeInput?.value, 12, 4, 120);
-    if (els.biGridSnapSizeInput) {
-      els.biGridSnapSizeInput.value = String(project.biConfig.gridSnapSize);
+    ensureAnalyticsState(project);
+    project.biConfig.showCanvasGrid = !!els.legacyStudioShowCanvasGridCheckbox?.checked;
+    project.biConfig.snapToGrid = !!els.legacyStudioSnapToGridCheckbox?.checked;
+    project.biConfig.gridSnapSize = sanitizeAnalyticsInteger(els.legacyStudioGridSnapSizeInput?.value, 12, 4, 120);
+    if (els.legacyStudioGridSnapSizeInput) {
+      els.legacyStudioGridSnapSizeInput.value = String(project.biConfig.gridSnapSize);
     }
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus("Configuracion de pizarra actualizada.");
   };
 
-  [els.biShowCanvasGridCheckbox, els.biSnapToGridCheckbox, els.biGridSnapSizeInput].forEach((node) => {
+  [els.legacyStudioShowCanvasGridCheckbox, els.legacyStudioSnapToGridCheckbox, els.legacyStudioGridSnapSizeInput].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", handleBiBoardGridSettingsChange);
-    node.addEventListener("change", handleBiBoardGridSettingsChange);
+    node.addEventListener("input", handleAnalyticsBoardGridSettingsChange);
+    node.addEventListener("change", handleAnalyticsBoardGridSettingsChange);
   });
 
-  const handleBiPerformanceModeChange = () => {
+  const handleAnalyticsPerformanceModeChange = () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    project.biConfig.performanceMode = normalizeBiPerformanceMode(els.biPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
+    ensureAnalyticsState(project);
+    project.biConfig.performanceMode = normalizeAnalyticsPerformanceMode(els.legacyStudioPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     const label = project.biConfig.performanceMode === "turbo"
       ? "Turbo"
-      : (project.biConfig.performanceMode === "quality" ? "Calidad máxima" : "Balanceado");
+      : (project.biConfig.performanceMode === "quality" ? "Calidad mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡xima" : "Balanceado");
     setStatus(`Perfil de rendimiento aplicado: ${label}.`);
   };
 
-  [els.biPerformanceModeSelect].forEach((node) => {
+  [els.legacyStudioPerformanceModeSelect].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", handleBiPerformanceModeChange);
-    node.addEventListener("change", handleBiPerformanceModeChange);
+    node.addEventListener("input", handleAnalyticsPerformanceModeChange);
+    node.addEventListener("change", handleAnalyticsPerformanceModeChange);
   });
 
-  els.biOptimizeNowButton?.addEventListener("click", () => {
+  els.legacyStudioOptimizeNowButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const mode = normalizeBiPerformanceMode(els.biPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
+    ensureAnalyticsState(project);
+    const mode = normalizeAnalyticsPerformanceMode(els.legacyStudioPerformanceModeSelect?.value || project.biConfig.performanceMode || "balanced");
     project.biConfig.performanceMode = mode;
-    const result = runBiAutoOptimize(project, mode);
+    const result = runAnalyticsAutoOptimize(project, mode);
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus(
-      `Optimización aplicada (${mode}): ${result.updatedWidgets} widgets ajustados, `
-      + `${result.topNChanges} topN, ${result.tableChanges} límites de tabla.`
+      `OptimizaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n aplicada (${mode}): ${result.updatedWidgets} widgets ajustados, `
+      + `${result.topNChanges} topN, ${result.tableChanges} lÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­mites de tabla.`
     );
   });
 
-  els.biResetPerformanceButton?.addEventListener("click", () => {
+  els.legacyStudioResetPerformanceButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
     project.biConfig.performanceMode = "quality";
     saveState();
-    renderBiPanel(project);
-    setStatus("Perfil de rendimiento restablecido a Calidad máxima.");
+    renderLegacyStudioPanel(project);
+    setStatus("Perfil de rendimiento restablecido a Calidad mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡xima.");
   });
 
-  const handleBiColorScopeChange = () => {
+  const handleAnalyticsColorScopeChange = () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    project.biConfig.colorSource = normalizeBiSource(els.biColorSourceSelect?.value || project.biConfig.colorSource || "all");
-    project.biConfig.colorGroupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiColorPanel(project, filteredRows);
+    ensureAnalyticsState(project);
+    project.biConfig.colorSource = normalizeAnalyticsSource(els.legacyStudioColorSourceSelect?.value || project.biConfig.colorSource || "all");
+    project.biConfig.colorGroupBy = normalizeAnalyticsGroupBy(els.legacyStudioColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsColorPanel(project, filteredRows);
     saveState();
   };
 
-  [els.biColorSourceSelect, els.biColorGroupBySelect].forEach((node) => {
+  [els.legacyStudioColorSourceSelect, els.legacyStudioColorGroupBySelect].forEach((node) => {
     if (!node) {
       return;
     }
-    node.addEventListener("input", handleBiColorScopeChange);
-    node.addEventListener("change", handleBiColorScopeChange);
+    node.addEventListener("input", handleAnalyticsColorScopeChange);
+    node.addEventListener("change", handleAnalyticsColorScopeChange);
   });
 
-  els.biColorLegendList?.addEventListener("input", (event) => {
+  els.legacyStudioColorLegendList?.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || target.type !== "color") {
       return;
@@ -3062,106 +3503,106 @@ function wireEvents() {
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
     const label = trimOrFallback(target.dataset.biColorLabel, "");
-    const groupBy = normalizeBiGroupBy(target.dataset.biColorGroupby || project.biConfig.colorGroupBy || "disciplina");
-    const key = buildBiColorKey(groupBy, label);
+    const groupBy = normalizeAnalyticsGroupBy(target.dataset.biColorGroupby || project.biConfig.colorGroupBy || "disciplina");
+    const key = buildAnalyticsColorKey(groupBy, label);
     if (!key) {
       return;
     }
-    const colorMap = normalizeBiColorMap(project.biConfig.colorMap);
-    colorMap[key] = normalizeBiColorHex(target.value, getBiPaletteColor(0));
+    const colorMap = normalizeAnalyticsColorMap(project.biConfig.colorMap);
+    colorMap[key] = normalizeAnalyticsColorHex(target.value, getAnalyticsPaletteColor(0));
     project.biConfig.colorMap = colorMap;
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiColorPanel(project, filteredRows);
-    renderBiWidgets(project, filteredRows);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsColorPanel(project, filteredRows);
+    renderAnalyticsWidgets(project, filteredRows);
     saveState();
   });
 
-  els.biAutoColorButton?.addEventListener("click", () => {
+  els.legacyStudioAutoColorButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const source = normalizeBiSource(els.biColorSourceSelect?.value || project.biConfig.colorSource || "all");
-    const groupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    const legendRows = getBiColorLegendData(project, filteredRows, source, groupBy);
+    ensureAnalyticsState(project);
+    const source = normalizeAnalyticsSource(els.legacyStudioColorSourceSelect?.value || project.biConfig.colorSource || "all");
+    const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    const legendRows = getAnalyticsColorLegendData(project, filteredRows, source, groupBy);
     if (legendRows.length === 0) {
       setStatus("No hay categorias para colorear.");
       return;
     }
-    const colorMap = normalizeBiColorMap(project.biConfig.colorMap);
+    const colorMap = normalizeAnalyticsColorMap(project.biConfig.colorMap);
     legendRows.forEach((row, index) => {
-      const key = buildBiColorKey(groupBy, row.label);
+      const key = buildAnalyticsColorKey(groupBy, row.label);
       if (!key) {
         return;
       }
-      colorMap[key] = getBiPaletteColor(index);
+      colorMap[key] = getAnalyticsPaletteColor(index);
     });
     project.biConfig.colorMap = colorMap;
     project.biConfig.colorSource = source;
     project.biConfig.colorGroupBy = groupBy;
-    renderBiColorPanel(project, filteredRows);
-    renderBiWidgets(project, filteredRows);
+    renderAnalyticsColorPanel(project, filteredRows);
+    renderAnalyticsWidgets(project, filteredRows);
     saveState();
     setStatus(`Colorimetria automatica aplicada (${legendRows.length} categorias).`);
   });
 
-  els.biClearColorButton?.addEventListener("click", () => {
+  els.legacyStudioClearColorButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const groupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
-    const removed = clearBiColorsForGroup(project, groupBy);
-    const filteredRows = queryBiProjectRows(project, project.biConfig);
-    renderBiColorPanel(project, filteredRows);
-    renderBiWidgets(project, filteredRows);
+    ensureAnalyticsState(project);
+    const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
+    const removed = clearAnalyticsColorsForGroup(project, groupBy);
+    const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+    renderAnalyticsColorPanel(project, filteredRows);
+    renderAnalyticsWidgets(project, filteredRows);
     saveState();
     setStatus(removed > 0
-      ? `Colorimetria limpiada para ${getBiGroupLabel(groupBy, project)} (${removed} codigos).`
-      : `No habia colores personalizados para ${getBiGroupLabel(groupBy, project)}.`);
+      ? `Colorimetria limpiada para ${getAnalyticsGroupLabel(groupBy, project)} (${removed} codigos).`
+      : `No habia colores personalizados para ${getAnalyticsGroupLabel(groupBy, project)}.`);
   });
 
   [
-    els.biWidgetGroupBySelect,
-    els.biWidgetMetricSelect,
-    els.biWidgetBreakdownSelect,
-    els.biWidgetOptionalMetricSelect,
-    els.biWidgetDateDimensionSelect,
-    els.biWidgetChartTypeSelect,
-    els.biWidgetSortModeSelect
+    els.legacyStudioWidgetGroupBySelect,
+    els.legacyStudioWidgetMetricSelect,
+    els.legacyStudioWidgetBreakdownSelect,
+    els.legacyStudioWidgetOptionalMetricSelect,
+    els.legacyStudioWidgetDateDimensionSelect,
+    els.legacyStudioWidgetChartTypeSelect,
+    els.legacyStudioWidgetSortModeSelect
   ].forEach((node) => {
     if (!node) {
       return;
     }
     node.addEventListener("input", () => {
       const project = getActiveProject();
-      syncBiBuilderSelectionUi(project);
+      syncAnalyticsBuilderSelectionUi(project);
     });
     node.addEventListener("change", () => {
       const project = getActiveProject();
-      syncBiBuilderSelectionUi(project);
-      applyBiBuilderToSelectedWidget({ announce: false });
+      syncAnalyticsBuilderSelectionUi(project);
+      applyAnalyticsBuilderToSelectedWidget({ announce: false });
     });
   });
 
-  els.biWidgetSourceSelect?.addEventListener("change", () => {
-    const widgetSource = normalizeBiSource(els.biWidgetSourceSelect?.value || "all");
-    if (els.biCatalogSourceSelect) {
+  els.legacyStudioWidgetSourceSelect?.addEventListener("change", () => {
+    const widgetSource = normalizeAnalyticsSource(els.legacyStudioWidgetSourceSelect?.value || "all");
+    if (els.legacyStudioCatalogSourceSelect) {
       if (widgetSource === "all" || widgetSource === "deliverable" || widgetSource === "package" || widgetSource === "review-control") {
-        els.biCatalogSourceSelect.value = widgetSource;
+        els.legacyStudioCatalogSourceSelect.value = widgetSource;
       }
     }
-    renderBiFieldCatalog(getActiveProject());
-    syncBiBuilderSelectionUi(getActiveProject());
-    applyBiBuilderToSelectedWidget({ announce: false });
+    renderAnalyticsFieldCatalog(getActiveProject());
+    syncAnalyticsBuilderSelectionUi(getActiveProject());
+    applyAnalyticsBuilderToSelectedWidget({ announce: false });
   });
 
-  els.biChartTypeButtons?.addEventListener("click", (event) => {
+  els.legacyStudioChartTypeButtons?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -3170,15 +3611,15 @@ function wireEvents() {
     if (!(button instanceof HTMLElement)) {
       return;
     }
-    const chartType = normalizeBiChartType(button.dataset.biChartType || "bar");
-    if (els.biWidgetChartTypeSelect) {
-      els.biWidgetChartTypeSelect.value = chartType;
+    const chartType = normalizeAnalyticsChartType(button.dataset.biChartType || "bar");
+    if (els.legacyStudioWidgetChartTypeSelect) {
+      els.legacyStudioWidgetChartTypeSelect.value = chartType;
     }
-    syncBiBuilderSelectionUi(getActiveProject());
-    applyBiBuilderToSelectedWidget({ announce: false });
+    syncAnalyticsBuilderSelectionUi(getActiveProject());
+    applyAnalyticsBuilderToSelectedWidget({ announce: false });
   });
 
-  els.biCatalogFieldsList?.addEventListener("click", (event) => {
+  els.legacyStudioCatalogFieldsList?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -3187,107 +3628,107 @@ function wireEvents() {
     if (!(row instanceof HTMLElement)) {
       return;
     }
-    const groupBy = normalizeBiGroupBy(row.dataset.biGroupby || "");
-    const metric = normalizeBiMetric(row.dataset.biMetric || "");
+    const groupBy = normalizeAnalyticsGroupBy(row.dataset.biGroupby || "");
+    const metric = normalizeAnalyticsMetric(row.dataset.biMetric || "");
     let changed = false;
-    if (groupBy && row.dataset.biGroupby && els.biWidgetGroupBySelect) {
-      const exists = Array.from(els.biWidgetGroupBySelect.options).some((option) => option.value === groupBy);
+    if (groupBy && row.dataset.biGroupby && els.legacyStudioWidgetGroupBySelect) {
+      const exists = Array.from(els.legacyStudioWidgetGroupBySelect.options).some((option) => option.value === groupBy);
       if (exists) {
-        els.biWidgetGroupBySelect.value = groupBy;
+        els.legacyStudioWidgetGroupBySelect.value = groupBy;
         changed = true;
       }
-    } else if (metric && row.dataset.biMetric && els.biWidgetMetricSelect) {
-      els.biWidgetMetricSelect.value = metric;
+    } else if (metric && row.dataset.biMetric && els.legacyStudioWidgetMetricSelect) {
+      els.legacyStudioWidgetMetricSelect.value = metric;
       changed = true;
     }
     if (changed) {
-      syncBiBuilderSelectionUi(getActiveProject());
-      renderBiFieldCatalog(getActiveProject());
-      applyBiBuilderToSelectedWidget({ announce: false });
+      syncAnalyticsBuilderSelectionUi(getActiveProject());
+      renderAnalyticsFieldCatalog(getActiveProject());
+      applyAnalyticsBuilderToSelectedWidget({ announce: false });
     }
   });
 
-  [els.biWidgetTopNInput, els.biWidgetNameInput].forEach((node) => {
+  [els.legacyStudioWidgetTopNInput, els.legacyStudioWidgetNameInput].forEach((node) => {
     if (!node) {
       return;
     }
     node.addEventListener("change", () => {
-      applyBiBuilderToSelectedWidget({ announce: false });
+      applyAnalyticsBuilderToSelectedWidget({ announce: false });
     });
   });
 
-  els.biRefreshButton?.addEventListener("click", () => {
-    renderBiPanel(getActiveProject());
-    setStatus("Dashboard Dechini BI actualizado.");
+  els.legacyStudioRefreshButton?.addEventListener("click", () => {
+    renderLegacyStudioPanel(getActiveProject());
+    setStatus("Dashboard actualizado.");
   });
 
-  els.biAutoLayoutButton?.addEventListener("click", () => {
+  els.legacyStudioAutoLayoutButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    const result = autoArrangeBiWidgets(project, { expandCanvas: true });
+    ensureAnalyticsState(project);
+    const result = autoArrangeAnalyticsWidgets(project, { expandCanvas: true });
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus(`Auto organizar aplicado (${result.arranged} widgets).`);
   });
 
-  els.biGenerateDashboardButton?.addEventListener("click", () => {
+  els.legacyStudioGenerateDashboardButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
     const result = generateBiStarterDashboard(project);
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     if (result.added > 0) {
       setStatus(`Dashboard base generado (${result.added} widgets nuevos).`);
     } else {
-      setStatus("No se agregaron widgets (ya existen o se alcanzó el límite).");
+      setStatus("No se agregaron widgets (ya existen o se alcanzÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³ el lÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­mite).");
     }
   });
 
-  els.biClearCrossFilterButton?.addEventListener("click", () => {
+  els.legacyStudioClearCrossFilterButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
     project.biConfig.crossFilters = [];
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus("Filtro cruzado BI limpiado.");
   });
 
-  els.biExportRowsButton?.addEventListener("click", () => {
+  els.legacyStudioExportRowsButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    exportBiRowsCsv(project);
+    exportAnalyticsRowsCsv(project);
   });
 
-  els.biExportBoardPngButton?.addEventListener("click", () => {
+  els.legacyStudioExportBoardPngButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    exportBiBoardPng(project);
+    exportAnalyticsBoardPng(project);
   });
 
-  els.biAddTextWidgetButton?.addEventListener("click", () => {
+  els.legacyStudioAddTextWidgetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    if (project.biWidgets.length >= BI_MAX_WIDGETS) {
-      setStatus(`Maximo de ${BI_MAX_WIDGETS} widgets alcanzado.`);
+    ensureAnalyticsState(project);
+    if (project.biWidgets.length >= ANALYTICS_MAX_WIDGETS) {
+      setStatus(`Maximo de ${ANALYTICS_MAX_WIDGETS} widgets alcanzado.`);
       return;
     }
-    const name = trimOrFallback(els.biWidgetNameInput?.value, "Caja de texto").slice(0, 60);
+    const name = trimOrFallback(els.legacyStudioWidgetNameInput?.value, "Caja de texto").slice(0, 60);
     const widget = {
       id: uid(),
       kind: "text",
@@ -3305,38 +3746,38 @@ function wireEvents() {
       showBorder: false,
       showBackground: false,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
-      chartConfig: createDefaultBiChartConfig("table"),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
+      chartConfig: createDefaultAnalyticsChartConfig("table"),
       chartTypeConfig: {},
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length, "text"),
       visualOverride: null
     };
     project.biWidgets.push(widget);
-    selectedBiWidgetId = widget.id;
-    if (els.biWidgetNameInput) {
-      els.biWidgetNameInput.value = "";
+    selectedLegacyStudioWidgetId = widget.id;
+    if (els.legacyStudioWidgetNameInput) {
+      els.legacyStudioWidgetNameInput.value = "";
     }
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus("Cuadro de texto agregado.");
   });
 
-  els.biAddImageWidgetButton?.addEventListener("click", () => {
+  els.legacyStudioAddImageWidgetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    ensureBiState(project);
-    if (project.biWidgets.length >= BI_MAX_WIDGETS) {
-      setStatus(`Maximo de ${BI_MAX_WIDGETS} widgets alcanzado.`);
+    ensureAnalyticsState(project);
+    if (project.biWidgets.length >= ANALYTICS_MAX_WIDGETS) {
+      setStatus(`Maximo de ${ANALYTICS_MAX_WIDGETS} widgets alcanzado.`);
       return;
     }
-    const name = trimOrFallback(els.biWidgetNameInput?.value, "Imagen").slice(0, 60);
+    const name = trimOrFallback(els.legacyStudioWidgetNameInput?.value, "Imagen").slice(0, 60);
     const widget = {
       id: uid(),
       kind: "image",
@@ -3354,41 +3795,41 @@ function wireEvents() {
       showBorder: true,
       showBackground: true,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
-      chartConfig: createDefaultBiChartConfig("table"),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: "disciplina", metric: "count", chartType: "table" }),
+      chartConfig: createDefaultAnalyticsChartConfig("table"),
       chartTypeConfig: {},
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length, "image"),
       visualOverride: null
     };
     project.biWidgets.push(widget);
-    selectedBiWidgetId = widget.id;
-    if (els.biWidgetNameInput) {
-      els.biWidgetNameInput.value = "";
+    selectedLegacyStudioWidgetId = widget.id;
+    if (els.legacyStudioWidgetNameInput) {
+      els.legacyStudioWidgetNameInput.value = "";
     }
     saveState();
-    renderBiPanel(project);
-    if (els.biImageUploadInput) {
-      biPendingImageWidgetId = widget.id;
-      els.biImageUploadInput.value = "";
-      els.biImageUploadInput.click();
+    renderLegacyStudioPanel(project);
+    if (els.legacyStudioImageUploadInput) {
+      legacyStudioPendingImageWidgetId = widget.id;
+      els.legacyStudioImageUploadInput.value = "";
+      els.legacyStudioImageUploadInput.click();
     }
     setStatus("Widget de imagen agregado. Selecciona una imagen.");
   });
 
-  els.biImageUploadInput?.addEventListener("change", () => {
+  els.legacyStudioImageUploadInput?.addEventListener("change", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
-    const widgetId = trimOrFallback(biPendingImageWidgetId, selectedBiWidgetId);
-    const widget = getBiWidgetById(project, widgetId);
-    const file = els.biImageUploadInput?.files?.[0];
-    biPendingImageWidgetId = "";
+    const widgetId = trimOrFallback(legacyStudioPendingImageWidgetId, selectedLegacyStudioWidgetId);
+    const widget = getAnalyticsWidgetById(project, widgetId);
+    const file = els.legacyStudioImageUploadInput?.files?.[0];
+    legacyStudioPendingImageWidgetId = "";
     if (!widget || !file) {
       return;
     }
@@ -3406,7 +3847,7 @@ function wireEvents() {
       widget.imageSrc = result;
       widget.imageAlt = widget.name || "Imagen";
       saveState();
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       setStatus(`Imagen cargada en \"${widget.name}\".`);
     };
     reader.onerror = () => {
@@ -3415,21 +3856,21 @@ function wireEvents() {
     reader.readAsDataURL(file);
   });
 
-  const applyBiBuilderToSelectedWidget = (options = {}) => {
+  const applyAnalyticsBuilderToSelectedWidget = (options = {}) => {
     const announce = options.announce === true;
     const project = getActiveProject();
     if (!project) {
       return { ok: false, reason: "no_project" };
     }
-    ensureBiState(project);
-    const selected = getBiSelectedWidget(project);
+    ensureAnalyticsState(project);
+    const selected = getAnalyticsSelectedWidget(project);
     if (!selected) {
       if (announce) {
         setStatus("Selecciona un widget para actualizar.");
       }
       return { ok: false, reason: "no_selected" };
     }
-    if (normalizeBiWidgetKind(selected.kind || "chart") !== "chart") {
+    if (normalizeAnalyticsWidgetKind(selected.kind || "chart") !== "chart") {
       if (announce) {
         setStatus("Solo se puede actualizar la configuracion de widgets de grafico.");
       }
@@ -3442,17 +3883,17 @@ function wireEvents() {
       return { ok: false, reason: "locked" };
     }
 
-    const source = normalizeBiSource(els.biWidgetSourceSelect?.value || selected.source || "all");
-    const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || selected.groupBy || "disciplina");
-    const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || selected.metric || "baseunits");
-    const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || selected.chartType || "bar");
-    const dataRoles = buildBiDataRolesFromBuilderInput(project, selected);
-    const finalGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupBy);
-    const finalMetric = normalizeBiMetric(dataRoles.metrics?.[0] || metric);
-    const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect?.value || selected.sortMode || "value_desc");
-    const topN = sanitizeBiTopN(els.biWidgetTopNInput?.value ?? selected.topN ?? 10);
-    const typedName = trimOrFallback(els.biWidgetNameInput?.value, "");
-    const fallbackName = `${getBiMetricLabel(finalMetric)} por ${getBiGroupLabel(finalGroupBy, project)}`;
+    const source = normalizeAnalyticsSource(els.legacyStudioWidgetSourceSelect?.value || selected.source || "all");
+    const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect?.value || selected.groupBy || "disciplina");
+    const metric = normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect?.value || selected.metric || "baseunits");
+    const chartType = normalizeAnalyticsChartType(els.legacyStudioWidgetChartTypeSelect?.value || selected.chartType || "bar");
+    const dataRoles = buildAnalyticsDataRolesFromBuilderInput(project, selected);
+    const finalGroupBy = normalizeAnalyticsGroupBy(dataRoles.dimensions?.[0] || groupBy);
+    const finalMetric = normalizeAnalyticsMetric(dataRoles.metrics?.[0] || metric);
+    const sortMode = normalizeAnalyticsSortMode(els.legacyStudioWidgetSortModeSelect?.value || selected.sortMode || "value_desc");
+    const topN = sanitizeAnalyticsTopN(els.legacyStudioWidgetTopNInput?.value ?? selected.topN ?? 10);
+    const typedName = trimOrFallback(els.legacyStudioWidgetNameInput?.value, "");
+    const fallbackName = `${getAnalyticsMetricLabel(finalMetric)} por ${getAnalyticsGroupLabel(finalGroupBy, project)}`;
     const previousSignature = JSON.stringify({
       name: selected.name,
       source: selected.source,
@@ -3470,8 +3911,8 @@ function wireEvents() {
     selected.metric = finalMetric;
     selected.dataRoles = dataRoles;
     selected.chartType = chartType;
-    selected.chartConfig = normalizeBiChartConfig(selected.chartConfig, chartType);
-    setBiSpecificChartConfigForWidget(selected, chartType, getBiSpecificChartConfigForWidget(selected, chartType));
+    selected.chartConfig = normalizeAnalyticsChartConfig(selected.chartConfig, chartType);
+    setAnalyticsSpecificChartConfigForWidget(selected, chartType, getAnalyticsSpecificChartConfigForWidget(selected, chartType));
     selected.sortMode = sortMode;
     selected.topN = topN;
 
@@ -3490,36 +3931,36 @@ function wireEvents() {
     }
 
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     if (announce) {
       setStatus(`Widget "${selected.name}" actualizado.`);
     }
     return { ok: true, changed: true, name: selected.name };
   };
 
-  els.biAddWidgetButton?.addEventListener("click", () => {
+  els.legacyStudioAddWidgetButton?.addEventListener("click", () => {
     const project = getActiveProject();
     if (!project) {
       return;
     }
 
-    ensureBiState(project);
-    if (project.biWidgets.length >= BI_MAX_WIDGETS) {
-      setStatus(`Maximo de ${BI_MAX_WIDGETS} widgets alcanzado.`);
+    ensureAnalyticsState(project);
+    if (project.biWidgets.length >= ANALYTICS_MAX_WIDGETS) {
+      setStatus(`Maximo de ${ANALYTICS_MAX_WIDGETS} widgets alcanzado.`);
       return;
     }
 
-    const topN = sanitizeBiTopN(els.biWidgetTopNInput?.value ?? 10);
-    const source = normalizeBiSource(els.biWidgetSourceSelect?.value || "all");
-    const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || "disciplina");
-    const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || "baseUnits");
-    const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || "bar");
-    const dataRoles = buildBiDataRolesFromBuilderInput(project);
-    const finalGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupBy);
-    const finalMetric = normalizeBiMetric(dataRoles.metrics?.[0] || metric);
-    const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect?.value || "value_desc");
-    const baseName = trimOrFallback(els.biWidgetNameInput?.value, "");
-    const defaultName = `${getBiMetricLabel(finalMetric)} por ${getBiGroupLabel(finalGroupBy, project)}`;
+    const topN = sanitizeAnalyticsTopN(els.legacyStudioWidgetTopNInput?.value ?? 10);
+    const source = normalizeAnalyticsSource(els.legacyStudioWidgetSourceSelect?.value || "all");
+    const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect?.value || "disciplina");
+    const metric = normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect?.value || "baseUnits");
+    const chartType = normalizeAnalyticsChartType(els.legacyStudioWidgetChartTypeSelect?.value || "bar");
+    const dataRoles = buildAnalyticsDataRolesFromBuilderInput(project);
+    const finalGroupBy = normalizeAnalyticsGroupBy(dataRoles.dimensions?.[0] || groupBy);
+    const finalMetric = normalizeAnalyticsMetric(dataRoles.metrics?.[0] || metric);
+    const sortMode = normalizeAnalyticsSortMode(els.legacyStudioWidgetSortModeSelect?.value || "value_desc");
+    const baseName = trimOrFallback(els.legacyStudioWidgetNameInput?.value, "");
+    const defaultName = `${getAnalyticsMetricLabel(finalMetric)} por ${getAnalyticsGroupLabel(finalGroupBy, project)}`;
     const name = (baseName || defaultName).slice(0, 60);
 
     const newWidget = {
@@ -3540,33 +3981,33 @@ function wireEvents() {
       showBackground: true,
       locked: false,
       dataRoles,
-      chartConfig: createDefaultBiChartConfig(chartType),
+      chartConfig: createDefaultAnalyticsChartConfig(chartType),
       chartTypeConfig: {
-        [chartType]: normalizeBiChartTypeSpecificConfig({}, chartType)
+        [chartType]: normalizeAnalyticsChartTypeSpecificConfig({}, chartType)
       },
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length),
       visualOverride: null
     };
     project.biWidgets.push(newWidget);
-    selectedBiWidgetId = newWidget.id;
-    if (els.biWidgetNameInput) {
-      els.biWidgetNameInput.value = "";
+    selectedLegacyStudioWidgetId = newWidget.id;
+    if (els.legacyStudioWidgetNameInput) {
+      els.legacyStudioWidgetNameInput.value = "";
     }
     saveState();
-    renderBiPanel(project);
+    renderLegacyStudioPanel(project);
     setStatus("Widget BI agregado.");
   });
 
-  els.biUpdateWidgetButton?.addEventListener("click", () => {
-    applyBiBuilderToSelectedWidget({ announce: true });
+  els.legacyStudioUpdateWidgetButton?.addEventListener("click", () => {
+    applyAnalyticsBuilderToSelectedWidget({ announce: true });
   });
 
-  els.biWidgetsGrid?.addEventListener("click", (event) => {
+  els.legacyStudioWidgetsGrid?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -3578,15 +4019,15 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      ensureBiState(project);
-      const result = duplicateBiWidget(project, duplicateId);
+      ensureAnalyticsState(project);
+      const result = duplicateAnalyticsWidget(project, duplicateId);
       if (!result.ok) {
         setStatus(result.message || "No se pudo clonar el widget.");
         return;
       }
-      selectedBiWidgetId = result.newWidgetId;
+      selectedLegacyStudioWidgetId = result.newWidgetId;
       saveState();
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       setStatus("Widget clonado.");
       return;
     }
@@ -3597,14 +4038,14 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      ensureBiState(project);
-      const result = toggleBiWidgetLock(project, lockId);
+      ensureAnalyticsState(project);
+      const result = toggleAnalyticsWidgetLock(project, lockId);
       if (!result.ok) {
         setStatus("No se pudo cambiar el bloqueo del widget.");
         return;
       }
       saveState();
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       setStatus(result.locked ? "Widget bloqueado." : "Widget desbloqueado.");
       return;
     }
@@ -3615,13 +4056,13 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      ensureBiState(project);
+      ensureAnalyticsState(project);
       project.biWidgets = project.biWidgets.filter((item) => item.id !== removeId);
-      if (selectedBiWidgetId === removeId) {
-        selectedBiWidgetId = "";
+      if (selectedLegacyStudioWidgetId === removeId) {
+        selectedLegacyStudioWidgetId = "";
       }
       saveState();
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       setStatus("Widget BI eliminado.");
       return;
     }
@@ -3632,7 +4073,7 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      exportBiWidgetCsv(project, exportId);
+      exportAnalyticsWidgetCsv(project, exportId);
       return;
     }
 
@@ -3642,7 +4083,7 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      exportBiWidgetPng(project, exportPngId);
+      exportAnalyticsWidgetPng(project, exportPngId);
       return;
     }
 
@@ -3652,15 +4093,15 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      const widget = getBiWidgetById(project, selectImageId);
+      const widget = getAnalyticsWidgetById(project, selectImageId);
       if (!widget) {
         return;
       }
       setSelectedBiWidget(project, selectImageId, true);
-      if (els.biImageUploadInput) {
-        biPendingImageWidgetId = selectImageId;
-        els.biImageUploadInput.value = "";
-        els.biImageUploadInput.click();
+      if (els.legacyStudioImageUploadInput) {
+        legacyStudioPendingImageWidgetId = selectImageId;
+        els.legacyStudioImageUploadInput.value = "";
+        els.legacyStudioImageUploadInput.click();
       }
       return;
     }
@@ -3671,11 +4112,11 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      const widget = getBiWidgetById(project, applyImageUrlId);
+      const widget = getAnalyticsWidgetById(project, applyImageUrlId);
       if (!widget) {
         return;
       }
-      const input = els.biWidgetsGrid?.querySelector(`[data-bi-image-url=\"${applyImageUrlId}\"]`);
+      const input = els.legacyStudioWidgetsGrid?.querySelector(`[data-bi-image-url=\"${applyImageUrlId}\"]`);
       if (!(input instanceof HTMLInputElement)) {
         return;
       }
@@ -3685,7 +4126,7 @@ function wireEvents() {
         widget.imageAlt = widget.name || "Imagen";
       }
       saveState();
-      renderBiPanel(project);
+      renderLegacyStudioPanel(project);
       setStatus(nextUrl ? "URL de imagen aplicada." : "URL de imagen limpiada.");
       return;
     }
@@ -3705,7 +4146,7 @@ function wireEvents() {
     }
   });
 
-  els.biWidgetsGrid?.addEventListener("input", (event) => {
+  els.legacyStudioWidgetsGrid?.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -3716,7 +4157,7 @@ function wireEvents() {
       if (!project) {
         return;
       }
-      const widget = getBiWidgetById(project, textWidgetId);
+      const widget = getAnalyticsWidgetById(project, textWidgetId);
       if (!widget) {
         return;
       }
@@ -3729,7 +4170,7 @@ function wireEvents() {
     }
   });
 
-  els.biWidgetsGrid?.addEventListener("pointerdown", (event) => {
+  els.legacyStudioWidgetsGrid?.addEventListener("pointerdown", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -3744,20 +4185,20 @@ function wireEvents() {
     if (!project) {
       return;
     }
-    ensureBiState(project);
+    ensureAnalyticsState(project);
 
     const resizeHandle = target.closest("[data-bi-resize-widget]");
     if (resizeHandle instanceof HTMLElement) {
       const widgetId = trimOrFallback(resizeHandle.dataset.biResizeWidget, "");
       const widgetElement = resizeHandle.closest("[data-bi-widget-id]");
-      const widget = getBiWidgetById(project, widgetId);
+      const widget = getAnalyticsWidgetById(project, widgetId);
       if (widget && widgetElement instanceof HTMLElement) {
         if (widget.locked) {
           setStatus("Widget bloqueado. Desbloquea para mover o redimensionar.");
           return;
         }
         setSelectedBiWidget(project, widgetId, false);
-        startBiWidgetInteraction(project, widget, widgetElement, "resize", event);
+        startAnalyticsWidgetInteraction(project, widget, widgetElement, "resize", event);
       }
       return;
     }
@@ -3766,20 +4207,20 @@ function wireEvents() {
     if (dragHandle instanceof HTMLElement) {
       const widgetId = trimOrFallback(dragHandle.dataset.biDragWidget, "");
       const widgetElement = dragHandle.closest("[data-bi-widget-id]");
-      const widget = getBiWidgetById(project, widgetId);
+      const widget = getAnalyticsWidgetById(project, widgetId);
       if (widget && widgetElement instanceof HTMLElement) {
         if (widget.locked) {
           setStatus("Widget bloqueado. Desbloquea para mover o redimensionar.");
           return;
         }
         setSelectedBiWidget(project, widgetId, false);
-        startBiWidgetInteraction(project, widget, widgetElement, "drag", event);
+        startAnalyticsWidgetInteraction(project, widget, widgetElement, "drag", event);
       }
     }
   });
 
   window.addEventListener("pointermove", (event) => {
-    updateBiWidgetInteraction(event);
+    updateAnalyticsWidgetInteraction(event);
   });
   window.addEventListener("pointerup", (event) => {
     endBiWidgetInteraction(event);
@@ -4040,8 +4481,8 @@ function wireEvents() {
     updateReviewFlowEditUi();
     renderReviewFlowPanel(getActiveProject());
     setStatus(reviewFlowEditMode
-      ? "Modo edicion activado en Hitos de Flujo de Revisión."
-      : "Modo lectura activado en Hitos de Flujo de Revisión.");
+      ? "Modo edicion activado en Hitos de Flujo de RevisiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n."
+      : "Modo lectura activado en Hitos de Flujo de RevisiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n.");
   });
 
   els.addBlankReviewMilestoneButton.addEventListener("click", () => {
@@ -5436,18 +5877,6 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (activeTab === "bi" && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      toggleBiCommandPalette();
-      return;
-    }
-
-    if (activeTab === "bi" && biCommandPaletteOpen) {
-      if (handleBiCommandPaletteKeydown(event)) {
-        return;
-      }
-    }
-
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       flushPendingSave();
@@ -5455,7 +5884,7 @@ function wireEvents() {
       renderDeliverablesPanel(getActiveProject());
       renderReviewFlowPanel(getActiveProject());
       renderReviewControlsPanel(getActiveProject());
-      renderBiPanel(getActiveProject());
+      renderQuickSightPanel(getActiveProject());
       setStatus("Cambios guardados localmente.");
       return;
     }
@@ -5544,7 +5973,7 @@ function wireEvents() {
       }
     }
 
-    if (activeTab === "bi") {
+    if (activeTab === "legacy-studio") {
       const target = event.target;
       const isTypingTarget = target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
@@ -5553,34 +5982,34 @@ function wireEvents() {
       const keyText = trimOrFallback(event.key, "").toLowerCase();
       const project = getActiveProject();
       if (project) {
-        ensureBiState(project);
+        ensureAnalyticsState(project);
       }
-      const selectedWidget = project ? getBiSelectedWidget(project) : null;
+      const selectedWidget = project ? getAnalyticsSelectedWidget(project) : null;
 
       if (!isTypingTarget && project && event.ctrlKey && event.altKey && !event.metaKey) {
         if (keyText === "[") {
           event.preventDefault();
-          applyBiCanvasZoom(getBiCanvasFitZoom(project, "all"), "Zoom ajustado a vista");
+          applyAnalyticsCanvasZoom(getAnalyticsCanvasFitZoom(project, "all"), "Zoom ajustado a vista");
           return;
         }
         if (keyText === "]") {
           event.preventDefault();
-          applyBiCanvasZoom(getBiCanvasFitZoom(project, "width"), "Zoom ajustado al ancho");
+          applyAnalyticsCanvasZoom(getAnalyticsCanvasFitZoom(project, "width"), "Zoom ajustado al ancho");
           return;
         }
         if (keyText === "1") {
           event.preventDefault();
-          applyBiCanvasZoom(100, "Zoom de pizarra");
+          applyAnalyticsCanvasZoom(100, "Zoom de pizarra");
           return;
         }
         if (keyText === "+" || keyText === "=") {
           event.preventDefault();
-          applyBiCanvasZoom(getBiSteppedCanvasZoom(project.biConfig.canvasZoom, 1), "Zoom de pizarra");
+          applyAnalyticsCanvasZoom(getAnalyticsSteppedCanvasZoom(project.biConfig.canvasZoom, 1), "Zoom de pizarra");
           return;
         }
         if (keyText === "-" || keyText === "_") {
           event.preventDefault();
-          applyBiCanvasZoom(getBiSteppedCanvasZoom(project.biConfig.canvasZoom, -1), "Zoom de pizarra");
+          applyAnalyticsCanvasZoom(getAnalyticsSteppedCanvasZoom(project.biConfig.canvasZoom, -1), "Zoom de pizarra");
           return;
         }
       }
@@ -5590,14 +6019,14 @@ function wireEvents() {
           return;
         }
         event.preventDefault();
-        const result = duplicateBiWidget(project, selectedWidget.id);
+        const result = duplicateAnalyticsWidget(project, selectedWidget.id);
         if (!result.ok) {
           setStatus(result.message || "No se pudo clonar el widget.");
           return;
         }
-        selectedBiWidgetId = result.newWidgetId;
+        selectedLegacyStudioWidgetId = result.newWidgetId;
         saveState();
-        renderBiPanel(project);
+        renderLegacyStudioPanel(project);
         setStatus("Widget clonado (Ctrl + D).");
         return;
       }
@@ -5608,9 +6037,9 @@ function wireEvents() {
         }
         event.preventDefault();
         project.biWidgets = project.biWidgets.filter((item) => item.id !== selectedWidget.id);
-        selectedBiWidgetId = "";
+        selectedLegacyStudioWidgetId = "";
         saveState();
-        renderBiPanel(project);
+        renderLegacyStudioPanel(project);
         setStatus("Widget eliminado.");
         return;
       }
@@ -5620,16 +6049,16 @@ function wireEvents() {
           return;
         }
         event.preventDefault();
-        const result = toggleBiWidgetLock(project, selectedWidget.id);
+        const result = toggleAnalyticsWidgetLock(project, selectedWidget.id);
         saveState();
-        renderBiPanel(project);
+        renderLegacyStudioPanel(project);
         setStatus(result.locked ? "Widget bloqueado (L)." : "Widget desbloqueado (L).");
         return;
       }
 
       if (!isTypingTarget && selectedWidget) {
-        const snapEnabled = normalizeBiToggle(project?.biConfig?.snapToGrid, true);
-        const snapSize = sanitizeBiInteger(project?.biConfig?.gridSnapSize, 12, 4, 120);
+        const snapEnabled = normalizeAnalyticsToggle(project?.biConfig?.snapToGrid, true);
+        const snapSize = sanitizeAnalyticsInteger(project?.biConfig?.gridSnapSize, 12, 4, 120);
         const step = snapEnabled
           ? (event.shiftKey ? snapSize * 2 : snapSize)
           : (event.shiftKey ? 10 : 1);
@@ -5646,23 +6075,23 @@ function wireEvents() {
               setStatus("Widget bloqueado. Desbloquea para redimensionar.");
               return;
             }
-            const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
-            const minSize = getBiWidgetMinSize(selectedWidget);
-            selectedWidget.layout = clampBiWidgetLayoutToCanvas({
+            const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
+            const minSize = getAnalyticsWidgetMinSize(selectedWidget);
+            selectedWidget.layout = clampAnalyticsWidgetLayoutToCanvas({
               x: selectedWidget.layout?.x || 0,
               y: selectedWidget.layout?.y || 0,
               w: (selectedWidget.layout?.w || minSize.width) + dw,
               h: (selectedWidget.layout?.h || minSize.height) + dh
             }, canvasSize.width, canvasSize.height, minSize);
             if (snapEnabled) {
-              selectedWidget.layout = clampBiWidgetLayoutToCanvas(
-                snapBiWidgetLayout(selectedWidget.layout, "resize", snapSize, minSize),
+              selectedWidget.layout = clampAnalyticsWidgetLayoutToCanvas(
+                snapAnalyticsWidgetLayout(selectedWidget.layout, "resize", snapSize, minSize),
                 canvasSize.width,
                 canvasSize.height,
                 minSize
               );
             }
-            const widgetNode = findBiWidgetElement(selectedWidget.id);
+            const widgetNode = findAnalyticsWidgetElement(selectedWidget.id);
             if (widgetNode instanceof HTMLElement) {
               widgetNode.style.width = `${selectedWidget.layout.w}px`;
               widgetNode.style.height = `${selectedWidget.layout.h}px`;
@@ -5683,23 +6112,23 @@ function wireEvents() {
             setStatus("Widget bloqueado. Desbloquea para mover.");
             return;
           }
-          const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
-          const minSize = getBiWidgetMinSize(selectedWidget);
-          selectedWidget.layout = clampBiWidgetLayoutToCanvas({
+          const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
+          const minSize = getAnalyticsWidgetMinSize(selectedWidget);
+          selectedWidget.layout = clampAnalyticsWidgetLayoutToCanvas({
             x: (selectedWidget.layout?.x || 0) + dx,
             y: (selectedWidget.layout?.y || 0) + dy,
             w: selectedWidget.layout?.w || minSize.width,
             h: selectedWidget.layout?.h || minSize.height
           }, canvasSize.width, canvasSize.height, minSize);
           if (snapEnabled) {
-            selectedWidget.layout = clampBiWidgetLayoutToCanvas(
-              snapBiWidgetLayout(selectedWidget.layout, "drag", snapSize, minSize),
+            selectedWidget.layout = clampAnalyticsWidgetLayoutToCanvas(
+              snapAnalyticsWidgetLayout(selectedWidget.layout, "drag", snapSize, minSize),
               canvasSize.width,
               canvasSize.height,
               minSize
             );
           }
-          const widgetNode = findBiWidgetElement(selectedWidget.id);
+          const widgetNode = findAnalyticsWidgetElement(selectedWidget.id);
           if (widgetNode instanceof HTMLElement) {
             widgetNode.style.left = `${selectedWidget.layout.x}px`;
             widgetNode.style.top = `${selectedWidget.layout.y}px`;
@@ -5714,8 +6143,8 @@ function wireEvents() {
       return;
     }
 
-    if (biCommandPaletteOpen) {
-      closeBiCommandPalette();
+    if (legacyStudioCommandPaletteOpen) {
+      closeLegacyStudioCommandPalette();
       return;
     }
 
@@ -5735,16 +6164,6 @@ function renderAll() {
   renderQuickSightPanel(project);
   renderProjectChooser(project);
   renderTabState();
-  if (activeTab === "bi") {
-    if (biPendingRenderRafId) {
-      window.cancelAnimationFrame(biPendingRenderRafId);
-      biPendingRenderRafId = 0;
-    }
-    biPendingRenderRafId = window.requestAnimationFrame(() => {
-      biPendingRenderRafId = 0;
-      renderBiPanel(getActiveProject());
-    });
-  }
 }
 
 function renderHeader(project) {
@@ -7528,34 +7947,37 @@ function renderReviewControlsPanel(project) {
   }
 }
 
-function ensureBiState(project) {
+function ensureAnalyticsState(project) {
   if (!project) {
     return;
   }
-  project.biConfig = normalizeBiConfig(project.biConfig);
-  project.biWidgets = normalizeBiWidgets(project.biWidgets);
+  project.biConfig = normalizeAnalyticsConfig(project.biConfig);
+  project.biWidgets = normalizeAnalyticsWidgets(project.biWidgets);
 }
 
-function renderBiPanel(project) {
-  if (!els.biKpiGrid || !els.biWidgetsGrid) {
+function renderLegacyStudioPanel(project) {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  if (!els.legacyStudioKpiGrid || !els.legacyStudioWidgetsGrid) {
     return;
   }
 
-  const biPanel = document.getElementById("tab-bi");
-  if (project && activeTab !== "bi") {
+  const tabPanel = els.legacyStudioWidgetsGrid.closest(".tab-panel");
+  if (project && activeTab !== "legacy-studio") {
     return;
   }
   if (
     project
-    && activeTab === "bi"
-    && biPanel instanceof HTMLElement
-    && (biPanel.classList.contains("hidden") || biPanel.clientWidth <= 0 || biPanel.clientHeight <= 0)
+    && activeTab === "legacy-studio"
+    && tabPanel instanceof HTMLElement
+    && (tabPanel.classList.contains("hidden") || tabPanel.clientWidth <= 0 || tabPanel.clientHeight <= 0)
   ) {
-    if (!biPendingRenderRafId) {
-      biPendingRenderRafId = window.requestAnimationFrame(() => {
-        biPendingRenderRafId = 0;
-        if (activeTab === "bi") {
-          renderBiPanel(getActiveProject());
+    if (!legacyStudioPendingRenderRafId) {
+      legacyStudioPendingRenderRafId = window.requestAnimationFrame(() => {
+        legacyStudioPendingRenderRafId = 0;
+        if (activeTab === "legacy-studio") {
+          renderLegacyStudioPanel(getActiveProject());
         }
       });
     }
@@ -7563,71 +7985,71 @@ function renderBiPanel(project) {
   }
 
   if (!project) {
-    if (els.biWidgetsMetaText) {
-      els.biWidgetsMetaText.textContent = "";
+    if (els.legacyStudioWidgetsMetaText) {
+      els.legacyStudioWidgetsMetaText.textContent = "";
     }
-    if (els.biRowsMetaText) {
-      els.biRowsMetaText.textContent = "";
+    if (els.legacyStudioRowsMetaText) {
+      els.legacyStudioRowsMetaText.textContent = "";
     }
-    if (els.biCatalogSummaryText) {
-      els.biCatalogSummaryText.textContent = "";
+    if (els.legacyStudioCatalogSummaryText) {
+      els.legacyStudioCatalogSummaryText.textContent = "";
     }
-    els.biKpiGrid.innerHTML = "";
-    els.biWidgetsGrid.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
-    if (els.biCatalogFieldsList) {
-      els.biCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
+    els.legacyStudioKpiGrid.innerHTML = "";
+    els.legacyStudioWidgetsGrid.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
+    if (els.legacyStudioCatalogFieldsList) {
+      els.legacyStudioCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
     }
-    if (els.biColorLegendList) {
-      els.biColorLegendList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
+    if (els.legacyStudioColorLegendList) {
+      els.legacyStudioColorLegendList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
     }
-    if (els.biColorSummaryText) {
-      els.biColorSummaryText.textContent = "";
+    if (els.legacyStudioColorSummaryText) {
+      els.legacyStudioColorSummaryText.textContent = "";
     }
-    if (els.biCrossFilterText) {
-      els.biCrossFilterText.textContent = "Sin proyecto activo.";
+    if (els.legacyStudioCrossFilterText) {
+      els.legacyStudioCrossFilterText.textContent = "Sin proyecto activo.";
     }
-    if (els.biInsightsGrid) {
-      els.biInsightsGrid.innerHTML = "";
+    if (els.legacyStudioInsightsGrid) {
+      els.legacyStudioInsightsGrid.innerHTML = "";
     }
-    if (els.biClearCrossFilterButton) {
-      els.biClearCrossFilterButton.disabled = true;
+    if (els.legacyStudioClearCrossFilterButton) {
+      els.legacyStudioClearCrossFilterButton.disabled = true;
     }
-    if (els.biRowsHeader) {
-      els.biRowsHeader.innerHTML = "";
+    if (els.legacyStudioRowsHeader) {
+      els.legacyStudioRowsHeader.innerHTML = "";
     }
-    if (els.biRowsBody) {
-      els.biRowsBody.innerHTML = "";
+    if (els.legacyStudioRowsBody) {
+      els.legacyStudioRowsBody.innerHTML = "";
     }
-    renderBiPerformancePanel(null, []);
-    refreshBiStudioPanelsUi();
-    updateBiStudioOverlayOffset();
+    renderAnalyticsPerformancePanel(null, []);
+    refreshLegacyStudioPanelsUi();
+    updateLegacyStudioOverlayOffset();
     return;
   }
 
-  ensureBiState(project);
-  if (selectedBiWidgetId && !project.biWidgets.some((widget) => widget.id === selectedBiWidgetId)) {
-    selectedBiWidgetId = "";
+  ensureAnalyticsState(project);
+  if (selectedLegacyStudioWidgetId && !project.biWidgets.some((widget) => widget.id === selectedLegacyStudioWidgetId)) {
+    selectedLegacyStudioWidgetId = "";
   }
-  biWidgetSnapshotsByProject[project.id] = {};
-  refreshBiGroupByOptions(project);
-  refreshBiBreakdownOptions(project);
-  refreshBiColorGroupByOptions(project);
-  refreshBiVisualPresetOptions(project);
-  syncBiInputs(project.biConfig);
-  syncBiBuilderInputsFromSelectedWidget(project);
-  syncBiBuilderSelectionUi(project);
-  renderBiFieldCatalog(project);
-  renderBiCrossFilterSummary(project);
+  legacyStudioWidgetSnapshotsByProject[project.id] = {};
+  refreshAnalyticsGroupByOptions(project);
+  refreshAnalyticsBreakdownOptions(project);
+  refreshAnalyticsColorGroupByOptions(project);
+  refreshAnalyticsVisualPresetOptions(project);
+  syncAnalyticsInputs(project.biConfig);
+  syncAnalyticsBuilderInputsFromSelectedWidget(project);
+  syncAnalyticsBuilderSelectionUi(project);
+  renderAnalyticsFieldCatalog(project);
+  renderAnalyticsCrossFilterSummary(project);
 
-  const filteredRows = queryBiProjectRows(project, project.biConfig);
-  renderBiColorPanel(project, filteredRows);
+  const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+  renderAnalyticsColorPanel(project, filteredRows);
 
-  renderBiInsights(project, filteredRows);
-  renderBiKpis(filteredRows);
-  renderBiWidgets(project, filteredRows);
-  renderBiPerformancePanel(project, filteredRows);
-  refreshBiStudioPanelsUi();
-  updateBiStudioOverlayOffset();
+  renderAnalyticsInsights(project, filteredRows);
+  renderAnalyticsKpis(filteredRows);
+  renderAnalyticsWidgets(project, filteredRows);
+  renderAnalyticsPerformancePanel(project, filteredRows);
+  refreshLegacyStudioPanelsUi();
+  updateLegacyStudioOverlayOffset();
 }
 
 function getQuickSightShellColumns() {
@@ -7742,14 +8164,6 @@ function setQuickSightZoomMenuOpen(nextOpen) {
   quickSightZoomMenuOpen = !!nextOpen;
   if (els.qsZoomMenuWrap instanceof HTMLElement) {
     els.qsZoomMenuWrap.classList.toggle("open", quickSightZoomMenuOpen);
-    const toolbarLeft = els.qsZoomMenuWrap.closest(".qs-toolbar-left");
-    if (toolbarLeft instanceof HTMLElement) {
-      toolbarLeft.classList.toggle("qs-toolbar-left-menu-open", quickSightZoomMenuOpen);
-    }
-    const toolbarRow = els.qsZoomMenuWrap.closest(".qs-toolbar-row");
-    if (toolbarRow instanceof HTMLElement) {
-      toolbarRow.classList.toggle("qs-toolbar-row-menu-open", quickSightZoomMenuOpen);
-    }
   }
   if (els.qsCanvasZoomMenu instanceof HTMLElement) {
     els.qsCanvasZoomMenu.classList.toggle("hidden", !quickSightZoomMenuOpen);
@@ -8086,17 +8500,17 @@ function getQuickSightCanvasFitZoom(project, mode = "all") {
 }
 
 function getQuickSightCanvasSizeFromConfig(config) {
-  const width = sanitizeBiCanvasDimension(
+  const width = sanitizeAnalyticsCanvasDimension(
     config?.canvasWidth,
     QUICKSIGHT_CANVAS_DEFAULT_WIDTH,
     QUICKSIGHT_CANVAS_MIN_WIDTH,
-    BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+    ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH
   );
-  const height = sanitizeBiCanvasDimension(
+  const height = sanitizeAnalyticsCanvasDimension(
     config?.canvasHeight,
     QUICKSIGHT_CANVAS_DEFAULT_HEIGHT,
     QUICKSIGHT_CANVAS_MIN_HEIGHT,
-    BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+    ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
   );
   return { width, height };
 }
@@ -8229,7 +8643,9 @@ function repaintQuickSightVisualCanvasForCard(project, visual, cardElement) {
   if (!(chartHostNode instanceof HTMLElement)) {
     return;
   }
-  const snapshot = buildQuickSightVisualSnapshot(project, visual);
+  const snapshot = getQuickSightVisualKind(visual, project.quickSightConfig) === "text"
+    ? null
+    : buildQuickSightVisualSnapshot(project, visual);
   paintQuickSightVisualCanvas(chartHostNode, project, visual, snapshot);
 }
 
@@ -8445,9 +8861,87 @@ function getQuickSightChartTypeOptions() {
     { value: "scatter", label: "Dispersion" },
     { value: "bubble", label: "Burbujas" },
     { value: "waterfall", label: "Waterfall" },
-    { value: "radar", label: "Radar" },
-    { value: "pareto", label: "Pareto" }
+    { value: "pareto", label: "Pareto" },
+    { value: "table", label: "Tabla" },
+    { value: "pivot", label: "Matriz" },
+    { value: "text", label: "Texto" },
+    { value: "viewer", label: "Visor de modelo" }
   ];
+}
+
+function normalizeQuickSightVisualTypeToken(value) {
+  const token = trimOrFallback(value, "").toLowerCase();
+  if (token === "text" || token === "texto") {
+    return "text";
+  }
+  return normalizeAnalyticsChartType(token || "bar");
+}
+
+function getQuickSightVisualKind(visualLike = null, fallbackConfig = null) {
+  const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
+  const fallback = fallbackConfig && typeof fallbackConfig === "object" ? fallbackConfig : {};
+  const hintedKind = normalizeAnalyticsWidgetKind(
+    safeVisual.kind
+    || fallback.kind
+    || (normalizeQuickSightVisualTypeToken(
+      safeVisual.chartType
+      || safeVisual.chart
+      || safeVisual.type
+      || fallback.chartType
+      || fallback.chart
+      || "bar"
+    ) === "text" ? "text" : "chart")
+  );
+  return hintedKind === "text" ? "text" : "chart";
+}
+
+function getQuickSightVisualTypeToken(visualLike = null, fallbackConfig = null) {
+  if (getQuickSightVisualKind(visualLike, fallbackConfig) === "text") {
+    return "text";
+  }
+  const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
+  const fallback = fallbackConfig && typeof fallbackConfig === "object" ? fallbackConfig : {};
+  return normalizeAnalyticsChartType(
+    safeVisual.chartType
+    || safeVisual.chart
+    || fallback.chartType
+    || fallback.chart
+    || "bar"
+  );
+}
+
+function getQuickSightResolvedChartType(visualLike = null, fallbackConfig = null) {
+  const token = getQuickSightVisualTypeToken(visualLike, fallbackConfig);
+  if (token === "text") {
+    const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
+    const fallback = fallbackConfig && typeof fallbackConfig === "object" ? fallbackConfig : {};
+    return normalizeAnalyticsChartType(safeVisual.chartType || fallback.chartType || "bar");
+  }
+  return normalizeAnalyticsChartType(token);
+}
+
+function normalizeQuickSightTextContent(value, fallback = "") {
+  if (typeof value !== "string") {
+    return trimOrFallback(fallback, "").slice(0, 4000);
+  }
+  return value.slice(0, 4000);
+}
+
+function syncQuickSightVisualKindState(visual, rawTypeToken, fallbackConfig = null) {
+  if (!visual || typeof visual !== "object") {
+    return;
+  }
+  const nextTypeToken = normalizeQuickSightVisualTypeToken(rawTypeToken || getQuickSightVisualTypeToken(visual, fallbackConfig));
+  if (nextTypeToken === "text") {
+    visual.kind = "text";
+    visual.textContent = normalizeQuickSightTextContent(visual.textContent, "Texto");
+    visual.textConfig = normalizeAnalyticsTextConfig(visual.textConfig);
+    return;
+  }
+  visual.kind = "chart";
+  visual.chartType = normalizeAnalyticsChartType(nextTypeToken || visual.chartType || fallbackConfig?.chartType || "bar");
+  visual.textContent = normalizeQuickSightTextContent(visual.textContent);
+  visual.textConfig = normalizeAnalyticsTextConfig(visual.textConfig);
 }
 
 function captureQuickSightPropsSectionState() {
@@ -8556,17 +9050,17 @@ function bindQuickSightCanvasHover(canvas) {
     }
     const model = state.model || { type: "none", items: [] };
     let cursor = "default";
-    const labelHoverIndex = resolveBiLabelDragIndex(model, x, y);
+    const labelHoverIndex = resolveAnalyticsLabelDragIndex(model, x, y);
     if (labelHoverIndex >= 0) {
       cursor = "grab";
     } else {
-      const hoverIndexProbe = resolveBiHoverIndex(model, x, y);
+      const hoverIndexProbe = resolveAnalyticsHoverIndex(model, x, y);
       if (hoverIndexProbe >= 0) {
         cursor = "pointer";
       }
     }
     canvas.style.cursor = cursor;
-    const hoverIndex = resolveBiHoverIndex(model, x, y);
+    const hoverIndex = resolveAnalyticsHoverIndex(model, x, y);
     if (hoverIndex === state.hoverIndex) {
       return;
     }
@@ -8583,7 +9077,7 @@ function bindQuickSightCanvasHover(canvas) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const model = state.model || { type: "none", items: [] };
-    const labelIndex = resolveBiLabelDragIndex(model, x, y);
+    const labelIndex = resolveAnalyticsLabelDragIndex(model, x, y);
     if (labelIndex < 0 || labelIndex >= state.rows.length) {
       return;
     }
@@ -8593,8 +9087,8 @@ function bindQuickSightCanvasHover(canvas) {
     const row = state.rows[labelIndex] || null;
     const rowKey = trimOrFallback(row?.rowKey || labelItem?.rowKey, "");
     const rowLabel = trimOrFallback(row?.label || labelItem?.rowLabel || state.labels[labelIndex] || "", "");
-    const currentPlacement = getBiLabelPlacement(state.visual, rowKey, rowLabel);
-    const safeOffsets = normalizeBiLabelOffsets(state.labelOffsets);
+    const currentPlacement = getAnalyticsLabelPlacement(state.visual, rowKey, rowLabel);
+    const safeOffsets = normalizeAnalyticsLabelOffsets(state.labelOffsets);
     const currentLegacy = safeOffsets[String(labelIndex)] || { x: 0, y: 0 };
     const plotWidth = Math.max(1, Number.isFinite(labelItem?.plotWidth) ? labelItem.plotWidth : canvas.clientWidth || 1);
     const plotHeight = Math.max(1, Number.isFinite(labelItem?.plotHeight) ? labelItem.plotHeight : canvas.clientHeight || 1);
@@ -8639,7 +9133,7 @@ function bindQuickSightCanvasHover(canvas) {
     const y = event.clientY - rect.top;
     const nextX = dragState.startOffsetX + (x - dragState.startX);
     const nextY = dragState.startOffsetY + (y - dragState.startY);
-    const safeOffsets = normalizeBiLabelOffsets(state.labelOffsets);
+    const safeOffsets = normalizeAnalyticsLabelOffsets(state.labelOffsets);
     safeOffsets[String(dragState.index)] = {
       x: Math.max(-400, Math.min(400, Math.round(nextX))),
       y: Math.max(-220, Math.min(220, Math.round(nextY)))
@@ -8653,7 +9147,7 @@ function bindQuickSightCanvasHover(canvas) {
       dyPct: Math.max(-1.5, Math.min(1.5, dragState.startDyPct + ((y - dragState.startY) / Math.max(1, dragState.plotHeight)))),
       scope: "plot"
     }, dragState.rowLabel);
-    state.labelLayoutV2 = normalizeBiLabelLayoutV2(state.visual.labelLayoutV2);
+    state.labelLayoutV2 = normalizeAnalyticsLabelLayoutV2(state.visual.labelLayoutV2);
     state.hoverIndex = dragState.index;
     redrawHoverState(state, dragState.index);
     dragState.moved = Math.abs(x - dragState.startX) > 1 || Math.abs(y - dragState.startY) > 1;
@@ -8706,11 +9200,11 @@ function bindQuickSightCanvasHover(canvas) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const model = state.model || { type: "none", items: [] };
-    const labelIndex = resolveBiLabelDragIndex(model, x, y);
+    const labelIndex = resolveAnalyticsLabelDragIndex(model, x, y);
     if (labelIndex >= 0) {
       return;
     }
-    const hoverIndex = resolveBiHoverIndex(model, x, y);
+    const hoverIndex = resolveAnalyticsHoverIndex(model, x, y);
     if (hoverIndex < 0 || hoverIndex >= state.rows.length) {
       return;
     }
@@ -8784,6 +9278,12 @@ function renderQuickSightPanel(project, options = {}) {
     if (els.qsRoleBreakdownList) {
       els.qsRoleBreakdownList.innerHTML = "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>";
     }
+    if (els.qsModelsStatusText) {
+      els.qsModelsStatusText.textContent = "Sin proyecto activo.";
+    }
+    if (els.qsModelsList) {
+      els.qsModelsList.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
+    }
     els.qsFieldsList.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsCanvasBoard.innerHTML = "<div class=\"qs-empty\">Sin proyecto activo.</div>";
     els.qsPropertiesBody.innerHTML = "<p class=\"muted\">Sin proyecto activo.</p>";
@@ -8808,32 +9308,42 @@ function renderQuickSightPanel(project, options = {}) {
 
   const scopedRows = getQuickSightPanelBaseRows(project);
   const activeInteractionFilters = normalizeQuickSightInteractionFilters(project.quickSightConfig.interactionFilters);
-  const selectedSource = normalizeBiSource(activeVisual?.source || project.quickSightConfig.source || "all");
-  const sourceRows = selectedSource === "all"
-    ? scopedRows
-    : scopedRows.filter((row) => row.source === selectedSource);
+  const sourceOptions = getQuickSightSourceOptions(project, scopedRows);
+  const selectedSource = normalizeQuickSightSourceSelection(
+    project,
+    activeVisual?.source || project.quickSightConfig.source || "deliverable",
+    scopedRows
+  );
+  renderQuickSightModelRegistry(project, selectedSource);
+  const sourceRows = scopedRows.filter((row) => normalizeAnalyticsSource(row.source || "") === selectedSource);
   const activeDrillMeta = activeVisual ? getQuickSightVisualDrillMeta(activeVisual, project) : null;
-  const groupOptions = getBiGroupByOptions(project);
+  const groupOptions = getAnalyticsGroupByOptions(project, selectedSource);
   const metricOptions = getQuickSightMetricOptions();
   const chartOptions = getQuickSightChartTypeOptions();
-  const safeGroupBy = normalizeBiGroupBy(activeVisual?.groupBy || project.quickSightConfig.groupBy || "disciplina");
+  const activeVisualKind = getQuickSightVisualKind(activeVisual, project.quickSightConfig);
+  const safeTypeToken = getQuickSightVisualTypeToken(activeVisual, project.quickSightConfig);
+  const safeGroupBy = normalizeAnalyticsGroupBy(activeVisual?.groupBy || project.quickSightConfig.groupBy || "disciplina");
   const safeBreakdown = activeVisual
-    ? normalizeBiOptionalGroupBy(
+    ? normalizeAnalyticsOptionalGroupBy(
       getOwnObjectValue(activeVisual, "breakdownDimension", activeVisual?.dataRoles?.breakdownDimension ?? "")
     )
-    : normalizeBiOptionalGroupBy(project.quickSightConfig.breakdownDimension || "");
-  const safeMetric = normalizeBiMetric(activeVisual?.metric || project.quickSightConfig.metric || "count");
+    : normalizeAnalyticsOptionalGroupBy(project.quickSightConfig.breakdownDimension || "");
+  const safeMetric = normalizeAnalyticsMetric(activeVisual?.metric || project.quickSightConfig.metric || "count");
   const safeOptionalMetric = activeVisual
     ? getQuickSightVisualOptionalMetric(activeVisual)
     : getQuickSightVisualOptionalMetric(null, project.quickSightConfig);
-  const safeChartType = normalizeBiChartType(activeVisual?.chartType || project.quickSightConfig.chartType || "bar");
-  const safeTopN = sanitizeBiTopN(activeVisual?.topN ?? project.quickSightConfig.topN ?? 12);
-  const catalogFields = getBiCatalogFields(project, selectedSource);
+  const safeChartType = getQuickSightResolvedChartType(activeVisual, project.quickSightConfig);
+  const safeTopN = sanitizeAnalyticsTopN(activeVisual?.topN ?? project.quickSightConfig.topN ?? 12);
+  const catalogFields = getAnalyticsCatalogFields(project, selectedSource);
   const breakdownOptions = [{ value: "", label: "(sin grupo/color)" }, ...groupOptions];
   const panelCapabilities = getQuickSightChartCapabilities(activeVisual ? {
     ...activeVisual,
+    kind: activeVisualKind,
     chartType: safeChartType
-  } : { chartType: safeChartType }, project.quickSightConfig);
+  } : {
+    kind: getQuickSightVisualKind(null, project.quickSightConfig),
+    chartType: safeChartType
+  }, project.quickSightConfig);
   if ((quickSightRolePickerOpen === "optionalMetric" && !panelCapabilities.supportsOptionalMetric)
     || (quickSightRolePickerOpen === "breakdown" && !panelCapabilities.supportsBreakdown)) {
     quickSightRolePickerOpen = "";
@@ -8841,7 +9351,12 @@ function renderQuickSightPanel(project, options = {}) {
   }
 
   if (els.qsSourceSelect) {
-    els.qsSourceSelect.value = selectedSource;
+    els.qsSourceSelect.innerHTML = sourceOptions
+      .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    els.qsSourceSelect.value = sourceOptions.some((option) => option.value === selectedSource)
+      ? selectedSource
+      : (sourceOptions[0]?.value || "deliverable");
   }
   if (els.qsGroupBySelect) {
     els.qsGroupBySelect.innerHTML = groupOptions
@@ -8878,24 +9393,35 @@ function renderQuickSightPanel(project, options = {}) {
     els.qsChartTypeSelect.innerHTML = chartOptions
       .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
       .join("");
-    els.qsChartTypeSelect.value = chartOptions.some((option) => option.value === safeChartType)
-      ? safeChartType
+    els.qsChartTypeSelect.value = chartOptions.some((option) => option.value === safeTypeToken)
+      ? safeTypeToken
       : "bar";
   }
-  const resolvedGroupBy = normalizeBiGroupBy(els.qsGroupBySelect?.value || safeGroupBy);
-  const resolvedBreakdown = normalizeBiOptionalGroupBy(
+  const resolvedGroupBy = normalizeAnalyticsGroupBy(els.qsGroupBySelect?.value || safeGroupBy);
+  const resolvedBreakdown = normalizeAnalyticsOptionalGroupBy(
     els.qsBreakdownSelect instanceof HTMLSelectElement
       ? els.qsBreakdownSelect.value
       : safeBreakdown
   );
-  const resolvedMetric = normalizeBiMetric(els.qsMetricSelect?.value || safeMetric);
-  const resolvedOptionalMetric = normalizeBiOptionalMetric(
+  const resolvedMetric = normalizeAnalyticsMetric(els.qsMetricSelect?.value || safeMetric);
+  const resolvedOptionalMetric = normalizeAnalyticsOptionalMetric(
     els.qsOptionalMetricSelect instanceof HTMLSelectElement
       ? els.qsOptionalMetricSelect.value
       : safeOptionalMetric
   );
-  const resolvedChartType = normalizeBiChartType(els.qsChartTypeSelect?.value || safeChartType);
-  const roleUiLabels = getQuickSightRoleUiLabels(resolvedChartType);
+  const resolvedTypeToken = normalizeQuickSightVisualTypeToken(els.qsChartTypeSelect?.value || safeTypeToken);
+  const resolvedVisualKind = resolvedTypeToken === "text" ? "text" : activeVisualKind;
+  const resolvedChartType = resolvedTypeToken === "text"
+    ? safeChartType
+    : normalizeAnalyticsChartType(resolvedTypeToken);
+  const isTableVisualContext = resolvedVisualKind === "chart" && resolvedChartType === "table";
+  const resolvedTableDimensions = isTableVisualContext
+    ? (activeVisual ? getQuickSightTableDimensionRoles(activeVisual, project.quickSightConfig) : [resolvedGroupBy])
+    : [resolvedGroupBy];
+  const resolvedTableMetrics = isTableVisualContext
+    ? (activeVisual ? getQuickSightTableMetricRoles(activeVisual, project.quickSightConfig) : [resolvedMetric])
+    : [resolvedMetric];
+  const roleUiLabels = getQuickSightRoleUiLabels(resolvedTypeToken);
   const dimensionRoleLabelNode = els.qsRoleDimensionList?.previousElementSibling;
   if (dimensionRoleLabelNode instanceof HTMLElement) {
     dimensionRoleLabelNode.textContent = roleUiLabels.dimension;
@@ -8925,75 +9451,162 @@ function renderQuickSightPanel(project, options = {}) {
   const breakdownPickerHtml = panelCapabilities.supportsBreakdown
     ? `<select class="qs-role-inline-select" data-qs-role-picker-select="breakdown">${rolePickerOptionHtml(breakdownPickerOptions, resolvedBreakdown)}</select>`
     : "";
+  const buildQuickSightTableRoleChipHtml = (items, role, getLabel, emptyLabel) => {
+    const safeItems = Array.isArray(items) ? items : [];
+    const roleClass = role === "metric" ? "qs-role-chip-metric" : "qs-role-chip-dimension";
+    const removable = safeItems.length > 1;
+    const chips = safeItems.map((item) => `<span class="qs-role-chip ${roleClass} qs-role-chip-token" data-qs-role-chip="${escapeAttribute(role)}" data-qs-role-value="${escapeAttribute(item)}">
+      <span class="qs-role-chip-text">${escapeHtml(getLabel(item))}</span>
+      ${removable ? `<button type="button" class="qs-role-chip-remove" data-qs-role-remove="${escapeAttribute(role)}" data-qs-role-value="${escapeAttribute(item)}" aria-label="Quitar ${escapeAttribute(getLabel(item))}">×</button>` : ""}
+    </span>`).join("");
+    const addLabel = role === "metric" ? "Agregar columna" : "Agregar columna";
+    const addHtml = `<button type="button" class="qs-role-chip qs-role-chip-empty qs-role-chip-add" data-qs-role-action="append-${escapeAttribute(role)}">${escapeHtml(addLabel)}</button>`;
+    if (safeItems.length === 0) {
+      return `<span class="qs-role-chip qs-role-chip-empty">${escapeHtml(emptyLabel)}</span>${addHtml}`;
+    }
+    return `${chips}${addHtml}`;
+  };
   if (els.qsChartTypeGrid) {
     els.qsChartTypeGrid.querySelectorAll("[data-qs-chart-type]").forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
       }
-      const chartToken = normalizeBiChartType(node.dataset.qsChartType || "");
-      node.classList.toggle("active", chartToken === resolvedChartType);
+      const chartToken = normalizeQuickSightVisualTypeToken(node.dataset.qsChartType || "");
+      node.classList.toggle("active", chartToken === resolvedTypeToken);
     });
   }
+  const dimensionRoleBlock = els.qsRoleDimensionList?.closest(".qs-role-block");
+  const metricRoleBlock = els.qsRoleMetricList?.closest(".qs-role-block");
+  const breakdownRoleBlock = els.qsRoleBreakdownList?.closest(".qs-role-block");
+  const isTextVisualContext = resolvedVisualKind === "text";
+  const isViewerVisualContext = resolvedVisualKind === "chart" && resolvedChartType === "viewer";
+  if (dimensionRoleBlock instanceof HTMLElement) {
+    dimensionRoleBlock.classList.toggle("hidden", isViewerVisualContext);
+  }
+  if (metricRoleBlock instanceof HTMLElement) {
+    metricRoleBlock.classList.toggle("hidden", isTextVisualContext || isViewerVisualContext);
+  }
+  if (breakdownRoleBlock instanceof HTMLElement) {
+    breakdownRoleBlock.classList.toggle("hidden", isTextVisualContext || isTableVisualContext || isViewerVisualContext);
+  }
   if (els.qsRoleDimensionList) {
-    els.qsRoleDimensionList.innerHTML = quickSightRolePickerOpen === "dimension"
+    els.qsRoleDimensionList.innerHTML = isViewerVisualContext
+      ? "<span class=\"qs-role-chip qs-role-chip-empty\">Selecciona el modelo en Conjunto de datos</span>"
+      : isTextVisualContext
+      ? "<span class=\"qs-role-chip qs-role-chip-empty\">Editar contenido en Propiedades</span>"
+      : isTableVisualContext
+      ? buildQuickSightTableRoleChipHtml(
+        resolvedTableDimensions,
+        "dimension",
+        (value) => getAnalyticsGroupLabel(value, project),
+        "Sin columnas dimension"
+      )
+      : quickSightRolePickerOpen === "dimension"
       ? dimensionPickerHtml
       : (resolvedGroupBy
-        ? `<button type="button" class="qs-role-chip qs-role-chip-dimension" data-qs-groupby="${escapeAttribute(resolvedGroupBy)}">${escapeHtml(getBiGroupLabel(resolvedGroupBy, project))}</button>`
+        ? `<button type="button" class="qs-role-chip qs-role-chip-dimension" data-qs-groupby="${escapeAttribute(resolvedGroupBy)}">${escapeHtml(getAnalyticsGroupLabel(resolvedGroupBy, project))}</button>`
         : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin dimension</span>");
   }
   if (els.qsRoleMetricList) {
-    els.qsRoleMetricList.innerHTML = quickSightRolePickerOpen === "metric"
+    els.qsRoleMetricList.innerHTML = isViewerVisualContext
+      ? ""
+      : isTextVisualContext
+      ? ""
+      : isTableVisualContext
+      ? buildQuickSightTableRoleChipHtml(
+        resolvedTableMetrics,
+        "metric",
+        (value) => getAnalyticsMetricLabel(value),
+        "Sin columnas metrica"
+      )
+      : quickSightRolePickerOpen === "metric"
       ? metricPickerHtml
       : (resolvedMetric
-        ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-metric="${escapeAttribute(resolvedMetric)}">${escapeHtml(getBiMetricLabel(resolvedMetric))}</button>`
+        ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-metric="${escapeAttribute(resolvedMetric)}">${escapeHtml(getAnalyticsMetricLabel(resolvedMetric))}</button>`
         : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin metrica</span>");
   }
   if (els.qsRoleOptionalMetricBlock) {
-    els.qsRoleOptionalMetricBlock.hidden = !panelCapabilities.supportsOptionalMetric;
-    els.qsRoleOptionalMetricBlock.classList.toggle("hidden", !panelCapabilities.supportsOptionalMetric);
+    els.qsRoleOptionalMetricBlock.hidden = isTextVisualContext || isViewerVisualContext || !panelCapabilities.supportsOptionalMetric;
+    els.qsRoleOptionalMetricBlock.classList.toggle("hidden", isTextVisualContext || isViewerVisualContext || !panelCapabilities.supportsOptionalMetric);
   }
   if (els.qsRoleOptionalMetricList) {
-    if (panelCapabilities.supportsOptionalMetric) {
+    if (!isTextVisualContext && !isViewerVisualContext && panelCapabilities.supportsOptionalMetric) {
       els.qsRoleOptionalMetricList.innerHTML = quickSightRolePickerOpen === "optionalMetric"
         ? optionalMetricPickerHtml
         : (resolvedOptionalMetric
-          ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-optional-metric="${escapeAttribute(resolvedOptionalMetric)}">${escapeHtml(getBiMetricLabel(resolvedOptionalMetric))}</button>`
+          ? `<button type="button" class="qs-role-chip qs-role-chip-metric" data-qs-optional-metric="${escapeAttribute(resolvedOptionalMetric)}">${escapeHtml(getAnalyticsMetricLabel(resolvedOptionalMetric))}</button>`
           : "<span class=\"qs-role-chip qs-role-chip-empty\">Automatico: UP Base total</span>");
     } else {
       els.qsRoleOptionalMetricList.innerHTML = "";
     }
   }
   if (els.qsRoleBreakdownList) {
-    els.qsRoleBreakdownList.innerHTML = quickSightRolePickerOpen === "breakdown"
+    els.qsRoleBreakdownList.innerHTML = isViewerVisualContext
+      ? ""
+      : isTextVisualContext
+      ? ""
+      : quickSightRolePickerOpen === "breakdown"
       ? breakdownPickerHtml
       : (resolvedBreakdown
-        ? `<button type="button" class="qs-role-chip qs-role-chip-breakdown" data-qs-breakdown="${escapeAttribute(resolvedBreakdown)}">${escapeHtml(getBiGroupLabel(resolvedBreakdown, project))}</button>`
+        ? `<button type="button" class="qs-role-chip qs-role-chip-breakdown" data-qs-breakdown="${escapeAttribute(resolvedBreakdown)}">${escapeHtml(getAnalyticsGroupLabel(resolvedBreakdown, project))}</button>`
         : "<span class=\"qs-role-chip qs-role-chip-empty\">Sin grupo/color</span>");
   }
   if (els.qsAddMetricGhostButton) {
-    if (panelCapabilities.supportsOptionalMetric) {
+    if (isViewerVisualContext) {
+      els.qsAddMetricGhostButton.classList.remove("hidden");
+      els.qsAddMetricGhostButton.hidden = false;
+      els.qsAddMetricGhostButton.disabled = true;
+      els.qsAddMetricGhostButton.textContent = "Visor";
+      els.qsAddMetricGhostButton.title = "El visor usa el modelo vinculado y no una metrica.";
+    } else if (isTextVisualContext) {
+      els.qsAddMetricGhostButton.classList.remove("hidden");
+      els.qsAddMetricGhostButton.hidden = false;
+      els.qsAddMetricGhostButton.disabled = true;
+      els.qsAddMetricGhostButton.textContent = "Solo texto";
+      els.qsAddMetricGhostButton.title = "Los bloques de texto no usan metricas.";
+    } else if (isTableVisualContext) {
+      els.qsAddMetricGhostButton.classList.add("hidden");
+      els.qsAddMetricGhostButton.hidden = true;
+      els.qsAddMetricGhostButton.disabled = false;
+      els.qsAddMetricGhostButton.textContent = "Agregar columna metrica";
+      els.qsAddMetricGhostButton.title = "Agrega otra columna de metrica a la tabla.";
+    } else if (panelCapabilities.supportsOptionalMetric) {
+      els.qsAddMetricGhostButton.classList.remove("hidden");
+      els.qsAddMetricGhostButton.hidden = false;
       els.qsAddMetricGhostButton.disabled = false;
       els.qsAddMetricGhostButton.textContent = resolvedOptionalMetric
         ? "Cambiar medida eje X"
         : "Agregar medida eje X";
       els.qsAddMetricGhostButton.title = "Asigna o rota la metrica usada como eje X.";
     } else {
+      els.qsAddMetricGhostButton.classList.remove("hidden");
+      els.qsAddMetricGhostButton.hidden = false;
       els.qsAddMetricGhostButton.disabled = true;
       els.qsAddMetricGhostButton.textContent = "Una sola medida";
       els.qsAddMetricGhostButton.title = "La metrica adicional solo aplica en tipos como Scatter o Bubble.";
     }
   }
   if (els.qsAddBreakdownGhostButton) {
-    const canPickBreakdown = panelCapabilities.supportsBreakdown && groupOptions.some((option) => option.value && option.value !== resolvedGroupBy);
+    const canPickBreakdown = !isTextVisualContext && !isViewerVisualContext && panelCapabilities.supportsBreakdown && groupOptions.some((option) => option.value && option.value !== resolvedGroupBy);
     els.qsAddBreakdownGhostButton.disabled = !canPickBreakdown;
-    if (!panelCapabilities.supportsBreakdown) {
+    if (isViewerVisualContext) {
+      els.qsAddBreakdownGhostButton.textContent = "Visor";
+      els.qsAddBreakdownGhostButton.title = "El visor no usa grupo o color.";
+    } else if (isTextVisualContext) {
+      els.qsAddBreakdownGhostButton.textContent = "Solo texto";
+      els.qsAddBreakdownGhostButton.title = "Los bloques de texto no usan grupo o color.";
+    } else if (isTableVisualContext) {
+      els.qsAddBreakdownGhostButton.textContent = "Agregar columna dimension";
+      els.qsAddBreakdownGhostButton.title = "Agrega otra columna de dimension a la tabla.";
+    } else if (!panelCapabilities.supportsBreakdown) {
       els.qsAddBreakdownGhostButton.textContent = "Sin grupo/color";
       els.qsAddBreakdownGhostButton.title = "Este tipo no usa una dimension secundaria.";
     } else {
       els.qsAddBreakdownGhostButton.textContent = resolvedBreakdown
-        ? "Cambiar dimensión"
-        : "Agregar una dimensión";
+        ? "Cambiar dimensiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n"
+        : "Agregar una dimensiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n";
       els.qsAddBreakdownGhostButton.title = "Asigna o rota la dimension usada para GRUPO/COLOR.";
+      els.qsAddBreakdownGhostButton.textContent = resolvedBreakdown ? "Cambiar dimension" : "Agregar una dimension";
     }
   }
   if (els.qsDeleteVisualButton) {
@@ -9051,14 +9664,15 @@ function renderQuickSightPanel(project, options = {}) {
     : catalogFields;
 
   if (els.qsDataSummaryText) {
-    els.qsDataSummaryText.textContent = `${getBiSourceLabel(selectedSource)} | Campos ${filteredCatalogFields.length}/${catalogFields.length}${currentSearchQuery ? " | busqueda global activa" : ""}`;
+    const selectedSourceMeta = getAnalyticsSourceMeta(project, selectedSource, scopedRows);
+    els.qsDataSummaryText.textContent = `${selectedSourceMeta.datasetLabel} | Campos ${filteredCatalogFields.length}/${catalogFields.length}${currentSearchQuery ? " | busqueda global activa" : ""}`;
   }
 
   els.qsFieldsList.innerHTML = filteredCatalogFields
     .map((field) => {
       const groupBy = trimOrFallback(field.groupBy, "");
       const metric = trimOrFallback(field.metric, "");
-      const token = getBiCatalogFieldTypeToken(field.type);
+      const token = getAnalyticsCatalogFieldTypeToken(field.type);
       const roleText = groupBy ? "Dimension" : (metric ? "Metrica" : "No vinculable");
       const activeClass = (groupBy && (groupBy === resolvedGroupBy || groupBy === resolvedBreakdown)) || (metric && metric === resolvedMetric)
         ? " active"
@@ -9098,22 +9712,30 @@ function renderQuickSightPanel(project, options = {}) {
         ensureQuickSightVisualDrillState(visual);
         const drillMeta = getQuickSightVisualDrillMeta(visual, project);
         const display = normalizeQuickSightDisplaySettings(visual.display);
-        const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
+        const visualSettings = normalizeAnalyticsVisualSettings(visual.visualSettings);
         visual.display = display;
         visual.visualSettings = visualSettings;
-        visual.chartConfig = normalizeBiChartConfig(visual.chartConfig, visual.chartType);
-        const typeMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
-        const safeChartType = normalizeBiChartType(visual.chartType || "bar");
-        if (!typeMap[safeChartType]) {
-          typeMap[safeChartType] = normalizeBiChartTypeSpecificConfig({}, safeChartType);
+        const visualKind = getQuickSightVisualKind(visual, project.quickSightConfig);
+        const safeChartType = getQuickSightResolvedChartType(visual, project.quickSightConfig);
+        if (visualKind === "text") {
+          visual.textContent = normalizeQuickSightTextContent(visual.textContent, "Texto");
+          visual.textConfig = normalizeAnalyticsTextConfig(visual.textConfig);
+        } else {
+          visual.chartConfig = normalizeAnalyticsChartConfig(visual.chartConfig, safeChartType);
+          const typeMap = normalizeAnalyticsChartTypeConfigMap(visual.chartTypeConfig);
+          if (!typeMap[safeChartType]) {
+            typeMap[safeChartType] = normalizeAnalyticsChartTypeSpecificConfig({}, safeChartType);
+          }
+          visual.chartTypeConfig = typeMap;
         }
-        visual.chartTypeConfig = typeMap;
-        visual.labelLayoutV2 = normalizeBiLabelLayoutV2(visual.labelLayoutV2);
-        visual.polarLayout = normalizeBiCircularLayout(visual.polarLayout);
-        const currentGroupLabel = getBiGroupLabel(drillMeta.currentGroupBy, project);
-        const drillTag = drillMeta.enabled ? ` | Drill ${drillMeta.currentLevel}/${drillMeta.totalLevels}` : "";
+        visual.labelLayoutV2 = normalizeAnalyticsLabelLayoutV2(visual.labelLayoutV2);
+        visual.polarLayout = normalizeAnalyticsCircularLayout(visual.polarLayout);
+        const currentGroupLabel = getAnalyticsGroupLabel(drillMeta.currentGroupBy, project);
+        const drillTag = visualKind === "chart" && drillMeta.enabled ? ` | Drill ${drillMeta.currentLevel}/${drillMeta.totalLevels}` : "";
         const subtitle = trimOrFallback(display.subtitle, "")
-          || `${getBiSourceLabel(visual.source)} | ${currentGroupLabel} | ${getBiMetricLabel(visual.metric)}${drillTag}`;
+          || (visualKind === "text"
+            ? "Texto libre"
+            : `${getAnalyticsSourceLabel(visual.source)} | ${currentGroupLabel} | ${getAnalyticsMetricLabel(visual.metric)}${drillTag}`);
         const showHead = display.showTitle || display.showSubtitle;
         const isExpanded = visual.id === quickSightExpandedVisualId;
         const layout = isExpanded
@@ -9138,7 +9760,7 @@ function renderQuickSightPanel(project, options = {}) {
           showHead ? "" : "no-head",
           display.loadAnimation ? "qs-load-anim" : ""
         ].filter(Boolean).join(" ");
-        const sizeLabel = drillMeta.enabled
+        const sizeLabel = visualKind === "chart" && drillMeta.enabled
           ? `${layout.w} x ${layout.h} | Drill ${drillMeta.currentLevel}/${drillMeta.totalLevels}`
           : `${layout.w} x ${layout.h}`;
         const expandLabel = isExpanded ? "Minimizar visual" : "Maximizar visual";
@@ -9160,6 +9782,7 @@ function renderQuickSightPanel(project, options = {}) {
           </div>
           <div class="qs-visual-canvas-wrap">
             <div class="qs-visual-chart-host" data-qs-chart-host-id="${escapeAttribute(visual.id)}">
+              <div class="qs-visual-custom-host hidden" data-qs-custom-host="${escapeAttribute(visual.id)}"></div>
               <div class="qs-visual-echart-surface hidden" data-qs-echart-surface="${escapeAttribute(visual.id)}"></div>
               <canvas class="qs-visual-canvas" data-qs-canvas-id="${escapeAttribute(visual.id)}"></canvas>
             </div>
@@ -9192,7 +9815,9 @@ function renderQuickSightPanel(project, options = {}) {
         if (!visual) {
           return;
         }
-        const snapshot = buildQuickSightVisualSnapshot(project, visual, scopedRows);
+        const snapshot = getQuickSightVisualKind(visual, project.quickSightConfig) === "text"
+          ? null
+          : buildQuickSightVisualSnapshot(project, visual, scopedRows);
         paintQuickSightVisualCanvas(hostNode, project, visual, snapshot);
       });
     }
@@ -9242,22 +9867,31 @@ function renderQuickSightPanel(project, options = {}) {
     selectedVisual.interactions = selectedInteractions;
     ensureQuickSightVisualDrillState(selectedVisual);
     const selectedDrillMeta = getQuickSightVisualDrillMeta(selectedVisual, project);
-    const selectedVisualSettings = normalizeBiVisualSettings(selectedVisual.visualSettings);
+    const selectedKind = getQuickSightVisualKind(selectedVisual, project.quickSightConfig);
+    const selectedTypeToken = getQuickSightVisualTypeToken(selectedVisual, project.quickSightConfig);
+    const selectedChartType = getQuickSightResolvedChartType(selectedVisual, project.quickSightConfig);
+    const selectedVisualSettings = normalizeAnalyticsVisualSettings(selectedVisual.visualSettings);
     selectedVisual.visualSettings = selectedVisualSettings;
-    selectedVisual.chartConfig = normalizeBiChartConfig(selectedVisual.chartConfig, selectedVisual.chartType);
-    const selectedChartType = normalizeBiChartType(selectedVisual.chartType || "bar");
-    const selectedTypeMap = normalizeBiChartTypeConfigMap(selectedVisual.chartTypeConfig);
-    if (!selectedTypeMap[selectedChartType]) {
-      selectedTypeMap[selectedChartType] = normalizeBiChartTypeSpecificConfig({}, selectedChartType);
+    if (selectedKind === "text") {
+      selectedVisual.textContent = normalizeQuickSightTextContent(selectedVisual.textContent, "Texto");
+      selectedVisual.textConfig = normalizeAnalyticsTextConfig(selectedVisual.textConfig);
+    } else {
+      selectedVisual.chartConfig = normalizeAnalyticsChartConfig(selectedVisual.chartConfig, selectedChartType);
+      const selectedTypeMap = normalizeAnalyticsChartTypeConfigMap(selectedVisual.chartTypeConfig);
+      if (!selectedTypeMap[selectedChartType]) {
+        selectedTypeMap[selectedChartType] = normalizeAnalyticsChartTypeSpecificConfig({}, selectedChartType);
+      }
+      selectedVisual.chartTypeConfig = selectedTypeMap;
     }
-    selectedVisual.chartTypeConfig = selectedTypeMap;
-    const selectedTypeConfig = getBiSpecificChartConfigForWidget(selectedVisual, selectedChartType);
+    const selectedTypeConfig = selectedKind === "text"
+      ? normalizeAnalyticsTextConfig(selectedVisual.textConfig)
+      : getAnalyticsSpecificChartConfigForWidget(selectedVisual, selectedChartType);
     const selectedCapabilities = getQuickSightChartCapabilities(selectedVisual, project.quickSightConfig);
-    const selectedTypeSchema = getBiSpecificConfigSchema("chart", selectedChartType);
-    const selectedRenderEngine = normalizeQuickSightRenderEngine(selectedVisual.renderEngine);
+    const selectedTypeSchema = sanitizeAnalyticsSpecificConfigSchema(getAnalyticsSpecificConfigSchema(selectedKind, selectedChartType));
     const selectedRenderMeta = selectedCapabilities.renderMeta || getQuickSightRenderEngineMeta(selectedVisual);
     const selectedOptionalMetric = getQuickSightVisualOptionalMetric(selectedVisual, project.quickSightConfig);
-    const fontFamilyOptions = Array.from(BI_ALLOWED_FONT_FAMILIES);
+    const selectedTextContent = normalizeQuickSightTextContent(selectedVisual.textContent, "Texto");
+    const fontFamilyOptions = Array.from(ANALYTICS_ALLOWED_FONT_FAMILIES);
     const markerStyleOptions = [
       { value: "circle", label: "Circulo" },
       { value: "square", label: "Cuadrado" },
@@ -9270,15 +9904,15 @@ function renderQuickSightPanel(project, options = {}) {
       { value: "dashed", label: "Discontinua" },
       { value: "dotted", label: "Punteada" }
     ];
-    const isLineLike = new Set(["line", "timeseries", "area", "combo", "radar", "pareto"]).has(selectedChartType);
-    const isMarkerLike = new Set(["line", "timeseries", "area", "combo", "scatter", "bubble", "radar", "pareto"]).has(selectedChartType);
-    const isAreaLike = new Set(["area", "combo"]).has(selectedChartType);
-    const isBarLike = BI_BAR_FAMILY_TYPES.has(selectedChartType) || new Set(["combo", "waterfall", "pareto", "bullet"]).has(selectedChartType);
-    const showBreakdownInSeries = !!selectedCapabilities.supportsBreakdown;
+    const isLineLike = selectedKind === "chart" && new Set(["line", "timeseries", "area", "combo", "radar", "pareto"]).has(selectedChartType);
+    const isMarkerLike = selectedKind === "chart" && new Set(["line", "timeseries", "area", "combo", "scatter", "bubble", "radar", "pareto"]).has(selectedChartType);
+    const isAreaLike = selectedKind === "chart" && new Set(["area", "combo"]).has(selectedChartType);
+    const isBarLike = selectedKind === "chart" && (ANALYTICS_BAR_FAMILY_TYPES.has(selectedChartType) || new Set(["combo", "waterfall", "pareto", "bullet"]).has(selectedChartType));
+    const showBreakdownInSeries = selectedKind === "chart" && !!selectedCapabilities.supportsBreakdown;
     const interactionTargetGroupBy = getQuickSightInteractionTargetGroupBy(selectedVisual);
     const interactionTargetLabel = selectedInteractions.filterBy === "breakdown"
-      ? getBiGroupLabel(normalizeBiOptionalGroupBy(selectedVisual.breakdownDimension || ""), project)
-      : getBiGroupLabel(interactionTargetGroupBy, project);
+      ? getAnalyticsGroupLabel(normalizeAnalyticsOptionalGroupBy(selectedVisual.breakdownDimension || ""), project)
+      : getAnalyticsGroupLabel(interactionTargetGroupBy, project);
     const drillLevelOptions = [{ value: "", label: "(sin siguiente nivel)" }, ...groupOptions];
     const drillLevelInputsHtml = Array.from({ length: QUICKSIGHT_DRILL_PATH_SLOTS }, (_, index) => {
       const value = selectedInteractions.drillPath[index] || "";
@@ -9289,12 +9923,12 @@ function renderQuickSightPanel(project, options = {}) {
         </select>
       </label>`;
     }).join("");
-    const showSortInSeries = !!selectedCapabilities.supportsSortMode;
-    const showReferenceLines = !!selectedCapabilities.supportsReferenceLine;
-    const showDataLabelsSection = !!selectedCapabilities.supportsDataLabels;
+    const showSortInSeries = selectedKind === "chart" && !!selectedCapabilities.supportsSortMode;
+    const showReferenceLines = selectedKind === "chart" && !!selectedCapabilities.supportsReferenceLine;
+    const showDataLabelsSection = selectedKind === "chart" && !!selectedCapabilities.supportsDataLabels;
     const specificFieldsHtml = Array.isArray(selectedTypeSchema.fields) && selectedTypeSchema.fields.length > 0
       ? selectedTypeSchema.fields.map((field) => buildQuickSightSpecificConfigFieldHtml(field, selectedTypeConfig[field.key])).join("")
-      : "<p class=\"muted\">Sin configuración adicional para este tipo.</p>";
+      : "<p class=\"muted\">Sin configuraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n adicional para este tipo.</p>";
 
     els.qsPropertiesBody.innerHTML = `
       <div class="qs-props-tabs">
@@ -9304,7 +9938,7 @@ function renderQuickSightPanel(project, options = {}) {
 
       <div class="qs-props-tab-panel${quickSightPropsTab === "interactions" ? " hidden" : ""}" data-qs-props-tab-panel="visual">
       <details class="qs-props-section" data-qs-props-section="display" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "display", true)}>
-        <summary>Configuración de pantalla</summary>
+        <summary>ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de pantalla</summary>
         <div class="qs-props-section-body">
           <label class="qs-props-row">
             Editar titulo
@@ -9374,19 +10008,12 @@ function renderQuickSightPanel(project, options = {}) {
             <label class="qs-props-row">
               Tipo de grafico
               <select data-qs-prop="chartType">
-                ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedChartType ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="qs-props-row">
-              Motor render
-              <select data-qs-prop="renderEngine">
-                <option value="auto"${selectedRenderEngine === "auto" ? " selected" : ""}>Automatico</option>
-                <option value="echarts"${selectedRenderEngine === "echarts" ? " selected" : ""}>ECharts</option>
-                <option value="canvas"${selectedRenderEngine === "canvas" ? " selected" : ""}>Canvas clasico</option>
+                ${chartOptions.map((option) => `<option value="${escapeAttribute(option.value)}"${option.value === selectedTypeToken ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
               </select>
             </label>
           </div>
-          <p class="muted">Motor actual: ${escapeHtml(selectedRenderMeta.resolved === "echarts" ? "ECharts" : "Canvas")} | ${escapeHtml(selectedRenderMeta.note)}</p>
+          <p class="muted">Motor actual: ${escapeHtml(selectedKind === "text" ? "Texto" : (selectedChartType === "table" ? "Tabla" : (selectedChartType === "pivot" ? "Matriz" : "ECharts")))} | ${escapeHtml(selectedRenderMeta.note)}</p>
+          ${selectedChartType === "viewer" ? `<p class="muted">Modelo vinculado: ${escapeHtml(getAnalyticsSourceMeta(project, selectedVisual.source || project.quickSightConfig.source).datasetLabel)}</p>` : ""}
           <div class="qs-props-check-grid">
             <label class="qs-props-check"><input data-qs-prop="display:showTitle" type="checkbox"${selectedDisplay.showTitle ? " checked" : ""}><span>Mostrar titulo</span></label>
             <label class="qs-props-check"><input data-qs-prop="display:showSubtitle" type="checkbox"${selectedDisplay.showSubtitle ? " checked" : ""}><span>Mostrar subtitulo</span></label>
@@ -9427,7 +10054,17 @@ function renderQuickSightPanel(project, options = {}) {
         </div>
       </details>
 
-      <details class="qs-props-section" data-qs-props-section="series" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "series", true)}>
+      ${selectedKind === "text" ? `<details class="qs-props-section" data-qs-props-section="content" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "content", true)}>
+        <summary>Contenido</summary>
+        <div class="qs-props-section-body">
+          <label class="qs-props-row">
+            Texto
+            <textarea data-qs-prop="textContent" rows="8" maxlength="4000" placeholder="Escribe aqui el contenido del bloque de texto.">${escapeHtml(selectedTextContent)}</textarea>
+          </label>
+        </div>
+      </details>` : ""}
+
+      ${selectedKind === "chart" ? `<details class="qs-props-section" data-qs-props-section="series" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "series", true)}>
         <summary>Serie de datos</summary>
         <div class="qs-props-section-body">
           <div class="qs-props-layout-grid">
@@ -9488,7 +10125,7 @@ function renderQuickSightPanel(project, options = {}) {
           ${isLineLike ? `<label class="qs-props-check"><input data-qs-prop="visual:smoothLines" type="checkbox"${selectedVisualSettings.smoothLines ? " checked" : ""}><span>Suavizar lineas</span></label>` : ""}
         </div>
         ${selectedCapabilities.supportsOptionalMetric ? `<p class="muted">Si queda vacio, QuickSight usa UP Base total como eje X para este tipo.</p>` : ""}
-      </details>
+      </details>` : ""}
 
       ${selectedCapabilities.supportsLegend ? `<details class="qs-props-section" data-qs-props-section="legend" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "legend", false)}>
         <summary>
@@ -9560,6 +10197,10 @@ function renderQuickSightPanel(project, options = {}) {
           <label class="qs-props-row">
             Titulo eje X
             <input data-qs-prop="visual:axisXLabel" type="text" maxlength="40" value="${escapeAttribute(selectedVisualSettings.axisXLabel)}">
+          </label>
+          <label class="qs-props-row">
+            Rotacion etiquetas categoria (°)
+            <input data-qs-prop="visual:categoryLabelRotation" type="number" min="0" max="90" step="15" value="${escapeAttribute(String(selectedVisualSettings.categoryLabelRotation ?? 0))}">
           </label>
           ${selectedCapabilities.supportsGrid ? `<label class="qs-props-check"><input data-qs-prop="visual:showGrid" type="checkbox"${selectedVisualSettings.showGrid ? " checked" : ""}><span>Lineas de cuadricula</span></label>
           <div class="qs-props-layout-grid">
@@ -9665,7 +10306,7 @@ function renderQuickSightPanel(project, options = {}) {
       </details>` : ""}
 
       <details class="qs-props-section" data-qs-props-section="specific" data-qs-props-tab-context="visual"${getQuickSightPropsSectionOpenAttr("visual", "specific", false)}>
-        <summary>Configuración específica (${escapeHtml(selectedTypeSchema.title)})</summary>
+        <summary>ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n especÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­fica (${escapeHtml(selectedTypeSchema.title)})</summary>
         <div class="qs-props-section-body">
           ${specificFieldsHtml}
         </div>
@@ -9698,7 +10339,7 @@ function renderQuickSightPanel(project, options = {}) {
                 ${selectedInteractions.clickAction === "drill_through" ? "Campo a detallar" : "Campo a filtrar"}
                 <select data-qs-prop="interaction:filterBy">
                   <option value="group"${selectedInteractions.filterBy === "group" ? " selected" : ""}>Dimension principal</option>
-                  <option value="breakdown"${selectedInteractions.filterBy === "breakdown" ? " selected" : ""}${normalizeBiOptionalGroupBy(selectedVisual.breakdownDimension || "") ? "" : " disabled"}>Grupo / color</option>
+                  <option value="breakdown"${selectedInteractions.filterBy === "breakdown" ? " selected" : ""}${normalizeAnalyticsOptionalGroupBy(selectedVisual.breakdownDimension || "") ? "" : " disabled"}>Grupo / color</option>
                 </select>
               </label>
               ${selectedInteractions.clickAction === "cross_filter" ? `<label class="qs-props-row">
@@ -9721,7 +10362,7 @@ function renderQuickSightPanel(project, options = {}) {
               ? `<p class="muted">${selectedDrillMeta.sequence.length > 1
                 ? `Jerarquia configurada: ${escapeHtml(selectedDrillMeta.sequenceText)}`
                 : "Configura al menos un siguiente nivel para habilitar el drill-down."}</p>
-                 <p class="muted">Nivel actual: ${escapeHtml(getBiGroupLabel(selectedDrillMeta.currentGroupBy, project))}</p>
+                 <p class="muted">Nivel actual: ${escapeHtml(getAnalyticsGroupLabel(selectedDrillMeta.currentGroupBy, project))}</p>
                  <p class="muted">${escapeHtml(selectedDrillMeta.breadcrumbText)}</p>
                  <div class="inline-actions">
                    <button type="button" class="secondary" data-qs-action="drill-up"${selectedDrillMeta.canDrillUp ? "" : " disabled"}>Subir nivel</button>
@@ -9736,6 +10377,20 @@ function renderQuickSightPanel(project, options = {}) {
         </details>
       </div>
     `;
+    const displaySummary = els.qsPropertiesBody.querySelector('[data-qs-props-section="display"] > summary');
+    if (displaySummary instanceof HTMLElement) {
+      displaySummary.textContent = "Configuracion de pantalla";
+    }
+    const specificSummary = els.qsPropertiesBody.querySelector('[data-qs-props-section="specific"] > summary');
+    if (specificSummary instanceof HTMLElement) {
+      specificSummary.textContent = `Configuracion especifica (${selectedTypeSchema.title})`;
+    }
+    if (!Array.isArray(selectedTypeSchema.fields) || selectedTypeSchema.fields.length === 0) {
+      const specificMutedMessage = els.qsPropertiesBody.querySelector('[data-qs-props-section="specific"] .muted');
+      if (specificMutedMessage instanceof HTMLElement) {
+        specificMutedMessage.textContent = "Sin configuracion adicional para este tipo.";
+      }
+    }
   }
   syncQuickSightHistoryState(project);
   syncQuickSightHistoryButtons(project);
@@ -9748,22 +10403,24 @@ function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
   }
   const canvas = chartHost.querySelector("canvas[data-qs-canvas-id]");
   const echartSurface = chartHost.querySelector("[data-qs-echart-surface]");
+  const customHost = chartHost.querySelector("[data-qs-custom-host]");
   if (!(canvas instanceof HTMLCanvasElement)) {
     return;
   }
-  const chartType = normalizeBiChartType(visual.chartType || "bar");
-  const visualSettings = normalizeBiVisualSettings(visual.visualSettings);
+  const visualKind = getQuickSightVisualKind(visual, project?.quickSightConfig);
+  const chartType = getQuickSightResolvedChartType(visual, project?.quickSightConfig);
+  const visualSettings = normalizeAnalyticsVisualSettings(visual.visualSettings);
   visual.visualSettings = visualSettings;
-  const chartConfig = normalizeBiChartConfig(visual.chartConfig, chartType);
+  const chartConfig = normalizeAnalyticsChartConfig(visual.chartConfig, chartType);
   visual.chartConfig = chartConfig;
-  const typeConfigMap = normalizeBiChartTypeConfigMap(visual.chartTypeConfig);
+  const typeConfigMap = normalizeAnalyticsChartTypeConfigMap(visual.chartTypeConfig);
   if (!typeConfigMap[chartType]) {
-    typeConfigMap[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+    typeConfigMap[chartType] = normalizeAnalyticsChartTypeSpecificConfig({}, chartType);
   }
   visual.chartTypeConfig = typeConfigMap;
-  const safeLabelLayout = normalizeBiLabelLayoutV2(visual.labelLayoutV2);
-  const safeLabelOffsets = normalizeBiLabelOffsets(visual.labelOffsets);
-  const safePolarLayout = normalizeBiCircularLayout(visual.polarLayout);
+  const safeLabelLayout = normalizeAnalyticsLabelLayoutV2(visual.labelLayoutV2);
+  const safeLabelOffsets = normalizeAnalyticsLabelOffsets(visual.labelOffsets);
+  const safePolarLayout = normalizeAnalyticsCircularLayout(visual.polarLayout);
   visual.labelLayoutV2 = safeLabelLayout;
   visual.labelOffsets = safeLabelOffsets;
   visual.polarLayout = safePolarLayout;
@@ -9777,6 +10434,26 @@ function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
   canvas.dataset.biDpr = String(dpr);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
+    return;
+  }
+  if (customHost instanceof HTMLElement) {
+    customHost.classList.add("hidden");
+    customHost.innerHTML = "";
+  }
+  if (visualKind === "text" || chartType === "table" || chartType === "pivot") {
+    disposeQuickSightChartSurface(echartSurface);
+    if (echartSurface instanceof HTMLElement) {
+      echartSurface.classList.add("hidden");
+    }
+    if (customHost instanceof HTMLElement) {
+      customHost.classList.remove("hidden");
+      renderQuickSightCustomVisualContent(customHost, project, visual, snapshot);
+    }
+    chartHost.dataset.qsRenderEngine = visualKind === "text" ? "text" : "custom";
+    canvas.classList.add("hidden");
+    canvas.style.display = "none";
+    canvas.__qsHoverState = null;
+    canvas.style.cursor = "default";
     return;
   }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -9797,12 +10474,12 @@ function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
     return;
   }
 
-  const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
+  const seriesColors = getAnalyticsSnapshotSeriesColors(project, snapshot);
   const labels = snapshot.rows.map((row) => row.label);
   const values = snapshot.rows.map((row) => row.value);
   if (echartSurface instanceof HTMLElement && shouldUseQuickSightECharts(visual, snapshot)) {
     const adapter = getQuickSightEChartsAdapter();
-    const chartTypeConfig = normalizeBiChartTypeSpecificConfig(
+    const chartTypeConfig = normalizeAnalyticsChartTypeSpecificConfig(
       typeConfigMap[chartType],
       chartType
     );
@@ -9815,7 +10492,7 @@ function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
       chartConfig,
       typeConfig: chartTypeConfig,
       metric: visual.metric || visual.dataRoles?.metrics?.[0] || "count",
-      metricLabel: getBiMetricLabel(visual.metric || visual.dataRoles?.metrics?.[0] || "count")
+      metricLabel: getAnalyticsMetricLabel(visual.metric || visual.dataRoles?.metrics?.[0] || "count")
     });
     if (renderResult?.rendered && renderResult.chart) {
       chartHost.dataset.qsRenderEngine = "echarts";
@@ -9874,302 +10551,302 @@ function paintQuickSightVisualCanvas(chartHost, project, visual, snapshot) {
   bindQuickSightCanvasHover(canvas);
 }
 
-function syncBiInputs(config) {
+function syncAnalyticsInputs(config) {
   if (!config) {
     return;
   }
-  if (els.biStartDateInput) {
-    els.biStartDateInput.value = sanitizeDateInput(config.startDate || "");
+  if (els.legacyStudioStartDateInput) {
+    els.legacyStudioStartDateInput.value = sanitizeDateInput(config.startDate || "");
   }
-  if (els.biEndDateInput) {
-    els.biEndDateInput.value = sanitizeDateInput(config.endDate || "");
+  if (els.legacyStudioEndDateInput) {
+    els.legacyStudioEndDateInput.value = sanitizeDateInput(config.endDate || "");
   }
-  if (els.biTextFilterInput) {
-    els.biTextFilterInput.value = trimOrFallback(config.textFilter, "");
+  if (els.legacyStudioTextFilterInput) {
+    els.legacyStudioTextFilterInput.value = trimOrFallback(config.textFilter, "");
   }
-  if (els.biGlobalSourceSelect) {
-    els.biGlobalSourceSelect.value = normalizeBiSource(config.source || "all");
+  if (els.legacyStudioGlobalSourceSelect) {
+    els.legacyStudioGlobalSourceSelect.value = normalizeAnalyticsSource(config.source || "all");
   }
-  if (els.biCrossFilterScopeSelect) {
-    els.biCrossFilterScopeSelect.value = normalizeBiCrossFilterScope(config.crossFilterScope || "all");
+  if (els.legacyStudioCrossFilterScopeSelect) {
+    els.legacyStudioCrossFilterScopeSelect.value = normalizeAnalyticsCrossFilterScope(config.crossFilterScope || "all");
   }
-  if (els.biInvalidOnlyCheckbox) {
-    els.biInvalidOnlyCheckbox.checked = !!config.invalidOnly;
+  if (els.legacyStudioInvalidOnlyCheckbox) {
+    els.legacyStudioInvalidOnlyCheckbox.checked = !!config.invalidOnly;
   }
-  if (els.biUiModeSelect) {
-    els.biUiModeSelect.value = normalizeBiUiMode(config.uiMode || "basic");
+  if (els.legacyStudioUiModeSelect) {
+    els.legacyStudioUiModeSelect.value = normalizeAnalyticsUiMode(config.uiMode || "basic");
   }
-  const canvasSize = getBiCanvasSizeFromConfig(config);
-  if (els.biCanvasWidthInput) {
-    els.biCanvasWidthInput.value = String(canvasSize.width);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(config);
+  if (els.legacyStudioCanvasWidthInput) {
+    els.legacyStudioCanvasWidthInput.value = String(canvasSize.width);
   }
-  if (els.biCanvasHeightInput) {
-    els.biCanvasHeightInput.value = String(canvasSize.height);
+  if (els.legacyStudioCanvasHeightInput) {
+    els.legacyStudioCanvasHeightInput.value = String(canvasSize.height);
   }
-  if (els.biCanvasPresetSelect) {
+  if (els.legacyStudioCanvasPresetSelect) {
     const presetValue = `${canvasSize.width}x${canvasSize.height}`;
-    const hasPreset = Array.from(els.biCanvasPresetSelect.options).some((option) => option.value === presetValue);
-    els.biCanvasPresetSelect.value = hasPreset ? presetValue : "";
+    const hasPreset = Array.from(els.legacyStudioCanvasPresetSelect.options).some((option) => option.value === presetValue);
+    els.legacyStudioCanvasPresetSelect.value = hasPreset ? presetValue : "";
   }
-  if (els.biCanvasZoomSelect) {
-    const zoom = sanitizeBiCanvasZoom(config.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
-    syncBiZoomSelectControl(els.biCanvasZoomSelect, zoom);
-    updateBiZoomMenuUi(getActiveProject());
+  if (els.legacyStudioCanvasZoomSelect) {
+    const zoom = sanitizeAnalyticsCanvasZoom(config.canvasZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
+    syncAnalyticsZoomSelectControl(els.legacyStudioCanvasZoomSelect, zoom);
+    updateAnalyticsZoomMenuUi(getActiveProject());
   }
-  if (els.biShowCanvasGridCheckbox) {
-    els.biShowCanvasGridCheckbox.checked = normalizeBiToggle(config.showCanvasGrid, false);
+  if (els.legacyStudioShowCanvasGridCheckbox) {
+    els.legacyStudioShowCanvasGridCheckbox.checked = normalizeAnalyticsToggle(config.showCanvasGrid, false);
   }
-  if (els.biSnapToGridCheckbox) {
-    els.biSnapToGridCheckbox.checked = normalizeBiToggle(config.snapToGrid, true);
+  if (els.legacyStudioSnapToGridCheckbox) {
+    els.legacyStudioSnapToGridCheckbox.checked = normalizeAnalyticsToggle(config.snapToGrid, true);
   }
-  if (els.biGridSnapSizeInput) {
-    els.biGridSnapSizeInput.value = String(sanitizeBiInteger(config.gridSnapSize, 12, 4, 120));
+  if (els.legacyStudioGridSnapSizeInput) {
+    els.legacyStudioGridSnapSizeInput.value = String(sanitizeAnalyticsInteger(config.gridSnapSize, 12, 4, 120));
   }
-  if (els.biPerformanceModeSelect) {
-    els.biPerformanceModeSelect.value = normalizeBiPerformanceMode(config.performanceMode || "balanced");
+  if (els.legacyStudioPerformanceModeSelect) {
+    els.legacyStudioPerformanceModeSelect.value = normalizeAnalyticsPerformanceMode(config.performanceMode || "balanced");
   }
-  if (els.biColorSourceSelect) {
-    els.biColorSourceSelect.value = normalizeBiSource(config.colorSource || "all");
+  if (els.legacyStudioColorSourceSelect) {
+    els.legacyStudioColorSourceSelect.value = normalizeAnalyticsSource(config.colorSource || "all");
   }
-  if (els.biColorGroupBySelect) {
-    const groupBy = normalizeBiGroupBy(config.colorGroupBy || "disciplina");
-    const hasOption = Array.from(els.biColorGroupBySelect.options).some((option) => option.value === groupBy);
-    els.biColorGroupBySelect.value = hasOption ? groupBy : (els.biColorGroupBySelect.options[0]?.value || "disciplina");
+  if (els.legacyStudioColorGroupBySelect) {
+    const groupBy = normalizeAnalyticsGroupBy(config.colorGroupBy || "disciplina");
+    const hasOption = Array.from(els.legacyStudioColorGroupBySelect.options).some((option) => option.value === groupBy);
+    els.legacyStudioColorGroupBySelect.value = hasOption ? groupBy : (els.legacyStudioColorGroupBySelect.options[0]?.value || "disciplina");
   }
   const project = getActiveProject();
-  const target = project ? resolveBiVisualTarget(project) : { mode: "global", widget: null };
-  const selectedWidget = project ? getBiSelectedWidget(project) : null;
+  const target = project ? resolveAnalyticsVisualTarget(project) : { mode: "global", widget: null };
+  const selectedWidget = project ? getAnalyticsSelectedWidget(project) : null;
   const visual = target.mode === "widget" && target.widget
-    ? getBiEffectiveVisualSettings(project, target.widget)
-    : normalizeBiVisualSettings(config.visual);
+    ? getAnalyticsEffectiveVisualSettings(project, target.widget)
+    : normalizeAnalyticsVisualSettings(config.visual);
   const widgetScopeWithoutTarget = target.mode === "widget" && !target.widget;
-  if (els.biVisualScopeSelect) {
-    els.biVisualScopeSelect.value = target.mode;
+  if (els.legacyStudioVisualScopeSelect) {
+    els.legacyStudioVisualScopeSelect.value = target.mode;
   }
-  if (els.biVisualScopeMeta) {
+  if (els.legacyStudioVisualScopeMeta) {
     if (target.mode === "widget" && target.widget) {
-      els.biVisualScopeMeta.textContent = `Widget: ${target.widget.name}`;
+      els.legacyStudioVisualScopeMeta.textContent = `Widget: ${target.widget.name}`;
     } else if (target.mode === "widget") {
-      els.biVisualScopeMeta.textContent = "Selecciona un widget para editar.";
+      els.legacyStudioVisualScopeMeta.textContent = "Selecciona un widget para editar.";
     } else {
-      els.biVisualScopeMeta.textContent = "Configuracion global del proyecto.";
+      els.legacyStudioVisualScopeMeta.textContent = "Configuracion global del proyecto.";
     }
   }
-  if (els.biWidgetShowTitleCheckbox) {
-    els.biWidgetShowTitleCheckbox.checked = selectedWidget ? selectedWidget.showTitle !== false : true;
-    els.biWidgetShowTitleCheckbox.toggleAttribute("disabled", !selectedWidget);
+  if (els.legacyStudioWidgetShowTitleCheckbox) {
+    els.legacyStudioWidgetShowTitleCheckbox.checked = selectedWidget ? selectedWidget.showTitle !== false : true;
+    els.legacyStudioWidgetShowTitleCheckbox.toggleAttribute("disabled", !selectedWidget);
   }
-  if (els.biWidgetShowBorderCheckbox) {
-    els.biWidgetShowBorderCheckbox.checked = selectedWidget ? selectedWidget.showBorder !== false : true;
-    els.biWidgetShowBorderCheckbox.toggleAttribute("disabled", !selectedWidget);
+  if (els.legacyStudioWidgetShowBorderCheckbox) {
+    els.legacyStudioWidgetShowBorderCheckbox.checked = selectedWidget ? selectedWidget.showBorder !== false : true;
+    els.legacyStudioWidgetShowBorderCheckbox.toggleAttribute("disabled", !selectedWidget);
   }
-  if (els.biWidgetShowBackgroundCheckbox) {
-    els.biWidgetShowBackgroundCheckbox.checked = selectedWidget ? selectedWidget.showBackground !== false : true;
-    els.biWidgetShowBackgroundCheckbox.toggleAttribute("disabled", !selectedWidget);
+  if (els.legacyStudioWidgetShowBackgroundCheckbox) {
+    els.legacyStudioWidgetShowBackgroundCheckbox.checked = selectedWidget ? selectedWidget.showBackground !== false : true;
+    els.legacyStudioWidgetShowBackgroundCheckbox.toggleAttribute("disabled", !selectedWidget);
   }
-  if (els.biWidgetChromeMeta) {
-    els.biWidgetChromeMeta.textContent = selectedWidget
+  if (els.legacyStudioWidgetChromeMeta) {
+    els.legacyStudioWidgetChromeMeta.textContent = selectedWidget
       ? `Widget activo: ${selectedWidget.name}`
       : "Selecciona un widget para configurar fondo, borde y titulo.";
   }
-  if (els.biApplyVisualScopeButton) {
-    els.biApplyVisualScopeButton.disabled = widgetScopeWithoutTarget;
+  if (els.legacyStudioApplyVisualScopeButton) {
+    els.legacyStudioApplyVisualScopeButton.disabled = widgetScopeWithoutTarget;
   }
-  if (els.biResetVisualScopeButton) {
-    els.biResetVisualScopeButton.disabled = widgetScopeWithoutTarget;
+  if (els.legacyStudioResetVisualScopeButton) {
+    els.legacyStudioResetVisualScopeButton.disabled = widgetScopeWithoutTarget;
   }
   const widgetScopedControls = [
-    els.biShowLegendCheckbox,
-    els.biShowGridCheckbox,
-    els.biShowAxisLabelsCheckbox,
-    els.biShowDataLabelsCheckbox,
-    els.biAxisXLabelInput,
-    els.biAxisYLabelInput,
-    els.biLabelMaxCharsInput,
-    els.biValueDecimalsInput,
-    els.biNumberFormatSelect,
-    els.biValuePrefixInput,
-    els.biValueSuffixInput,
-    els.biFontSizeInput,
-    els.biFontFamilyTitleSelect,
-    els.biFontFamilyAxisSelect,
-    els.biFontFamilyLabelSelect,
-    els.biFontFamilyTooltipSelect,
-    els.biFontSizeTitleInput,
-    els.biFontSizeAxisInput,
-    els.biFontSizeLabelsInput,
-    els.biFontSizeTooltipInput,
-    els.biLabelColorModeSelect,
-    els.biLabelColorInput,
-    els.biLineWidthInput,
-    els.biSeriesLineStyleSelect,
-    els.biSeriesMarkerStyleSelect,
-    els.biSeriesMarkerSizeInput,
-    els.biAreaOpacityInput,
-    els.biLegendPositionSelect,
-    els.biLegendMaxItemsInput,
-    els.biAxisScaleSelect,
-    els.biAxisMinInput,
-    els.biAxisMaxInput,
-    els.biShowTargetLineCheckbox,
-    els.biTargetLineValueInput,
-    els.biTargetLineLabelInput,
-    els.biTargetLineColorInput,
-    els.biBarWidthRatioInput,
-    els.biGridOpacityInput,
-    els.biGridDashInput,
-    els.biStackModeSelect,
-    els.biTooltipModeSelect,
-    els.biSmoothLinesCheckbox,
-    els.biApplyVisualPresetButton,
-    els.biResetVisualSettingsButton
+    els.legacyStudioShowLegendCheckbox,
+    els.legacyStudioShowGridCheckbox,
+    els.legacyStudioShowAxisLabelsCheckbox,
+    els.legacyStudioShowDataLabelsCheckbox,
+    els.legacyStudioAxisXLabelInput,
+    els.legacyStudioAxisYLabelInput,
+    els.legacyStudioLabelMaxCharsInput,
+    els.legacyStudioValueDecimalsInput,
+    els.legacyStudioNumberFormatSelect,
+    els.legacyStudioValuePrefixInput,
+    els.legacyStudioValueSuffixInput,
+    els.legacyStudioFontSizeInput,
+    els.legacyStudioFontFamilyTitleSelect,
+    els.legacyStudioFontFamilyAxisSelect,
+    els.legacyStudioFontFamilyLabelSelect,
+    els.legacyStudioFontFamilyTooltipSelect,
+    els.legacyStudioFontSizeTitleInput,
+    els.legacyStudioFontSizeAxisInput,
+    els.legacyStudioFontSizeLabelsInput,
+    els.legacyStudioFontSizeTooltipInput,
+    els.legacyStudioLabelColorModeSelect,
+    els.legacyStudioLabelColorInput,
+    els.legacyStudioLineWidthInput,
+    els.legacyStudioSeriesLineStyleSelect,
+    els.legacyStudioSeriesMarkerStyleSelect,
+    els.legacyStudioSeriesMarkerSizeInput,
+    els.legacyStudioAreaOpacityInput,
+    els.legacyStudioLegendPositionSelect,
+    els.legacyStudioLegendMaxItemsInput,
+    els.legacyStudioAxisScaleSelect,
+    els.legacyStudioAxisMinInput,
+    els.legacyStudioAxisMaxInput,
+    els.legacyStudioShowTargetLineCheckbox,
+    els.legacyStudioTargetLineValueInput,
+    els.legacyStudioTargetLineLabelInput,
+    els.legacyStudioTargetLineColorInput,
+    els.legacyStudioBarWidthRatioInput,
+    els.legacyStudioGridOpacityInput,
+    els.legacyStudioGridDashInput,
+    els.legacyStudioStackModeSelect,
+    els.legacyStudioTooltipModeSelect,
+    els.legacyStudioSmoothLinesCheckbox,
+    els.legacyStudioApplyVisualPresetButton,
+    els.legacyStudioResetVisualSettingsButton
   ];
   widgetScopedControls.forEach((control) => {
     if (control instanceof HTMLElement) {
       control.toggleAttribute("disabled", widgetScopeWithoutTarget);
     }
   });
-  if (els.biShowLegendCheckbox) {
-    els.biShowLegendCheckbox.checked = !!visual.showLegend;
+  if (els.legacyStudioShowLegendCheckbox) {
+    els.legacyStudioShowLegendCheckbox.checked = !!visual.showLegend;
   }
-  if (els.biShowGridCheckbox) {
-    els.biShowGridCheckbox.checked = !!visual.showGrid;
+  if (els.legacyStudioShowGridCheckbox) {
+    els.legacyStudioShowGridCheckbox.checked = !!visual.showGrid;
   }
-  if (els.biShowAxisLabelsCheckbox) {
-    els.biShowAxisLabelsCheckbox.checked = !!visual.showAxisLabels;
+  if (els.legacyStudioShowAxisLabelsCheckbox) {
+    els.legacyStudioShowAxisLabelsCheckbox.checked = !!visual.showAxisLabels;
   }
-  if (els.biShowDataLabelsCheckbox) {
-    els.biShowDataLabelsCheckbox.checked = !!visual.showDataLabels;
+  if (els.legacyStudioShowDataLabelsCheckbox) {
+    els.legacyStudioShowDataLabelsCheckbox.checked = !!visual.showDataLabels;
   }
-  if (els.biAxisXLabelInput) {
-    els.biAxisXLabelInput.value = trimOrFallback(visual.axisXLabel, "");
+  if (els.legacyStudioAxisXLabelInput) {
+    els.legacyStudioAxisXLabelInput.value = trimOrFallback(visual.axisXLabel, "");
   }
-  if (els.biAxisYLabelInput) {
-    els.biAxisYLabelInput.value = trimOrFallback(visual.axisYLabel, "");
+  if (els.legacyStudioAxisYLabelInput) {
+    els.legacyStudioAxisYLabelInput.value = trimOrFallback(visual.axisYLabel, "");
   }
-  if (els.biLabelMaxCharsInput) {
-    els.biLabelMaxCharsInput.value = String(visual.labelMaxChars);
+  if (els.legacyStudioLabelMaxCharsInput) {
+    els.legacyStudioLabelMaxCharsInput.value = String(visual.labelMaxChars);
   }
-  if (els.biValueDecimalsInput) {
-    els.biValueDecimalsInput.value = String(visual.valueDecimals);
+  if (els.legacyStudioValueDecimalsInput) {
+    els.legacyStudioValueDecimalsInput.value = String(visual.valueDecimals);
   }
-  if (els.biNumberFormatSelect) {
-    els.biNumberFormatSelect.value = visual.numberFormat;
+  if (els.legacyStudioNumberFormatSelect) {
+    els.legacyStudioNumberFormatSelect.value = visual.numberFormat;
   }
-  if (els.biValuePrefixInput) {
-    els.biValuePrefixInput.value = trimOrFallback(visual.valuePrefix, "");
+  if (els.legacyStudioValuePrefixInput) {
+    els.legacyStudioValuePrefixInput.value = trimOrFallback(visual.valuePrefix, "");
   }
-  if (els.biValueSuffixInput) {
-    els.biValueSuffixInput.value = trimOrFallback(visual.valueSuffix, "");
+  if (els.legacyStudioValueSuffixInput) {
+    els.legacyStudioValueSuffixInput.value = trimOrFallback(visual.valueSuffix, "");
   }
-  if (els.biFontSizeInput) {
-    els.biFontSizeInput.value = String(visual.fontSize);
+  if (els.legacyStudioFontSizeInput) {
+    els.legacyStudioFontSizeInput.value = String(visual.fontSize);
   }
-  if (els.biFontFamilyTitleSelect) {
-    els.biFontFamilyTitleSelect.value = sanitizeBiFontFamily(visual.fontFamilyTitle, "Segoe UI");
+  if (els.legacyStudioFontFamilyTitleSelect) {
+    els.legacyStudioFontFamilyTitleSelect.value = sanitizeAnalyticsFontFamily(visual.fontFamilyTitle, "Segoe UI");
   }
-  if (els.biFontFamilyAxisSelect) {
-    els.biFontFamilyAxisSelect.value = sanitizeBiFontFamily(visual.fontFamilyAxis, "Segoe UI");
+  if (els.legacyStudioFontFamilyAxisSelect) {
+    els.legacyStudioFontFamilyAxisSelect.value = sanitizeAnalyticsFontFamily(visual.fontFamilyAxis, "Segoe UI");
   }
-  if (els.biFontFamilyLabelSelect) {
-    els.biFontFamilyLabelSelect.value = sanitizeBiFontFamily(visual.fontFamilyLabel, "Segoe UI");
+  if (els.legacyStudioFontFamilyLabelSelect) {
+    els.legacyStudioFontFamilyLabelSelect.value = sanitizeAnalyticsFontFamily(visual.fontFamilyLabel, "Segoe UI");
   }
-  if (els.biFontFamilyTooltipSelect) {
-    els.biFontFamilyTooltipSelect.value = sanitizeBiFontFamily(visual.fontFamilyTooltip, "Segoe UI");
+  if (els.legacyStudioFontFamilyTooltipSelect) {
+    els.legacyStudioFontFamilyTooltipSelect.value = sanitizeAnalyticsFontFamily(visual.fontFamilyTooltip, "Segoe UI");
   }
-  if (els.biFontSizeTitleInput) {
-    els.biFontSizeTitleInput.value = String(visual.fontSizeTitle);
+  if (els.legacyStudioFontSizeTitleInput) {
+    els.legacyStudioFontSizeTitleInput.value = String(visual.fontSizeTitle);
   }
-  if (els.biFontSizeAxisInput) {
-    els.biFontSizeAxisInput.value = String(visual.fontSizeAxis);
+  if (els.legacyStudioFontSizeAxisInput) {
+    els.legacyStudioFontSizeAxisInput.value = String(visual.fontSizeAxis);
   }
-  if (els.biFontSizeLabelsInput) {
-    els.biFontSizeLabelsInput.value = String(visual.fontSizeLabels);
+  if (els.legacyStudioFontSizeLabelsInput) {
+    els.legacyStudioFontSizeLabelsInput.value = String(visual.fontSizeLabels);
   }
-  if (els.biFontSizeTooltipInput) {
-    els.biFontSizeTooltipInput.value = String(visual.fontSizeTooltip);
+  if (els.legacyStudioFontSizeTooltipInput) {
+    els.legacyStudioFontSizeTooltipInput.value = String(visual.fontSizeTooltip);
   }
-  if (els.biLabelColorModeSelect) {
-    els.biLabelColorModeSelect.value = visual.labelColorMode;
+  if (els.legacyStudioLabelColorModeSelect) {
+    els.legacyStudioLabelColorModeSelect.value = visual.labelColorMode;
   }
-  if (els.biLabelColorInput) {
-    els.biLabelColorInput.value = normalizeBiColorHex(visual.labelColor, "#1f2f44");
-    els.biLabelColorInput.disabled = visual.labelColorMode !== "manual";
+  if (els.legacyStudioLabelColorInput) {
+    els.legacyStudioLabelColorInput.value = normalizeAnalyticsColorHex(visual.labelColor, "#1f2f44");
+    els.legacyStudioLabelColorInput.disabled = visual.labelColorMode !== "manual";
   }
-  if (els.biLineWidthInput) {
-    els.biLineWidthInput.value = String(visual.lineWidth);
+  if (els.legacyStudioLineWidthInput) {
+    els.legacyStudioLineWidthInput.value = String(visual.lineWidth);
   }
-  if (els.biSeriesLineStyleSelect) {
-    els.biSeriesLineStyleSelect.value = visual.seriesLineStyle;
+  if (els.legacyStudioSeriesLineStyleSelect) {
+    els.legacyStudioSeriesLineStyleSelect.value = visual.seriesLineStyle;
   }
-  if (els.biSeriesMarkerStyleSelect) {
-    els.biSeriesMarkerStyleSelect.value = visual.seriesMarkerStyle;
+  if (els.legacyStudioSeriesMarkerStyleSelect) {
+    els.legacyStudioSeriesMarkerStyleSelect.value = visual.seriesMarkerStyle;
   }
-  if (els.biSeriesMarkerSizeInput) {
-    els.biSeriesMarkerSizeInput.value = String(visual.seriesMarkerSize);
+  if (els.legacyStudioSeriesMarkerSizeInput) {
+    els.legacyStudioSeriesMarkerSizeInput.value = String(visual.seriesMarkerSize);
   }
-  if (els.biAreaOpacityInput) {
-    els.biAreaOpacityInput.value = String(visual.areaOpacity);
+  if (els.legacyStudioAreaOpacityInput) {
+    els.legacyStudioAreaOpacityInput.value = String(visual.areaOpacity);
   }
-  if (els.biLegendPositionSelect) {
-    els.biLegendPositionSelect.value = visual.legendPosition;
+  if (els.legacyStudioLegendPositionSelect) {
+    els.legacyStudioLegendPositionSelect.value = visual.legendPosition;
   }
-  if (els.biLegendMaxItemsInput) {
-    els.biLegendMaxItemsInput.value = String(visual.legendMaxItems);
+  if (els.legacyStudioLegendMaxItemsInput) {
+    els.legacyStudioLegendMaxItemsInput.value = String(visual.legendMaxItems);
   }
-  if (els.biAxisScaleSelect) {
-    els.biAxisScaleSelect.value = visual.axisScale;
+  if (els.legacyStudioAxisScaleSelect) {
+    els.legacyStudioAxisScaleSelect.value = visual.axisScale;
   }
-  if (els.biAxisMinInput) {
-    els.biAxisMinInput.value = visual.axisMin === null ? "" : String(visual.axisMin);
+  if (els.legacyStudioAxisMinInput) {
+    els.legacyStudioAxisMinInput.value = visual.axisMin === null ? "" : String(visual.axisMin);
   }
-  if (els.biAxisMaxInput) {
-    els.biAxisMaxInput.value = visual.axisMax === null ? "" : String(visual.axisMax);
+  if (els.legacyStudioAxisMaxInput) {
+    els.legacyStudioAxisMaxInput.value = visual.axisMax === null ? "" : String(visual.axisMax);
   }
-  if (els.biShowTargetLineCheckbox) {
-    els.biShowTargetLineCheckbox.checked = !!visual.showTargetLine;
+  if (els.legacyStudioShowTargetLineCheckbox) {
+    els.legacyStudioShowTargetLineCheckbox.checked = !!visual.showTargetLine;
   }
-  if (els.biTargetLineValueInput) {
-    els.biTargetLineValueInput.value = visual.targetLineValue === null ? "" : String(visual.targetLineValue);
-    els.biTargetLineValueInput.disabled = !visual.showTargetLine;
+  if (els.legacyStudioTargetLineValueInput) {
+    els.legacyStudioTargetLineValueInput.value = visual.targetLineValue === null ? "" : String(visual.targetLineValue);
+    els.legacyStudioTargetLineValueInput.disabled = !visual.showTargetLine;
   }
-  if (els.biTargetLineLabelInput) {
-    els.biTargetLineLabelInput.value = trimOrFallback(visual.targetLineLabel, "Meta");
-    els.biTargetLineLabelInput.disabled = !visual.showTargetLine;
+  if (els.legacyStudioTargetLineLabelInput) {
+    els.legacyStudioTargetLineLabelInput.value = trimOrFallback(visual.targetLineLabel, "Meta");
+    els.legacyStudioTargetLineLabelInput.disabled = !visual.showTargetLine;
   }
-  if (els.biTargetLineColorInput) {
-    els.biTargetLineColorInput.value = normalizeBiColorHex(visual.targetLineColor, "#b03831");
-    els.biTargetLineColorInput.disabled = !visual.showTargetLine;
+  if (els.legacyStudioTargetLineColorInput) {
+    els.legacyStudioTargetLineColorInput.value = normalizeAnalyticsColorHex(visual.targetLineColor, "#b03831");
+    els.legacyStudioTargetLineColorInput.disabled = !visual.showTargetLine;
   }
-  if (els.biBarWidthRatioInput) {
-    els.biBarWidthRatioInput.value = String(visual.barWidthRatio);
+  if (els.legacyStudioBarWidthRatioInput) {
+    els.legacyStudioBarWidthRatioInput.value = String(visual.barWidthRatio);
   }
-  if (els.biGridOpacityInput) {
-    els.biGridOpacityInput.value = String(visual.gridOpacity);
+  if (els.legacyStudioGridOpacityInput) {
+    els.legacyStudioGridOpacityInput.value = String(visual.gridOpacity);
   }
-  if (els.biGridDashInput) {
-    els.biGridDashInput.value = String(visual.gridDash);
+  if (els.legacyStudioGridDashInput) {
+    els.legacyStudioGridDashInput.value = String(visual.gridDash);
   }
-  if (els.biStackModeSelect) {
-    els.biStackModeSelect.value = visual.stackMode;
+  if (els.legacyStudioStackModeSelect) {
+    els.legacyStudioStackModeSelect.value = visual.stackMode;
   }
-  if (els.biTooltipModeSelect) {
-    els.biTooltipModeSelect.value = visual.tooltipMode;
+  if (els.legacyStudioTooltipModeSelect) {
+    els.legacyStudioTooltipModeSelect.value = visual.tooltipMode;
   }
-  if (els.biSmoothLinesCheckbox) {
-    els.biSmoothLinesCheckbox.checked = !!visual.smoothLines;
+  if (els.legacyStudioSmoothLinesCheckbox) {
+    els.legacyStudioSmoothLinesCheckbox.checked = !!visual.smoothLines;
   }
-  if (els.biVisualPresetSelect) {
+  if (els.legacyStudioVisualPresetSelect) {
     const activePreset = trimOrFallback(config.activeVisualPreset, "corporativo");
-    const hasPreset = Array.from(els.biVisualPresetSelect.options).some((option) => option.value === activePreset);
-    els.biVisualPresetSelect.value = hasPreset ? activePreset : "corporativo";
+    const hasPreset = Array.from(els.legacyStudioVisualPresetSelect.options).some((option) => option.value === activePreset);
+    els.legacyStudioVisualPresetSelect.value = hasPreset ? activePreset : "corporativo";
   }
-  applyBiUiModeVisibility(config.uiMode || "basic");
-  syncBiInspectorByWidgetType(project, selectedWidget);
+  applyAnalyticsUiModeVisibility(config.uiMode || "basic");
+  syncAnalyticsInspectorByWidgetType(project, selectedWidget);
 }
 
-function getBiWidgetKindLabel(kind) {
-  const safeKind = normalizeBiWidgetKind(kind || "chart");
+function getAnalyticsWidgetKindLabel(kind) {
+  const safeKind = normalizeAnalyticsWidgetKind(kind || "chart");
   if (safeKind === "text") {
     return "texto";
   }
@@ -10179,7 +10856,7 @@ function getBiWidgetKindLabel(kind) {
   return "grafico";
 }
 
-const BI_ADVANCED_CONTROL_IDS = [
+const ANALYTICS_ADVANCED_CONTROL_IDS = [
   "biFontFamilyTitleSelect",
   "biFontFamilyAxisSelect",
   "biFontFamilyLabelSelect",
@@ -10204,10 +10881,10 @@ const BI_ADVANCED_CONTROL_IDS = [
   "biValueSuffixInput"
 ];
 
-function applyBiUiModeVisibility(mode) {
-  const uiMode = normalizeBiUiMode(mode || "basic");
+function applyAnalyticsUiModeVisibility(mode) {
+  const uiMode = normalizeAnalyticsUiMode(mode || "basic");
   const advanced = uiMode === "advanced";
-  BI_ADVANCED_CONTROL_IDS.forEach((id) => {
+  ANALYTICS_ADVANCED_CONTROL_IDS.forEach((id) => {
     const input = document.getElementById(id);
     if (!(input instanceof HTMLElement)) {
       return;
@@ -10219,11 +10896,11 @@ function applyBiUiModeVisibility(mode) {
   });
 }
 
-function syncBiInspectorByWidgetType(project, selectedWidget) {
-  const widgetKind = normalizeBiWidgetKind(selectedWidget?.kind || "chart");
+function syncAnalyticsInspectorByWidgetType(project, selectedWidget) {
+  const widgetKind = normalizeAnalyticsWidgetKind(selectedWidget?.kind || "chart");
   const hasSelection = !!selectedWidget;
   const isChartWidget = !hasSelection || widgetKind === "chart";
-  const inspectorMode = normalizeBiRailMode(biRailMode);
+  const inspectorMode = normalizeLegacyStudioRailMode(legacyStudioRailMode);
   const isPropertiesMode = inspectorMode === "properties";
   const isSettingsMode = inspectorMode === "settings";
   const isBoardMode = inspectorMode === "board";
@@ -10232,7 +10909,7 @@ function syncBiInspectorByWidgetType(project, selectedWidget) {
   const isPerformanceMode = inspectorMode === "performance";
   const shouldShowChartBuilder = !hasSelection || widgetKind === "chart";
   const shouldShowChartConfig = isSettingsMode && isChartWidget;
-  const chartTypeHint = normalizeBiChartType(selectedWidget?.chartType || els.biWidgetChartTypeSelect?.value || "bar");
+  const chartTypeHint = normalizeAnalyticsChartType(selectedWidget?.chartType || els.legacyStudioWidgetChartTypeSelect?.value || "bar");
 
   const toggleSection = (section, visible) => {
     if (!(section instanceof HTMLElement)) {
@@ -10241,83 +10918,83 @@ function syncBiInspectorByWidgetType(project, selectedWidget) {
     section.classList.toggle("hidden", !visible);
   };
 
-  toggleSection(els.biSourceSection, isPropertiesMode && shouldShowChartBuilder);
-  toggleSection(els.biDimensionSection, isPropertiesMode && shouldShowChartBuilder);
-  toggleSection(els.biMetricSection, isPropertiesMode && shouldShowChartBuilder);
-  toggleSection(els.biDataRolesSection, isPropertiesMode && shouldShowChartBuilder);
-  toggleSection(els.biChartSection, isPropertiesMode && shouldShowChartBuilder);
-  toggleSection(els.biBuilderSection, isPropertiesMode);
-  toggleSection(els.biSettingsSection, isSettingsMode);
-  toggleSection(els.biElementConfigSection, isSettingsMode);
-  toggleSection(els.biBoardSection, isBoardMode);
-  toggleSection(els.biColorSection, isColorMode);
-  toggleSection(els.biFilterSection, isFilterMode);
-  toggleSection(els.biPerformanceSection, isPerformanceMode);
-  toggleSection(els.biChartVisualSettingsSection, shouldShowChartConfig);
+  toggleSection(els.legacyStudioSourceSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.legacyStudioDimensionSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.legacyStudioMetricSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.legacyStudioDataRolesSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.legacyStudioChartSection, isPropertiesMode && shouldShowChartBuilder);
+  toggleSection(els.legacyStudioBuilderSection, isPropertiesMode);
+  toggleSection(els.legacyStudioSettingsSection, isSettingsMode);
+  toggleSection(els.legacyStudioElementConfigSection, isSettingsMode);
+  toggleSection(els.legacyStudioBoardSection, isBoardMode);
+  toggleSection(els.legacyStudioColorSection, isColorMode);
+  toggleSection(els.legacyStudioFilterSection, isFilterMode);
+  toggleSection(els.legacyStudioPerformanceSection, isPerformanceMode);
+  toggleSection(els.legacyStudioChartVisualSettingsSection, shouldShowChartConfig);
   if (isSettingsMode) {
-    renderBiElementConfigPanel(project, selectedWidget || null, chartTypeHint);
+    renderAnalyticsElementConfigPanel(project, selectedWidget || null, chartTypeHint);
   }
 
-  if (els.biUpdateWidgetButton instanceof HTMLButtonElement) {
+  if (els.legacyStudioUpdateWidgetButton instanceof HTMLButtonElement) {
     const canUpdateSelected = hasSelection && widgetKind === "chart" && !selectedWidget?.locked;
-    els.biUpdateWidgetButton.disabled = !canUpdateSelected;
+    els.legacyStudioUpdateWidgetButton.disabled = !canUpdateSelected;
     if (canUpdateSelected) {
-      els.biUpdateWidgetButton.textContent = "Actualizar seleccionado";
+      els.legacyStudioUpdateWidgetButton.textContent = "Actualizar seleccionado";
     } else if (hasSelection && widgetKind === "chart" && selectedWidget?.locked) {
-      els.biUpdateWidgetButton.textContent = "Widget bloqueado";
+      els.legacyStudioUpdateWidgetButton.textContent = "Widget bloqueado";
     } else {
-      els.biUpdateWidgetButton.textContent = "Actualizar seleccionado";
+      els.legacyStudioUpdateWidgetButton.textContent = "Actualizar seleccionado";
     }
   }
 
-  if (els.biStudioTitle instanceof HTMLElement) {
+  if (els.legacyStudioStudioTitle instanceof HTMLElement) {
     if (isSettingsMode) {
-      els.biStudioTitle.textContent = hasSelection
-        ? `Configuracion del ${getBiWidgetKindLabel(widgetKind)}`
+      els.legacyStudioStudioTitle.textContent = hasSelection
+        ? `Configuracion del ${getAnalyticsWidgetKindLabel(widgetKind)}`
         : "Configuracion del grafico";
       return;
     }
     if (isBoardMode) {
-      els.biStudioTitle.textContent = "Pizarra";
+      els.legacyStudioStudioTitle.textContent = "Pizarra";
       return;
     }
     if (isColorMode) {
-      els.biStudioTitle.textContent = "Colorimetria";
+      els.legacyStudioStudioTitle.textContent = "Colorimetria";
       return;
     }
     if (isFilterMode) {
-      els.biStudioTitle.textContent = "Filtros";
+      els.legacyStudioStudioTitle.textContent = "Filtros";
       return;
     }
     if (isPerformanceMode) {
-      els.biStudioTitle.textContent = "Rendimiento";
+      els.legacyStudioStudioTitle.textContent = "Rendimiento";
       return;
     }
     if (!hasSelection) {
-      els.biStudioTitle.textContent = "Propiedades del grafico";
+      els.legacyStudioStudioTitle.textContent = "Propiedades del grafico";
     } else {
-      els.biStudioTitle.textContent = `Propiedades del ${getBiWidgetKindLabel(widgetKind)}`;
+      els.legacyStudioStudioTitle.textContent = `Propiedades del ${getAnalyticsWidgetKindLabel(widgetKind)}`;
     }
   }
 }
 
-function normalizeBiVisualScopeMode(value) {
+function normalizeAnalyticsVisualScopeMode(value) {
   return trimOrFallback(value, "").toLowerCase() === "widget" ? "widget" : "global";
 }
 
-function getBiSelectedWidget(project) {
-  if (!project || !selectedBiWidgetId) {
+function getAnalyticsSelectedWidget(project) {
+  if (!project || !selectedLegacyStudioWidgetId) {
     return null;
   }
-  return getBiWidgetById(project, selectedBiWidgetId);
+  return getAnalyticsWidgetById(project, selectedLegacyStudioWidgetId);
 }
 
-function resolveBiVisualTarget(project) {
-  const mode = normalizeBiVisualScopeMode(biVisualScopeMode);
+function resolveAnalyticsVisualTarget(project) {
+  const mode = normalizeAnalyticsVisualScopeMode(legacyStudioVisualScopeMode);
   if (mode === "widget") {
     return {
       mode,
-      widget: getBiSelectedWidget(project)
+      widget: getAnalyticsSelectedWidget(project)
     };
   }
   return {
@@ -10326,92 +11003,92 @@ function resolveBiVisualTarget(project) {
   };
 }
 
-function applyBiPerformanceVisualTuning(rawVisual, mode) {
-  const visual = normalizeBiVisualSettings(rawVisual);
-  const safeMode = normalizeBiPerformanceMode(mode);
+function applyAnalyticsPerformanceVisualTuning(rawVisual, mode) {
+  const visual = normalizeAnalyticsVisualSettings(rawVisual);
+  const safeMode = normalizeAnalyticsPerformanceMode(mode);
   if (safeMode === "quality") {
     return visual;
   }
   if (safeMode === "turbo") {
-    return normalizeBiVisualSettings({
+    return normalizeAnalyticsVisualSettings({
       ...visual,
       showGrid: false,
       showDataLabels: false,
       smoothLines: false,
-      legendMaxItems: Math.min(6, sanitizeBiInteger(visual.legendMaxItems, 8, 1, 20)),
-      seriesMarkerSize: Math.min(6, sanitizeBiInteger(visual.seriesMarkerSize, 8, 0, 16)),
-      fontSizeLabels: Math.min(10, sanitizeBiInteger(visual.fontSizeLabels, 10, 8, 22)),
+      legendMaxItems: Math.min(6, sanitizeAnalyticsInteger(visual.legendMaxItems, 8, 1, 20)),
+      seriesMarkerSize: Math.min(6, sanitizeAnalyticsInteger(visual.seriesMarkerSize, 8, 0, 16)),
+      fontSizeLabels: Math.min(10, sanitizeAnalyticsInteger(visual.fontSizeLabels, 10, 8, 22)),
       tooltipMode: "compact"
     });
   }
-  return normalizeBiVisualSettings({
+  return normalizeAnalyticsVisualSettings({
     ...visual,
-    legendMaxItems: Math.min(10, sanitizeBiInteger(visual.legendMaxItems, 10, 1, 20)),
+    legendMaxItems: Math.min(10, sanitizeAnalyticsInteger(visual.legendMaxItems, 10, 1, 20)),
     tooltipMode: visual.tooltipMode === "full" ? "compact" : visual.tooltipMode
   });
 }
 
-function getBiEffectiveVisualSettings(project, widget) {
-  const globalVisual = normalizeBiVisualSettings(project?.biConfig?.visual);
-  const mode = normalizeBiPerformanceMode(project?.biConfig?.performanceMode || "balanced");
+function getAnalyticsEffectiveVisualSettings(project, widget) {
+  const globalVisual = normalizeAnalyticsVisualSettings(project?.biConfig?.visual);
+  const mode = normalizeAnalyticsPerformanceMode(project?.biConfig?.performanceMode || "balanced");
   if (!widget || typeof widget.visualOverride !== "object" || widget.visualOverride === null) {
-    return applyBiPerformanceVisualTuning(globalVisual, mode);
+    return applyAnalyticsPerformanceVisualTuning(globalVisual, mode);
   }
-  const override = normalizeBiVisualSettings(widget.visualOverride);
-  return applyBiPerformanceVisualTuning(normalizeBiVisualSettings({
+  const override = normalizeAnalyticsVisualSettings(widget.visualOverride);
+  return applyAnalyticsPerformanceVisualTuning(normalizeAnalyticsVisualSettings({
     ...globalVisual,
     ...override
   }), mode);
 }
 
-function collectBiVisualSettingsFromInputs() {
-  return normalizeBiVisualSettings({
-    showLegend: !!els.biShowLegendCheckbox?.checked,
-    showGrid: !!els.biShowGridCheckbox?.checked,
-    showAxisLabels: !!els.biShowAxisLabelsCheckbox?.checked,
-    showDataLabels: !!els.biShowDataLabelsCheckbox?.checked,
-    axisXLabel: trimOrFallback(els.biAxisXLabelInput?.value, "").slice(0, 40),
-    axisYLabel: trimOrFallback(els.biAxisYLabelInput?.value, "").slice(0, 40),
-    labelMaxChars: els.biLabelMaxCharsInput?.value,
-    valueDecimals: els.biValueDecimalsInput?.value,
-    numberFormat: els.biNumberFormatSelect?.value,
-    valuePrefix: trimOrFallback(els.biValuePrefixInput?.value, "").slice(0, 8),
-    valueSuffix: trimOrFallback(els.biValueSuffixInput?.value, "").slice(0, 8),
-    fontSize: els.biFontSizeInput?.value,
-    fontFamilyTitle: els.biFontFamilyTitleSelect?.value,
-    fontFamilyAxis: els.biFontFamilyAxisSelect?.value,
-    fontFamilyLabel: els.biFontFamilyLabelSelect?.value,
-    fontFamilyTooltip: els.biFontFamilyTooltipSelect?.value,
-    fontSizeTitle: els.biFontSizeTitleInput?.value,
-    fontSizeAxis: els.biFontSizeAxisInput?.value,
-    fontSizeLabels: els.biFontSizeLabelsInput?.value,
-    fontSizeTooltip: els.biFontSizeTooltipInput?.value,
-    labelColorMode: els.biLabelColorModeSelect?.value,
-    labelColor: els.biLabelColorInput?.value,
-    lineWidth: els.biLineWidthInput?.value,
-    seriesLineStyle: els.biSeriesLineStyleSelect?.value,
-    seriesMarkerStyle: els.biSeriesMarkerStyleSelect?.value,
-    seriesMarkerSize: els.biSeriesMarkerSizeInput?.value,
-    areaOpacity: els.biAreaOpacityInput?.value,
-    smoothLines: !!els.biSmoothLinesCheckbox?.checked,
-    legendPosition: els.biLegendPositionSelect?.value,
-    legendMaxItems: els.biLegendMaxItemsInput?.value,
-    axisScale: els.biAxisScaleSelect?.value,
-    axisMin: els.biAxisMinInput?.value,
-    axisMax: els.biAxisMaxInput?.value,
-    showTargetLine: !!els.biShowTargetLineCheckbox?.checked,
-    targetLineValue: els.biTargetLineValueInput?.value,
-    targetLineLabel: trimOrFallback(els.biTargetLineLabelInput?.value, "").slice(0, 24),
-    targetLineColor: els.biTargetLineColorInput?.value,
-    barWidthRatio: els.biBarWidthRatioInput?.value,
-    gridOpacity: els.biGridOpacityInput?.value,
-    gridDash: els.biGridDashInput?.value,
-    stackMode: els.biStackModeSelect?.value,
-    tooltipMode: els.biTooltipModeSelect?.value
+function collectAnalyticsVisualSettingsFromInputs() {
+  return normalizeAnalyticsVisualSettings({
+    showLegend: !!els.legacyStudioShowLegendCheckbox?.checked,
+    showGrid: !!els.legacyStudioShowGridCheckbox?.checked,
+    showAxisLabels: !!els.legacyStudioShowAxisLabelsCheckbox?.checked,
+    showDataLabels: !!els.legacyStudioShowDataLabelsCheckbox?.checked,
+    axisXLabel: trimOrFallback(els.legacyStudioAxisXLabelInput?.value, "").slice(0, 40),
+    axisYLabel: trimOrFallback(els.legacyStudioAxisYLabelInput?.value, "").slice(0, 40),
+    labelMaxChars: els.legacyStudioLabelMaxCharsInput?.value,
+    valueDecimals: els.legacyStudioValueDecimalsInput?.value,
+    numberFormat: els.legacyStudioNumberFormatSelect?.value,
+    valuePrefix: trimOrFallback(els.legacyStudioValuePrefixInput?.value, "").slice(0, 8),
+    valueSuffix: trimOrFallback(els.legacyStudioValueSuffixInput?.value, "").slice(0, 8),
+    fontSize: els.legacyStudioFontSizeInput?.value,
+    fontFamilyTitle: els.legacyStudioFontFamilyTitleSelect?.value,
+    fontFamilyAxis: els.legacyStudioFontFamilyAxisSelect?.value,
+    fontFamilyLabel: els.legacyStudioFontFamilyLabelSelect?.value,
+    fontFamilyTooltip: els.legacyStudioFontFamilyTooltipSelect?.value,
+    fontSizeTitle: els.legacyStudioFontSizeTitleInput?.value,
+    fontSizeAxis: els.legacyStudioFontSizeAxisInput?.value,
+    fontSizeLabels: els.legacyStudioFontSizeLabelsInput?.value,
+    fontSizeTooltip: els.legacyStudioFontSizeTooltipInput?.value,
+    labelColorMode: els.legacyStudioLabelColorModeSelect?.value,
+    labelColor: els.legacyStudioLabelColorInput?.value,
+    lineWidth: els.legacyStudioLineWidthInput?.value,
+    seriesLineStyle: els.legacyStudioSeriesLineStyleSelect?.value,
+    seriesMarkerStyle: els.legacyStudioSeriesMarkerStyleSelect?.value,
+    seriesMarkerSize: els.legacyStudioSeriesMarkerSizeInput?.value,
+    areaOpacity: els.legacyStudioAreaOpacityInput?.value,
+    smoothLines: !!els.legacyStudioSmoothLinesCheckbox?.checked,
+    legendPosition: els.legacyStudioLegendPositionSelect?.value,
+    legendMaxItems: els.legacyStudioLegendMaxItemsInput?.value,
+    axisScale: els.legacyStudioAxisScaleSelect?.value,
+    axisMin: els.legacyStudioAxisMinInput?.value,
+    axisMax: els.legacyStudioAxisMaxInput?.value,
+    showTargetLine: !!els.legacyStudioShowTargetLineCheckbox?.checked,
+    targetLineValue: els.legacyStudioTargetLineValueInput?.value,
+    targetLineLabel: trimOrFallback(els.legacyStudioTargetLineLabelInput?.value, "").slice(0, 24),
+    targetLineColor: els.legacyStudioTargetLineColorInput?.value,
+    barWidthRatio: els.legacyStudioBarWidthRatioInput?.value,
+    gridOpacity: els.legacyStudioGridOpacityInput?.value,
+    gridDash: els.legacyStudioGridDashInput?.value,
+    stackMode: els.legacyStudioStackModeSelect?.value,
+    tooltipMode: els.legacyStudioTooltipModeSelect?.value
   });
 }
 
-function getBiBuiltInVisualPresets() {
+function getAnalyticsBuiltInVisualPresets() {
   return [
     {
       id: "corporativo",
@@ -10472,7 +11149,7 @@ function getBiBuiltInVisualPresets() {
     },
     {
       id: "presentacion",
-      name: "Presentación",
+      name: "PresentaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n",
       settings: {
         showLegend: true,
         showGrid: true,
@@ -10492,11 +11169,11 @@ function getBiBuiltInVisualPresets() {
   ];
 }
 
-function refreshBiVisualPresetOptions(project) {
-  if (!els.biVisualPresetSelect) {
+function refreshAnalyticsVisualPresetOptions(project) {
+  if (!els.legacyStudioVisualPresetSelect) {
     return;
   }
-  const builtIns = getBiBuiltInVisualPresets();
+  const builtIns = getAnalyticsBuiltInVisualPresets();
   const customEntries = Object.entries(project?.biConfig?.visualPresets || {})
     .map(([id, item]) => ({
       id,
@@ -10509,25 +11186,25 @@ function refreshBiVisualPresetOptions(project) {
   const customHtml = customEntries.length > 0
     ? customEntries.map((item) => `<option value="${escapeAttribute(item.id)}">${escapeHtml(item.name)}</option>`).join("")
     : "";
-  els.biVisualPresetSelect.innerHTML = `${builtInHtml}${customHtml}`;
+  els.legacyStudioVisualPresetSelect.innerHTML = `${builtInHtml}${customHtml}`;
   const activePreset = trimOrFallback(project?.biConfig?.activeVisualPreset, "corporativo");
-  const hasActive = Array.from(els.biVisualPresetSelect.options).some((option) => option.value === activePreset);
-  els.biVisualPresetSelect.value = hasActive ? activePreset : "corporativo";
+  const hasActive = Array.from(els.legacyStudioVisualPresetSelect.options).some((option) => option.value === activePreset);
+  els.legacyStudioVisualPresetSelect.value = hasActive ? activePreset : "corporativo";
 }
 
-function resolveBiVisualPreset(project, presetId) {
-  const builtIn = getBiBuiltInVisualPresets().find((item) => item.id === presetId);
+function resolveAnalyticsVisualPreset(project, presetId) {
+  const builtIn = getAnalyticsBuiltInVisualPresets().find((item) => item.id === presetId);
   if (builtIn) {
-    return normalizeBiVisualSettings(builtIn.settings);
+    return normalizeAnalyticsVisualSettings(builtIn.settings);
   }
   const custom = project?.biConfig?.visualPresets?.[presetId];
   if (!custom || typeof custom !== "object") {
     return null;
   }
-  return normalizeBiVisualSettings(custom.settings || custom.visual || custom);
+  return normalizeAnalyticsVisualSettings(custom.settings || custom.visual || custom);
 }
 
-function saveCustomBiVisualPreset(project, name, settings) {
+function saveCustomAnalyticsVisualPreset(project, name, settings) {
   if (!project) {
     return;
   }
@@ -10542,7 +11219,7 @@ function saveCustomBiVisualPreset(project, name, settings) {
   }
   project.biConfig.visualPresets[presetId] = {
     name: safeName,
-    settings: normalizeBiVisualSettings(settings)
+    settings: normalizeAnalyticsVisualSettings(settings)
   };
   project.biConfig.activeVisualPreset = presetId;
 }
@@ -10552,26 +11229,26 @@ function setSelectedBiWidget(project, widgetId, syncInspector) {
   const exists = project && resolvedId
     ? project.biWidgets.some((widget) => widget.id === resolvedId)
     : false;
-  selectedBiWidgetId = exists ? resolvedId : "";
+  selectedLegacyStudioWidgetId = exists ? resolvedId : "";
 
-  if (els.biWidgetsGrid) {
-    els.biWidgetsGrid.querySelectorAll("[data-bi-widget-id]").forEach((node) => {
+  if (els.legacyStudioWidgetsGrid) {
+    els.legacyStudioWidgetsGrid.querySelectorAll("[data-bi-widget-id]").forEach((node) => {
       if (!(node instanceof HTMLElement)) {
         return;
       }
-      const active = trimOrFallback(node.dataset.biWidgetId, "") === selectedBiWidgetId;
+      const active = trimOrFallback(node.dataset.biWidgetId, "") === selectedLegacyStudioWidgetId;
       node.classList.toggle("selected", active);
     });
   }
 
   if (syncInspector && project) {
-    syncBiInputs(project.biConfig);
-    syncBiBuilderInputsFromSelectedWidget(project);
-    syncBiBuilderSelectionUi(project);
+    syncAnalyticsInputs(project.biConfig);
+    syncAnalyticsBuilderInputsFromSelectedWidget(project);
+    syncAnalyticsBuilderSelectionUi(project);
   }
 }
 
-function sanitizeBiCanvasDimension(value, fallback, min, max) {
+function sanitizeAnalyticsCanvasDimension(value, fallback, min, max) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return Math.max(min, Math.min(max, Math.round(fallback)));
@@ -10579,34 +11256,34 @@ function sanitizeBiCanvasDimension(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.round(numeric)));
 }
 
-function sanitizeBiCanvasZoom(value, fallback = BI_CANVAS_ZOOM_DEFAULT) {
+function sanitizeAnalyticsCanvasZoom(value, fallback = ANALYTICS_CANVAS_ZOOM_DEFAULT) {
   const numeric = Math.round(Number(value));
   const fallbackNumeric = Math.round(Number(fallback));
   const safeFallback = Number.isFinite(fallbackNumeric)
-    ? Math.max(BI_CANVAS_ZOOM_MIN, Math.min(BI_CANVAS_ZOOM_MAX, fallbackNumeric))
-    : BI_CANVAS_ZOOM_DEFAULT;
+    ? Math.max(ANALYTICS_CANVAS_ZOOM_MIN, Math.min(ANALYTICS_CANVAS_ZOOM_MAX, fallbackNumeric))
+    : ANALYTICS_CANVAS_ZOOM_DEFAULT;
   if (!Number.isFinite(numeric)) {
     return safeFallback;
   }
-  return Math.max(BI_CANVAS_ZOOM_MIN, Math.min(BI_CANVAS_ZOOM_MAX, numeric));
+  return Math.max(ANALYTICS_CANVAS_ZOOM_MIN, Math.min(ANALYTICS_CANVAS_ZOOM_MAX, numeric));
 }
 
-function getBiCanvasZoomScale(config) {
-  const zoom = sanitizeBiCanvasZoom(
+function getAnalyticsCanvasZoomScale(config) {
+  const zoom = sanitizeAnalyticsCanvasZoom(
     config?.canvasZoom ?? config?.zoomPizarra ?? config?.boardZoom,
-    BI_CANVAS_ZOOM_DEFAULT
+    ANALYTICS_CANVAS_ZOOM_DEFAULT
   );
   return zoom / 100;
 }
 
-function getBiSteppedCanvasZoom(currentZoom, direction) {
-  const safeZoom = sanitizeBiCanvasZoom(currentZoom, BI_CANVAS_ZOOM_DEFAULT);
+function getAnalyticsSteppedCanvasZoom(currentZoom, direction) {
+  const safeZoom = sanitizeAnalyticsCanvasZoom(currentZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
   const safeDirection = direction >= 0 ? 1 : -1;
-  return sanitizeBiCanvasZoom(safeZoom + (BI_CANVAS_ZOOM_STEP * safeDirection), safeZoom);
+  return sanitizeAnalyticsCanvasZoom(safeZoom + (ANALYTICS_CANVAS_ZOOM_STEP * safeDirection), safeZoom);
 }
 
-function getBiCanvasUsedArea(project) {
-  const canvasSize = getBiCanvasSizeFromConfig(project?.biConfig);
+function getAnalyticsCanvasUsedArea(project) {
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(project?.biConfig);
   const widgets = Array.isArray(project?.biWidgets) ? project.biWidgets : [];
   if (widgets.length === 0) {
     return { width: canvasSize.width, height: canvasSize.height };
@@ -10615,8 +11292,8 @@ function getBiCanvasUsedArea(project) {
   let maxRight = 0;
   let maxBottom = 0;
   widgets.forEach((widget, index) => {
-    const normalized = normalizeBiWidget(widget, index);
-    const layout = normalizeBiWidgetLayout(normalized.layout, index, normalized);
+    const normalized = normalizeAnalyticsWidget(widget, index);
+    const layout = normalizeAnalyticsWidgetLayout(normalized.layout, index, normalized);
     maxRight = Math.max(maxRight, layout.x + layout.w);
     maxBottom = Math.max(maxBottom, layout.y + layout.h);
   });
@@ -10628,13 +11305,13 @@ function getBiCanvasUsedArea(project) {
   return { width, height };
 }
 
-function getBiCanvasFitZoom(project, mode = "all") {
-  if (!project || !(els.biWidgetsGrid instanceof HTMLElement)) {
-    return BI_CANVAS_ZOOM_DEFAULT;
+function getAnalyticsCanvasFitZoom(project, mode = "all") {
+  if (!project || !(els.legacyStudioWidgetsGrid instanceof HTMLElement)) {
+    return ANALYTICS_CANVAS_ZOOM_DEFAULT;
   }
-  const usedArea = getBiCanvasUsedArea(project);
-  const viewportWidth = Math.max(120, Math.round(els.biWidgetsGrid.clientWidth - 64));
-  const viewportHeight = Math.max(120, Math.round(els.biWidgetsGrid.clientHeight - 64));
+  const usedArea = getAnalyticsCanvasUsedArea(project);
+  const viewportWidth = Math.max(120, Math.round(els.legacyStudioWidgetsGrid.clientWidth - 64));
+  const viewportHeight = Math.max(120, Math.round(els.legacyStudioWidgetsGrid.clientHeight - 64));
   const widthRatio = viewportWidth / Math.max(1, usedArea.width);
   const heightRatio = viewportHeight / Math.max(1, usedArea.height);
   let ratio = mode === "width" ? widthRatio : Math.min(widthRatio, heightRatio);
@@ -10642,14 +11319,14 @@ function getBiCanvasFitZoom(project, mode = "all") {
     ratio = widthRatio;
   }
   const rawZoom = Math.floor(ratio * 100);
-  return sanitizeBiCanvasZoom(rawZoom, BI_CANVAS_ZOOM_DEFAULT);
+  return sanitizeAnalyticsCanvasZoom(rawZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
 }
 
-function syncBiZoomSelectControl(selectNode, zoom) {
+function syncAnalyticsZoomSelectControl(selectNode, zoom) {
   if (!(selectNode instanceof HTMLSelectElement)) {
     return;
   }
-  const safeZoom = sanitizeBiCanvasZoom(zoom, BI_CANVAS_ZOOM_DEFAULT);
+  const safeZoom = sanitizeAnalyticsCanvasZoom(zoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
   const safeValue = String(safeZoom);
   Array.from(selectNode.options).forEach((option) => {
     if (option.dataset.dynamicZoom === "1") {
@@ -10667,26 +11344,26 @@ function syncBiZoomSelectControl(selectNode, zoom) {
   selectNode.value = safeValue;
 }
 
-function updateBiZoomMenuUi(project) {
-  const safeZoom = sanitizeBiCanvasZoom(project?.biConfig?.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
-  if (els.biCanvasZoomMenuButton instanceof HTMLButtonElement) {
-    els.biCanvasZoomMenuButton.textContent = `Zoom (${safeZoom}%) v`;
+function updateAnalyticsZoomMenuUi(project) {
+  const safeZoom = sanitizeAnalyticsCanvasZoom(project?.biConfig?.canvasZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
+  if (els.legacyStudioCanvasZoomMenuButton instanceof HTMLButtonElement) {
+    els.legacyStudioCanvasZoomMenuButton.textContent = `Zoom (${safeZoom}%) v`;
   }
-  if (els.biZoomFitAllLabel instanceof HTMLElement) {
-    const fitAll = getBiCanvasFitZoom(project, "all");
-    els.biZoomFitAllLabel.textContent = `Ajustar todo (${fitAll}%)`;
+  if (els.legacyStudioZoomFitAllLabel instanceof HTMLElement) {
+    const fitAll = getAnalyticsCanvasFitZoom(project, "all");
+    els.legacyStudioZoomFitAllLabel.textContent = `Ajustar todo (${fitAll}%)`;
   }
-  if (els.biZoomFitWidthLabel instanceof HTMLElement) {
-    const fitWidth = getBiCanvasFitZoom(project, "width");
-    els.biZoomFitWidthLabel.textContent = `Ajustar ancho (${fitWidth}%)`;
+  if (els.legacyStudioZoomFitWidthLabel instanceof HTMLElement) {
+    const fitWidth = getAnalyticsCanvasFitZoom(project, "width");
+    els.legacyStudioZoomFitWidthLabel.textContent = `Ajustar ancho (${fitWidth}%)`;
   }
-  if (els.biZoomDefaultButton instanceof HTMLButtonElement) {
+  if (els.legacyStudioZoomDefaultButton instanceof HTMLButtonElement) {
     const isDefault = safeZoom === 100;
-    els.biZoomDefaultButton.disabled = isDefault;
-    els.biZoomDefaultButton.classList.toggle("active", isDefault);
+    els.legacyStudioZoomDefaultButton.disabled = isDefault;
+    els.legacyStudioZoomDefaultButton.classList.toggle("active", isDefault);
   }
-  if (els.biCanvasZoomMenu instanceof HTMLElement) {
-    els.biCanvasZoomMenu
+  if (els.legacyStudioCanvasZoomMenu instanceof HTMLElement) {
+    els.legacyStudioCanvasZoomMenu
       .querySelectorAll("[data-bi-zoom-value]")
       .forEach((node) => {
         if (!(node instanceof HTMLElement)) {
@@ -10697,39 +11374,1543 @@ function updateBiZoomMenuUi(project) {
   }
 }
 
-function getBiCanvasSizeFromConfig(config) {
-  const width = sanitizeBiCanvasDimension(
+function getAnalyticsCanvasSizeFromConfig(config) {
+  const width = sanitizeAnalyticsCanvasDimension(
     config?.canvasWidth ?? config?.pizarraAncho ?? config?.boardWidth,
-    BI_CANVAS_SURFACE_MIN_WIDTH,
-    BI_CANVAS_SURFACE_MIN_EDIT_WIDTH,
-    BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+    ANALYTICS_CANVAS_SURFACE_MIN_WIDTH,
+    ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH,
+    ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH
   );
-  const height = sanitizeBiCanvasDimension(
+  const height = sanitizeAnalyticsCanvasDimension(
     config?.canvasHeight ?? config?.pizarraAlto ?? config?.boardHeight,
-    BI_CANVAS_SURFACE_HEIGHT,
-    BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
-    BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+    ANALYTICS_CANVAS_SURFACE_HEIGHT,
+    ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
+    ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
   );
   return { width, height };
 }
 
-function getBiSourceLabel(source) {
-  if (source === "deliverable") {
-    return "MIDP";
-  }
-  if (source === "package") {
-    return "Paquetes";
-  }
-  if (source === "review-control") {
-    return "Flujo revision";
-  }
-  if (source === "all") {
-    return "Todas";
-  }
-  return "General";
+function getAnalyticsSourceLabel(source) {
+  return getAnalyticsSourceMeta(null, source).shortLabel;
 }
 
-function getBiFieldRowData(fields, fieldId, rowId) {
+function humanizeAnalyticsSourceToken(source) {
+  const token = trimOrFallback(source, "");
+  if (!token) {
+    return "General";
+  }
+  const clean = token
+    .replace(/^(model|acc|external|dataset):/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) {
+    return "General";
+  }
+  return clean.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getAnalyticsExternalSourceRegistry(project) {
+  const registry = new Map();
+  const collections = [
+    project?.analyticsSources,
+    project?.externalSources,
+    project?.modelDatasets,
+    project?.accModels,
+    project?.accModelSources,
+    project?.rvtModels
+  ];
+  collections.forEach((collection) => {
+    if (!Array.isArray(collection)) {
+      return;
+    }
+    collection.forEach((item) => {
+      if (!item || typeof item !== "object") {
+        return;
+      }
+      const token = normalizeAnalyticsSource(
+        item.source
+        || item.datasetSource
+        || item.analyticsSource
+        || item.id
+        || ""
+      );
+      if (!token || token === "all" || new Set(["deliverable", "package", "review-control"]).has(token)) {
+        return;
+      }
+      const label = trimOrFallback(
+        item.datasetLabel
+        || item.label
+        || item.displayName
+        || item.modelName
+        || item.fileName
+        || item.name,
+        ""
+      );
+      const resolvedLabel = label || humanizeAnalyticsSourceToken(token);
+      registry.set(token, {
+        value: token,
+        shortLabel: resolvedLabel,
+        datasetLabel: resolvedLabel
+      });
+    });
+  });
+  return registry;
+}
+
+function getAnalyticsSourceMeta(project, source, rows = null) {
+  const token = normalizeAnalyticsSource(source || "");
+  if (token === "deliverable") {
+    return { value: "deliverable", shortLabel: "MIDP", datasetLabel: "MIDP / Entregables" };
+  }
+  if (token === "package") {
+    return { value: "package", shortLabel: "Paquetes", datasetLabel: "Paquetes" };
+  }
+  if (token === "review-control") {
+    return { value: "review-control", shortLabel: "Flujos revision", datasetLabel: "Flujos de revision" };
+  }
+  if (token === "all") {
+    return { value: "all", shortLabel: "Todas", datasetLabel: "Todas" };
+  }
+  const registry = getAnalyticsExternalSourceRegistry(project);
+  if (registry.has(token)) {
+    return registry.get(token);
+  }
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const rowMatch = safeRows.find((row) => normalizeAnalyticsSource(row?.source || "") === token);
+  const rowLabel = trimOrFallback(rowMatch?.sourceLabel, "");
+  if (rowLabel) {
+    return { value: token, shortLabel: rowLabel, datasetLabel: rowLabel };
+  }
+  const fallbackLabel = humanizeAnalyticsSourceToken(token);
+  return { value: token, shortLabel: fallbackLabel, datasetLabel: fallbackLabel };
+}
+
+function getQuickSightSourceOptions(project, rows = null) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const rowCounts = new Map();
+  safeRows.forEach((row) => {
+    const token = normalizeAnalyticsSource(row?.source || "");
+    if (!token || token === "all") {
+      return;
+    }
+    rowCounts.set(token, (rowCounts.get(token) || 0) + 1);
+  });
+  const options = [];
+  ["deliverable", "package", "review-control"].forEach((source) => {
+    const count = rowCounts.get(source) || 0;
+    if (count > 0) {
+      const meta = getAnalyticsSourceMeta(project, source, safeRows);
+      options.push({ value: source, label: meta.datasetLabel, count });
+    }
+  });
+  const registry = getAnalyticsExternalSourceRegistry(project);
+  registry.forEach((meta, source) => {
+    options.push({ value: source, label: meta.datasetLabel, count: rowCounts.get(source) || 0 });
+  });
+  rowCounts.forEach((count, source) => {
+    if (options.some((item) => item.value === source)) {
+      return;
+    }
+    const meta = getAnalyticsSourceMeta(project, source, safeRows);
+    options.push({ value: source, label: meta.datasetLabel, count });
+  });
+  return options;
+}
+
+function normalizeQuickSightSourceSelection(project, source, rows = null) {
+  const normalized = normalizeAnalyticsSource(source || "");
+  const options = getQuickSightSourceOptions(project, rows);
+  if (normalized !== "all" && options.some((item) => item.value === normalized)) {
+    return normalized;
+  }
+  return options[0]?.value || "deliverable";
+}
+
+function getQuickSightApsStatusText(statusLike = null) {
+  if (!isQuickSightServedFromHttp()) {
+    return "APS requiere abrir MIDP desde http://127.0.0.1:8080/ y no desde file://.";
+  }
+  const status = statusLike && typeof statusLike === "object" ? statusLike : quickSightApsStatus;
+  if (!status?.enabled) {
+    return "APS no habilitado en backend.";
+  }
+  if (!status.configured) {
+    return "Configura APS_CLIENT_ID, APS_CLIENT_SECRET y APS_CALLBACK_URL.";
+  }
+  if (status.authenticated) {
+    const userLabel = trimOrFallback(status.userName, "usuario conectado");
+    return `APS conectado como ${userLabel}.`;
+  }
+  return "APS listo para autenticar ACC.";
+}
+
+function isQuickSightServedFromHttp() {
+  if (typeof window === "undefined" || !window.location) {
+    return false;
+  }
+  return /^https?:$/i.test(String(window.location.protocol || ""));
+}
+
+function renderQuickSightApsStatus() {
+  const canReachBackend = isQuickSightServedFromHttp();
+  if (els.qsModelLinkAuthStatus instanceof HTMLElement) {
+    els.qsModelLinkAuthStatus.textContent = getQuickSightApsStatusText(quickSightApsStatus);
+  }
+  if (els.qsApsLoginButton instanceof HTMLButtonElement) {
+    els.qsApsLoginButton.disabled = !canReachBackend || !quickSightApsStatus.configured;
+  }
+  if (els.qsApsRefreshStatusButton instanceof HTMLButtonElement) {
+    els.qsApsRefreshStatusButton.disabled = !canReachBackend;
+  }
+  if (els.qsApsLogoutButton instanceof HTMLButtonElement) {
+    els.qsApsLogoutButton.disabled = !canReachBackend || !quickSightApsStatus.authenticated;
+  }
+  if (els.qsSyncModelPropertiesButton instanceof HTMLButtonElement) {
+    els.qsSyncModelPropertiesButton.disabled = !(canReachBackend && quickSightApsStatus.configured && quickSightApsStatus.authenticated);
+  }
+}
+
+async function refreshQuickSightApsStatus(options = {}) {
+  const silent = !!options.silent;
+  if (!isQuickSightServedFromHttp()) {
+    quickSightApsStatus = {
+      enabled: false,
+      configured: false,
+      authenticated: false,
+      clientId: "",
+      callbackUrl: "",
+      userName: "",
+      userEmail: "",
+      userId: "",
+      expiresAt: "",
+      tokenClaims: null,
+      scopes: []
+    };
+    renderQuickSightApsStatus();
+    if (!silent) {
+      setStatus("Abre MIDP desde http://127.0.0.1:8080/ para usar APS.");
+    }
+    return quickSightApsStatus;
+  }
+  try {
+    const response = await fetch("/api/aps/auth/status", {
+      method: "GET",
+      headers: { Accept: "application/json" }
+    });
+    if (!response.ok) {
+      throw new Error(`APS status ${response.status}`);
+    }
+    const payload = await response.json();
+    quickSightApsStatus = {
+      enabled: payload.enabled !== false,
+      configured: !!payload.configured,
+      authenticated: !!payload.authenticated,
+      clientId: trimOrFallback(payload.clientId, ""),
+      callbackUrl: trimOrFallback(payload.callbackUrl, ""),
+      userName: trimOrFallback(payload.userName, ""),
+      userEmail: trimOrFallback(payload.userEmail, ""),
+      userId: trimOrFallback(payload.userId, ""),
+      expiresAt: trimOrFallback(payload.expiresAt, ""),
+      tokenClaims: payload.tokenClaims && typeof payload.tokenClaims === "object"
+        ? {
+            client_id: trimOrFallback(payload.tokenClaims.client_id, ""),
+            userid: trimOrFallback(payload.tokenClaims.userid, ""),
+            scope: Array.isArray(payload.tokenClaims.scope)
+              ? payload.tokenClaims.scope.slice()
+              : trimOrFallback(payload.tokenClaims.scope, ""),
+            aud: payload.tokenClaims.aud || null,
+            iss: payload.tokenClaims.iss || null,
+            exp: payload.tokenClaims.exp || null
+          }
+        : null,
+      scopes: Array.isArray(payload.scopes) ? payload.scopes.slice() : []
+    };
+  } catch (error) {
+    quickSightApsStatus = {
+      enabled: false,
+      configured: false,
+      authenticated: false,
+      clientId: "",
+      callbackUrl: "",
+      userName: "",
+      userEmail: "",
+      userId: "",
+      expiresAt: "",
+      tokenClaims: null,
+      scopes: []
+    };
+    if (!silent) {
+      setStatus("No se pudo consultar el estado APS.");
+    }
+  }
+  renderQuickSightApsStatus();
+  return quickSightApsStatus;
+}
+
+function getQuickSightModelDraftFromForm() {
+  return {
+    id: trimOrFallback(quickSightModelLinkEditingId, ""),
+    name: trimOrFallback(els.qsModelNameInput?.value, ""),
+    type: trimOrFallback(els.qsModelTypeSelect?.value, "acc-rvt"),
+    accProjectId: trimOrFallback(els.qsModelProjectIdInput?.value, ""),
+    versionUrn: trimOrFallback(els.qsModelVersionUrnInput?.value, ""),
+    viewerUrn: trimOrFallback(els.qsModelViewerUrnInput?.value, ""),
+    modelGuid: trimOrFallback(els.qsModelGuidInput?.value, ""),
+    accScopes: trimOrFallback(els.qsModelScopesInput?.value, ""),
+    accNamespace: trimOrFallback(els.qsModelNamespaceSelect?.value, "WIPDM")
+  };
+}
+
+function getQuickSightModelApsHeaders(modelLike) {
+  const headers = {};
+  const scopes = trimOrFallback(modelLike?.accScopes, "");
+  if (scopes) {
+    headers["x-ads-acm-scopes"] = scopes;
+    headers["x-ads-acm-check-groups"] = "true";
+  }
+  const namespace = trimOrFallback(modelLike?.accNamespace, "");
+  if (namespace) {
+    headers["x-ads-acm-namespace"] = namespace;
+  }
+  return headers;
+}
+
+async function requestQuickSightApsProxy(resourcePath, options = {}) {
+  const response = await fetch("/api/aps/model-properties/proxy", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify({
+      method: trimOrFallback(options.method, "GET") || "GET",
+      resourcePath,
+      body: options.body && typeof options.body === "object" ? options.body : undefined,
+      headers: options.headers && typeof options.headers === "object" ? options.headers : undefined
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(trimOrFallback(payload?.message, `APS ${response.status}`));
+  }
+  return payload;
+}
+
+async function requestQuickSightAccLocalExtractSummary() {
+  const response = await fetch("/api/acc/local-extract/summary", {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(trimOrFallback(payload?.message, `ACC local extract ${response.status}`));
+  }
+  return payload && typeof payload === "object" ? payload : {};
+}
+
+async function requestQuickSightAccLocalProjectEntries(projectId) {
+  const safeProjectId = trimOrFallback(projectId, "");
+  if (!safeProjectId) {
+    return { available: false, entries: [] };
+  }
+  const response = await fetch(`/api/acc/local-extract/projects/${encodeURIComponent(safeProjectId)}/entries`, {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(trimOrFallback(payload?.message, `ACC local project entries ${response.status}`));
+  }
+  return payload && typeof payload === "object" ? payload : {};
+}
+
+function resetQuickSightAccBrowserState() {
+  quickSightAccBrowserState = {
+    projects: [],
+    activeHubId: "",
+    activeHubName: "",
+    activeProjectId: "",
+    activeProjectName: "",
+    entries: [],
+    breadcrumb: [],
+    selectedModel: null
+  };
+}
+
+function setQuickSightAccBrowserStatus(message) {
+  if (els.qsAccBrowserStatusText instanceof HTMLElement) {
+    els.qsAccBrowserStatusText.textContent = trimOrFallback(message, "");
+  }
+}
+
+function hasQuickSightApsScope(scopeName) {
+  const targetScope = trimOrFallback(scopeName, "").toLowerCase();
+  if (!targetScope) {
+    return false;
+  }
+  const scopes = Array.isArray(quickSightApsStatus?.scopes) ? quickSightApsStatus.scopes : [];
+  return scopes.some((scope) => trimOrFallback(scope, "").toLowerCase() === targetScope);
+}
+
+function extractQuickSightAccCollection(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+  const candidates = [payload.results, payload.data, payload.accounts, payload.items];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+  return [];
+}
+
+function normalizeQuickSightAccAccount(accountLike) {
+  const rawId = trimOrFallback(
+    accountLike?.id
+    || accountLike?.accountId
+    || accountLike?.account_id
+    || accountLike?.attributes?.accountId
+    || accountLike?.attributes?.id,
+    ""
+  );
+  const accountId = rawId.replace(/^b\./i, "");
+  const hubId = rawId.startsWith("b.") ? rawId : (accountId ? `b.${accountId}` : "");
+  const name = trimOrFallback(
+    accountLike?.name
+    || accountLike?.displayName
+    || accountLike?.companyName
+    || accountLike?.accountName
+    || accountLike?.attributes?.name
+    || accountLike?.attributes?.displayName,
+    accountId || "Cuenta ACC"
+  );
+  const region = trimOrFallback(
+    accountLike?.region
+    || accountLike?.attributes?.region
+    || accountLike?.country
+    || accountLike?.attributes?.country,
+    ""
+  );
+  return {
+    id: accountId,
+    hubId,
+    name,
+    region
+  };
+}
+
+function normalizeQuickSightAccProject(projectLike, sourceMeta = {}) {
+  const rawId = trimOrFallback(projectLike?.id || projectLike?.projectId, "");
+  const accountId = trimOrFallback(
+    sourceMeta.accountId
+    || projectLike?.accountId
+    || projectLike?.account_id
+    || projectLike?.account?.id
+    || projectLike?.attributes?.accountId,
+    ""
+  );
+  const dataProjectId = rawId.startsWith("b.") ? rawId : (rawId ? `b.${rawId}` : "");
+  const hubId = trimOrFallback(sourceMeta.hubId, "") || (accountId ? `b.${accountId}` : "");
+  const name = getQuickSightAccDisplayName(projectLike);
+  const classification = trimOrFallback(
+    projectLike?.classification
+    || projectLike?.type
+    || projectLike?.projectType
+    || projectLike?.attributes?.classification
+    || projectLike?.attributes?.type
+    || projectLike?.attributes?.extension?.data?.projectType,
+    ""
+  );
+  return {
+    id: rawId,
+    dataProjectId,
+    name,
+    hubId,
+    hubName: trimOrFallback(sourceMeta.hubName, ""),
+    hubType: trimOrFallback(sourceMeta.hubType, ""),
+    accountId,
+    source: trimOrFallback(sourceMeta.source, ""),
+    sourceEndpoint: trimOrFallback(sourceMeta.sourceEndpoint, ""),
+    classification,
+    entriesCount: Number(sourceMeta.entriesCount ?? projectLike?.entriesCount ?? 0) || 0
+  };
+}
+
+function dedupeQuickSightAccProjects(projects) {
+  const seen = new Set();
+  return projects.filter((project) => {
+    const key = [
+      trimOrFallback(project?.id, ""),
+      trimOrFallback(project?.dataProjectId, ""),
+      trimOrFallback(project?.accountId, ""),
+      trimOrFallback(project?.name, "")
+    ].join("|");
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+async function requestQuickSightAccAdminProjectsGlobal() {
+  const attempts = [
+    {
+      label: "construction/admin/v1/accounts/projects",
+      resourcePath: "/construction/admin/v1/accounts/projects"
+    },
+    {
+      label: "construction/admin/v1/accounts/projects?filter[classification]=normal",
+      resourcePath: "/construction/admin/v1/accounts/projects?filter[classification]=normal"
+    },
+    {
+      label: "construction/admin/v1/projects",
+      resourcePath: "/construction/admin/v1/projects"
+    },
+    {
+      label: "hq/v1/accounts/projects",
+      resourcePath: "/hq/v1/accounts/projects"
+    }
+  ];
+  const errors = [];
+  for (const attempt of attempts) {
+    try {
+      const payload = await requestQuickSightApsProxy(attempt.resourcePath, { method: "GET" });
+      const projects = extractQuickSightAccCollection(payload)
+        .map((project) => normalizeQuickSightAccProject(project, {
+          accountId: trimOrFallback(project?.accountId || project?.account_id || project?.account?.id, ""),
+          hubName: trimOrFallback(project?.accountName || project?.account?.name, ""),
+          source: "acc-admin-global",
+          sourceEndpoint: attempt.label
+        }))
+        .filter((project) => !!project.id);
+      if (projects.length > 0) {
+        return {
+          projects: dedupeQuickSightAccProjects(projects),
+          endpoint: attempt.label,
+          errors
+        };
+      }
+      errors.push(`${attempt.label}: sin resultados`);
+    } catch (error) {
+      errors.push(`${attempt.label}: ${String(error.message || error)}`);
+    }
+  }
+  return {
+    projects: [],
+    endpoint: "",
+    errors
+  };
+}
+
+async function requestQuickSightAccAdminAccounts() {
+  const attempts = [
+    {
+      label: "construction/admin/v1/accounts",
+      resourcePath: "/construction/admin/v1/accounts",
+      headers: {}
+    },
+    {
+      label: "construction/admin/v1/accounts (Region US)",
+      resourcePath: "/construction/admin/v1/accounts",
+      headers: { Region: "US" }
+    },
+    {
+      label: "hq/v1/accounts",
+      resourcePath: "/hq/v1/accounts",
+      headers: {}
+    }
+  ];
+  const errors = [];
+  for (const attempt of attempts) {
+    try {
+      const payload = await requestQuickSightApsProxy(attempt.resourcePath, {
+        method: "GET",
+        headers: attempt.headers
+      });
+      const accounts = extractQuickSightAccCollection(payload)
+        .map((account) => normalizeQuickSightAccAccount(account))
+        .filter((account) => !!account.id);
+      if (accounts.length > 0) {
+        return {
+          accounts,
+          endpoint: attempt.label,
+          errors
+        };
+      }
+      errors.push(`${attempt.label}: sin resultados`);
+    } catch (error) {
+      errors.push(`${attempt.label}: ${String(error.message || error)}`);
+    }
+  }
+  return {
+    accounts: [],
+    endpoint: "",
+    errors
+  };
+}
+
+async function requestQuickSightAccAdminProjects(accountLike) {
+  const accountId = trimOrFallback(accountLike?.id, "");
+  const userId = trimOrFallback(quickSightApsStatus?.userId, "");
+  if (!accountId) {
+    return {
+      projects: [],
+      endpoint: "",
+      errors: ["Cuenta ACC sin accountId."]
+    };
+  }
+  const attempts = [
+    {
+      label: "construction/admin/v1/accounts/{accountId}/users/{userId}/projects",
+      resourcePath: userId
+        ? `/construction/admin/v1/accounts/${encodeURIComponent(accountId)}/users/${encodeURIComponent(userId)}/projects`
+        : "",
+      headers: {},
+      enabled: !!userId
+    },
+    {
+      label: "construction/admin/v1/accounts/{accountId}/projects",
+      resourcePath: `/construction/admin/v1/accounts/${encodeURIComponent(accountId)}/projects`,
+      headers: {},
+      enabled: true
+    },
+    {
+      label: "construction/admin/v1/accounts/{accountId}/projects (Region US)",
+      resourcePath: `/construction/admin/v1/accounts/${encodeURIComponent(accountId)}/projects`,
+      headers: { Region: "US" },
+      enabled: true
+    },
+    {
+      label: "hq/v1/accounts/{accountId}/projects",
+      resourcePath: `/hq/v1/accounts/${encodeURIComponent(accountId)}/projects`,
+      headers: {},
+      enabled: true
+    }
+  ];
+  const errors = [];
+  for (const attempt of attempts) {
+    if (!attempt.enabled || !attempt.resourcePath) {
+      continue;
+    }
+    try {
+      const payload = await requestQuickSightApsProxy(attempt.resourcePath, {
+        method: "GET",
+        headers: attempt.headers
+      });
+      const projects = extractQuickSightAccCollection(payload)
+        .map((project) => normalizeQuickSightAccProject(project, {
+          hubId: trimOrFallback(accountLike?.hubId, ""),
+          hubName: trimOrFallback(accountLike?.name, ""),
+          hubType: "acc-admin-account",
+          accountId,
+          source: "acc-admin",
+          sourceEndpoint: attempt.label
+        }))
+        .filter((project) => !!project.id);
+      if (projects.length > 0) {
+        return {
+          projects,
+          endpoint: attempt.label,
+          errors
+        };
+      }
+      errors.push(`${attempt.label}: sin resultados`);
+    } catch (error) {
+      errors.push(`${attempt.label}: ${String(error.message || error)}`);
+    }
+  }
+  return {
+    projects: [],
+    endpoint: "",
+    errors
+  };
+}
+
+function setQuickSightAccDebugReport(reportText) {
+  quickSightAccDebugReport = trimOrFallback(reportText, "Sin diagnostico ejecutado.");
+  if (els.qsAccDebugOutput instanceof HTMLElement) {
+    els.qsAccDebugOutput.textContent = quickSightAccDebugReport;
+  }
+}
+
+function renderQuickSightAccSelectedModelCard() {
+  if (!(els.qsAccSelectedModelCard instanceof HTMLElement)) {
+    return;
+  }
+  const selected = quickSightAccBrowserState.selectedModel;
+  if (!selected) {
+    els.qsAccSelectedModelCard.innerHTML = "<strong>Sin modelo seleccionado</strong><p class=\"muted\">Navega hasta una carpeta y elige el modelo RVT/IFC a vincular.</p>";
+    return;
+  }
+  els.qsAccSelectedModelCard.innerHTML = `
+    <strong>${escapeHtml(selected.name)}</strong>
+    <p class="muted">Proyecto: ${escapeHtml(selected.projectName || "(sin proyecto)")}</p>
+    <p class="muted">Ruta: ${escapeHtml(selected.pathLabel || "/")}</p>
+    <p class="muted">Tipo: ${escapeHtml(selected.type)} | Viewer URN: ${escapeHtml(trimOrFallback(selected.viewerUrn, "(pendiente)"))}</p>
+  `;
+}
+
+function renderQuickSightAccProjectsList() {
+  if (!(els.qsAccProjectsList instanceof HTMLElement)) {
+    return;
+  }
+  const projects = Array.isArray(quickSightAccBrowserState.projects) ? quickSightAccBrowserState.projects : [];
+  if (projects.length === 0) {
+    els.qsAccProjectsList.innerHTML = "<div class=\"qs-acc-browser-empty\">Sin proyectos cargados.</div>";
+    return;
+  }
+  els.qsAccProjectsList.innerHTML = projects.map((project) => {
+    const activeClass = project.id === quickSightAccBrowserState.activeProjectId
+      || trimOrFallback(project.dataProjectId, "") === trimOrFallback(quickSightAccBrowserState.activeProjectId, "")
+      ? " active"
+      : "";
+    const details = [];
+    if (trimOrFallback(project.hubName, "")) {
+      details.push(project.hubName);
+    }
+    if (Number(project.entriesCount || 0) > 0) {
+      details.push(`${Number(project.entriesCount || 0)} modelo(s)`);
+    }
+    return `<button type="button" class="qs-acc-browser-item${activeClass}" data-qs-acc-project-id="${escapeAttribute(project.id)}">
+      <strong>${escapeHtml(project.name)}</strong>
+      <span class="muted">${escapeHtml(details.join(" | "))}</span>
+    </button>`;
+  }).join("");
+}
+
+function renderQuickSightAccEntriesList() {
+  if (!(els.qsAccEntriesList instanceof HTMLElement) || !(els.qsAccBreadcrumb instanceof HTMLElement)) {
+    return;
+  }
+  const crumbText = quickSightAccBrowserState.breadcrumb.length > 0
+    ? quickSightAccBrowserState.breadcrumb.map((item) => item.name).join(" / ")
+    : (quickSightAccBrowserState.activeProjectName || "Selecciona un proyecto.");
+  els.qsAccBreadcrumb.textContent = crumbText;
+  const entries = Array.isArray(quickSightAccBrowserState.entries) ? quickSightAccBrowserState.entries : [];
+  if (entries.length === 0) {
+    els.qsAccEntriesList.innerHTML = "<div class=\"qs-acc-browser-empty\">Sin carpetas ni modelos visibles.</div>";
+    return;
+  }
+  const canGoBack = quickSightAccBrowserState.breadcrumb.length > 0;
+  const backHtml = canGoBack
+    ? `<button type="button" class="qs-acc-browser-item" data-qs-acc-entry-action="back">
+        <strong>Subir un nivel</strong>
+        <span class="muted">Volver a la carpeta anterior</span>
+      </button>`
+    : "";
+  els.qsAccEntriesList.innerHTML = `${backHtml}${entries.map((entry) => {
+    const activeClass = entry.kind === "model" && quickSightAccBrowserState.selectedModel?.id === entry.id ? " active" : "";
+    const entryClass = entry.kind === "folder" ? " is-folder" : (entry.kind === "model" ? " is-model" : "");
+    const action = entry.kind === "folder" ? "open-folder" : "select-model";
+    return `<button type="button" class="qs-acc-browser-item${entryClass}${activeClass}" data-qs-acc-entry-action="${escapeAttribute(action)}" data-qs-acc-entry-id="${escapeAttribute(entry.id)}">
+      <strong>${escapeHtml(entry.name)}</strong>
+      <span class="muted">${escapeHtml(entry.metaLabel)}</span>
+    </button>`;
+  }).join("")}`;
+}
+
+function renderQuickSightAccBrowser() {
+  renderQuickSightAccProjectsList();
+  renderQuickSightAccEntriesList();
+  renderQuickSightAccSelectedModelCard();
+  setQuickSightAccDebugReport(quickSightAccDebugReport);
+}
+
+function parseQuickSightAccScopesFromHref(rawHref) {
+  const href = trimOrFallback(rawHref, "");
+  if (!href) {
+    return "";
+  }
+  try {
+    const parsed = new URL(href);
+    return trimOrFallback(parsed.searchParams.get("scopes"), "");
+  } catch {
+    return "";
+  }
+}
+
+function getQuickSightAccDisplayName(item) {
+  return trimOrFallback(
+    item?.attributes?.displayName
+    || item?.attributes?.name
+    || item?.attributes?.extension?.data?.name
+    || item?.attributes?.extension?.data?.sourceFileName
+    || item?.name,
+    "Sin nombre"
+  );
+}
+
+function inferQuickSightAccModelType(fileName) {
+  const safeName = trimOrFallback(fileName, "").toLowerCase();
+  if (safeName.endsWith(".ifc")) {
+    return "acc-ifc";
+  }
+  return "acc-rvt";
+}
+
+function isQuickSightAccModelCandidate(fileName) {
+  const safeName = trimOrFallback(fileName, "").toLowerCase();
+  return [".rvt", ".ifc", ".dwg", ".nwc", ".nwd", ".dxf", ".skp"].some((ext) => safeName.endsWith(ext));
+}
+
+function buildQuickSightAccEntries(payload, projectMeta) {
+  const safePayload = payload && typeof payload === "object" ? payload : {};
+  const dataItems = Array.isArray(safePayload.data) ? safePayload.data : [];
+  const included = Array.isArray(safePayload.included) ? safePayload.included : [];
+  return dataItems.reduce((acc, item) => {
+    const itemType = trimOrFallback(item?.type, "");
+    const name = getQuickSightAccDisplayName(item);
+    if (itemType === "folders") {
+      acc.push({
+        id: trimOrFallback(item.id, uid()),
+        kind: "folder",
+        folderId: trimOrFallback(item.id, ""),
+        name,
+        metaLabel: "Carpeta ACC"
+      });
+      return acc;
+    }
+    if (itemType !== "items") {
+      return acc;
+    }
+    if (!isQuickSightAccModelCandidate(name)) {
+      return acc;
+    }
+    const tipVersionId = trimOrFallback(item?.relationships?.tip?.data?.id, "");
+    const tipVersion = included.find((entry) => trimOrFallback(entry?.id, "") === tipVersionId) || null;
+    const viewerUrn = trimOrFallback(tipVersion?.relationships?.derivatives?.data?.id, "");
+    const scopesHref = tipVersion?.relationships?.derivatives?.meta?.link?.href
+      || tipVersion?.relationships?.storage?.meta?.link?.href
+      || "";
+    acc.push({
+      id: trimOrFallback(item.id, uid()),
+      kind: "model",
+      itemId: trimOrFallback(item.id, ""),
+      versionUrn: tipVersionId,
+      viewerUrn,
+      accScopes: parseQuickSightAccScopesFromHref(scopesHref),
+      type: inferQuickSightAccModelType(name),
+      name,
+      metaLabel: trimOrFallback(item?.attributes?.extension?.type, "Modelo ACC"),
+      projectId: projectMeta.projectId,
+      projectName: projectMeta.projectName,
+      hubId: projectMeta.hubId,
+      hubName: projectMeta.hubName
+    });
+    return acc;
+  }, []);
+}
+
+function applyQuickSightAccModelSelection(entry) {
+  if (!entry || entry.kind !== "model") {
+    quickSightAccBrowserState.selectedModel = null;
+    renderQuickSightAccSelectedModelCard();
+    return;
+  }
+  quickSightAccBrowserState.selectedModel = {
+    ...entry,
+    pathLabel: quickSightAccBrowserState.breadcrumb.map((item) => item.name).join(" / ")
+  };
+  if (els.qsModelNameInput instanceof HTMLInputElement) {
+    els.qsModelNameInput.value = entry.name;
+  }
+  if (els.qsModelTypeSelect instanceof HTMLSelectElement) {
+    els.qsModelTypeSelect.value = entry.type;
+  }
+  if (els.qsModelProjectIdInput instanceof HTMLInputElement) {
+    els.qsModelProjectIdInput.value = entry.projectId;
+  }
+  if (els.qsModelVersionUrnInput instanceof HTMLInputElement) {
+    els.qsModelVersionUrnInput.value = entry.versionUrn;
+  }
+  if (els.qsModelViewerUrnInput instanceof HTMLInputElement) {
+    els.qsModelViewerUrnInput.value = entry.viewerUrn;
+  }
+  if (els.qsModelGuidInput instanceof HTMLInputElement) {
+    els.qsModelGuidInput.value = trimOrFallback(entry.modelGuid, "");
+  }
+  if (els.qsModelScopesInput instanceof HTMLInputElement) {
+    els.qsModelScopesInput.value = entry.accScopes;
+  }
+  if (els.qsModelPropertiesJsonInput instanceof HTMLTextAreaElement) {
+    const propertyRows = Array.isArray(entry.propertyRows) ? entry.propertyRows : [];
+    els.qsModelPropertiesJsonInput.value = propertyRows.length > 0
+      ? JSON.stringify(propertyRows, null, 2)
+      : "";
+  }
+  renderQuickSightAccBrowser();
+}
+
+async function loadQuickSightAccProjects() {
+  setQuickSightAccBrowserStatus("Cargando proyectos ACC...");
+  setQuickSightAccDebugReport("Cargando diagnostico ACC...");
+  const clientIdLabel = trimOrFallback(quickSightApsStatus?.clientId, "");
+  const allHubsPayload = await requestQuickSightApsProxy("/project/v1/hubs", { method: "GET" }).catch((error) => ({
+    data: [],
+    __error: String(error.message || error)
+  }));
+  const allHubs = Array.isArray(allHubsPayload?.data) ? allHubsPayload.data : [];
+  const prioritizedHubs = allHubs
+    .map((hub) => ({
+      hub,
+      extensionType: trimOrFallback(hub?.attributes?.extension?.type, ""),
+      name: getQuickSightAccDisplayName(hub)
+    }))
+    .sort((left, right) => {
+      const leftPriority = /bim360|docs|construction/i.test(left.extensionType) ? 0 : 1;
+      const rightPriority = /bim360|docs|construction/i.test(right.extensionType) ? 0 : 1;
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+      return left.name.localeCompare(right.name, "es");
+    });
+  const projectGroups = await Promise.all(prioritizedHubs.map(async ({ hub }) => {
+    const hubId = trimOrFallback(hub?.id, "");
+    if (!hubId) {
+      return [];
+    }
+    const hubName = getQuickSightAccDisplayName(hub);
+    const projectsPayload = await requestQuickSightApsProxy(`/project/v1/hubs/${encodeURIComponent(hubId)}/projects`, { method: "GET" }).catch((error) => ({
+      data: [],
+      __error: String(error.message || error)
+    }));
+    const projects = Array.isArray(projectsPayload?.data) ? projectsPayload.data : [];
+    return projects.map((project) => ({
+      id: trimOrFallback(project?.id, ""),
+      name: getQuickSightAccDisplayName(project),
+      hubId,
+      hubName,
+      hubType: trimOrFallback(hub?.attributes?.extension?.type, "")
+    })).filter((project) => !!project.id);
+  }));
+  let resolvedProjects = projectGroups.flat();
+  let resolvedVia = resolvedProjects.length > 0 ? "Data Management" : "";
+  if (resolvedProjects.length === 0) {
+    const adminGlobalProjectsResult = await requestQuickSightAccAdminProjectsGlobal();
+    if (adminGlobalProjectsResult.projects.length > 0) {
+      resolvedProjects = adminGlobalProjectsResult.projects;
+      resolvedVia = `ACC Admin (${adminGlobalProjectsResult.endpoint || "accounts/projects"})`;
+    }
+  }
+  if (resolvedProjects.length === 0) {
+    const adminAccountsResult = await requestQuickSightAccAdminAccounts();
+    if (adminAccountsResult.accounts.length > 0) {
+      const projectResults = await Promise.all(adminAccountsResult.accounts.map((account) => requestQuickSightAccAdminProjects(account)));
+      resolvedProjects = projectResults.flatMap((result) => result.projects);
+      resolvedVia = resolvedProjects.length > 0
+        ? `ACC Admin (${adminAccountsResult.endpoint || "accounts"})`
+        : "";
+    }
+  }
+  if (resolvedProjects.length === 0) {
+    try {
+      const localExtract = await requestQuickSightAccLocalExtractSummary();
+      const localProjects = Array.isArray(localExtract?.projects) ? localExtract.projects : [];
+      if (localProjects.length > 0) {
+        resolvedProjects = localProjects.map((project) => normalizeQuickSightAccProject(project, {
+          hubId: trimOrFallback(project.hubId, ""),
+          hubName: trimOrFallback(project.hubName || project.accountName, ""),
+          hubType: trimOrFallback(project.hubType, "local-acc-extract"),
+          accountId: trimOrFallback(project.accountId, ""),
+          source: trimOrFallback(project.source, "local-acc-extract"),
+          sourceEndpoint: trimOrFallback(project.sourceEndpoint, "local-acc-extract"),
+          entriesCount: Number(project.entriesCount || 0) || 0
+        }));
+        resolvedVia = `Extract local (${trimOrFallback(localExtract?.dir, "autodesk_data_extract")})`;
+      }
+    } catch {
+      // El detalle queda en el diagnostico ACC.
+    }
+  }
+  quickSightAccBrowserState.projects = dedupeQuickSightAccProjects(resolvedProjects).sort((left, right) => left.name.localeCompare(right.name, "es"));
+  quickSightAccBrowserState.activeHubId = "";
+  quickSightAccBrowserState.activeHubName = "";
+  quickSightAccBrowserState.activeProjectId = "";
+  quickSightAccBrowserState.activeProjectName = "";
+  quickSightAccBrowserState.entries = [];
+  quickSightAccBrowserState.breadcrumb = [];
+  quickSightAccBrowserState.selectedModel = null;
+  renderQuickSightAccBrowser();
+  if (quickSightAccBrowserState.projects.length > 0) {
+    setQuickSightAccDebugReport(`Diagnostico no requerido. ${quickSightAccBrowserState.projects.length} proyecto(s) cargados via ${resolvedVia || "APS"}.`);
+    setQuickSightAccBrowserStatus(`${quickSightAccBrowserState.projects.length} proyecto(s) ACC disponibles via ${resolvedVia || "APS"}.`);
+    const preferredProject = quickSightAccBrowserState.projects.find((project) => Number(project.entriesCount || 0) > 0)
+      || (quickSightAccBrowserState.projects.length === 1 ? quickSightAccBrowserState.projects[0] : null);
+    if (preferredProject) {
+      try {
+        await loadQuickSightAccProjectTopFolders(preferredProject.id);
+      } catch (error) {
+        setQuickSightAccBrowserStatus(`Proyecto cargado, pero no se pudieron abrir sus carpetas: ${String(error.message || error)}`);
+      }
+    }
+  } else {
+    setQuickSightAccBrowserStatus(`APS conecto, pero no devolvio proyectos ni por Data Management, ni por ACC Admin, ni por extract local para Client ID ${clientIdLabel || "(sin client id)"}. Usa Debug ACC para ver el detalle tecnico.`);
+    void debugQuickSightAccBrowser({ preserveStatus: true }).catch(() => {});
+  }
+}
+
+async function debugQuickSightAccBrowser(options = {}) {
+  const preserveStatus = !!options.preserveStatus;
+  const report = {
+    timestamp: new Date().toISOString(),
+    aps: {
+      configured: !!quickSightApsStatus.configured,
+      authenticated: !!quickSightApsStatus.authenticated,
+      clientId: trimOrFallback(quickSightApsStatus.clientId, ""),
+      callbackUrl: trimOrFallback(quickSightApsStatus.callbackUrl, ""),
+      userName: trimOrFallback(quickSightApsStatus.userName, ""),
+      userEmail: trimOrFallback(quickSightApsStatus.userEmail, ""),
+      userId: trimOrFallback(quickSightApsStatus.userId, ""),
+      tokenClaims: quickSightApsStatus.tokenClaims || null,
+      scopes: Array.isArray(quickSightApsStatus.scopes) ? quickSightApsStatus.scopes.slice() : []
+    },
+    hubs: [],
+    adminAccounts: [],
+    errors: []
+  };
+  setQuickSightAccBrowserStatus("Ejecutando diagnostico ACC...");
+  setQuickSightAccDebugReport("Ejecutando diagnostico ACC...");
+  try {
+    const hubsPayload = await requestQuickSightApsProxy("/project/v1/hubs", { method: "GET" });
+    const hubs = Array.isArray(hubsPayload?.data) ? hubsPayload.data : [];
+    report.hubCount = hubs.length;
+    for (const hub of hubs) {
+      const hubId = trimOrFallback(hub?.id, "");
+      const hubInfo = {
+        id: hubId,
+        name: getQuickSightAccDisplayName(hub),
+        extensionType: trimOrFallback(hub?.attributes?.extension?.type, ""),
+        projectsCount: 0,
+        sampleProjects: []
+      };
+      if (hubId) {
+        try {
+          const projectsPayload = await requestQuickSightApsProxy(`/project/v1/hubs/${encodeURIComponent(hubId)}/projects`, { method: "GET" });
+          const projects = Array.isArray(projectsPayload?.data) ? projectsPayload.data : [];
+          hubInfo.projectsCount = projects.length;
+          hubInfo.sampleProjects = projects.slice(0, 10).map((project) => ({
+            id: trimOrFallback(project?.id, ""),
+            name: getQuickSightAccDisplayName(project),
+            extensionType: trimOrFallback(project?.attributes?.extension?.type, "")
+          }));
+        } catch (error) {
+          hubInfo.projectsError = String(error.message || error);
+        }
+      }
+      report.hubs.push(hubInfo);
+    }
+    const adminGlobalProjectsResult = await requestQuickSightAccAdminProjectsGlobal();
+    report.adminGlobalProjectsEndpoint = adminGlobalProjectsResult.endpoint || "";
+    report.adminGlobalProjectsErrors = Array.isArray(adminGlobalProjectsResult.errors) ? adminGlobalProjectsResult.errors.slice() : [];
+    report.adminGlobalProjectsCount = adminGlobalProjectsResult.projects.length;
+    report.adminGlobalSampleProjects = adminGlobalProjectsResult.projects.slice(0, 10).map((project) => ({
+      id: trimOrFallback(project.id, ""),
+      dataProjectId: trimOrFallback(project.dataProjectId, ""),
+      accountId: trimOrFallback(project.accountId, ""),
+      name: trimOrFallback(project.name, ""),
+      sourceEndpoint: trimOrFallback(project.sourceEndpoint, "")
+    }));
+    const adminAccountsResult = await requestQuickSightAccAdminAccounts();
+    report.adminAccountsEndpoint = adminAccountsResult.endpoint || "";
+    report.adminAccountsErrors = Array.isArray(adminAccountsResult.errors) ? adminAccountsResult.errors.slice() : [];
+    report.adminAccountsCount = adminAccountsResult.accounts.length;
+    for (const account of adminAccountsResult.accounts) {
+      const accountInfo = {
+        id: trimOrFallback(account.id, ""),
+        hubId: trimOrFallback(account.hubId, ""),
+        name: trimOrFallback(account.name, ""),
+        region: trimOrFallback(account.region, ""),
+        projectsCount: 0,
+        sampleProjects: []
+      };
+      const projectsResult = await requestQuickSightAccAdminProjects(account);
+      accountInfo.projectsCount = projectsResult.projects.length;
+      accountInfo.projectsEndpoint = projectsResult.endpoint || "";
+      accountInfo.projectsErrors = Array.isArray(projectsResult.errors) ? projectsResult.errors.slice() : [];
+      accountInfo.sampleProjects = projectsResult.projects.slice(0, 10).map((project) => ({
+        id: trimOrFallback(project.id, ""),
+        name: trimOrFallback(project.name, ""),
+        classification: trimOrFallback(project.classification, "")
+      }));
+      report.adminAccounts.push(accountInfo);
+    }
+    try {
+      const localExtract = await requestQuickSightAccLocalExtractSummary();
+      report.localExtract = {
+        available: !!localExtract.available,
+        dir: trimOrFallback(localExtract.dir, ""),
+        accountsCount: Array.isArray(localExtract.accounts) ? localExtract.accounts.length : 0,
+        projectsCount: Array.isArray(localExtract.projects) ? localExtract.projects.length : 0,
+        sampleProjects: Array.isArray(localExtract.projects)
+          ? localExtract.projects.slice(0, 10).map((project) => ({
+              id: trimOrFallback(project.id, ""),
+              accountId: trimOrFallback(project.accountId, ""),
+              name: trimOrFallback(project.name, ""),
+              classification: trimOrFallback(project.classification, "")
+            }))
+          : []
+      };
+    } catch (error) {
+      report.localExtract = {
+        available: false,
+        error: String(error.message || error)
+      };
+    }
+  } catch (error) {
+    report.errors.push(String(error.message || error));
+  }
+  const hasProjects = report.hubs.some((hub) => Number(hub.projectsCount || 0) > 0)
+    || Number(report.adminGlobalProjectsCount || 0) > 0
+    || report.adminAccounts.some((account) => Number(account.projectsCount || 0) > 0);
+  setQuickSightAccDebugReport(JSON.stringify(report, null, 2));
+  if (els.qsAccDebugPanel instanceof HTMLDetailsElement) {
+    els.qsAccDebugPanel.open = true;
+  }
+  if (!preserveStatus) {
+    setQuickSightAccBrowserStatus(
+      hasProjects
+        ? "Diagnostico ACC listo. Revisa el panel de diagnostico para ver hubs y proyectos."
+        : "Diagnostico ACC listo. Revisa el panel para ver la respuesta cruda de hubs y proyectos por hub."
+    );
+  }
+}
+
+async function loadQuickSightAccProjectTopFolders(projectId) {
+  const project = quickSightAccBrowserState.projects.find((item) => item.id === projectId);
+  if (!project) {
+    return;
+  }
+  setQuickSightAccBrowserStatus(`Cargando carpetas de ${project.name}...`);
+  const topFolderAttempts = [
+    {
+      hubId: trimOrFallback(project.hubId, ""),
+      projectId: trimOrFallback(project.dataProjectId || project.id, "")
+    },
+    {
+      hubId: trimOrFallback(project.hubId, ""),
+      projectId: trimOrFallback(project.id, "")
+    }
+  ].filter((attempt) => !!attempt.hubId && !!attempt.projectId);
+  let payload = null;
+  let lastError = null;
+  for (const attempt of topFolderAttempts) {
+    try {
+      payload = await requestQuickSightApsProxy(
+        `/project/v1/hubs/${encodeURIComponent(attempt.hubId)}/projects/${encodeURIComponent(attempt.projectId)}/topFolders`,
+        { method: "GET" }
+      );
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!payload) {
+    const localEntriesPayload = await requestQuickSightAccLocalProjectEntries(project.dataProjectId || project.id).catch(() => null);
+    const localEntries = Array.isArray(localEntriesPayload?.entries) ? localEntriesPayload.entries : [];
+    if (localEntries.length > 0) {
+      quickSightAccBrowserState.activeHubId = project.hubId;
+      quickSightAccBrowserState.activeHubName = project.hubName;
+      quickSightAccBrowserState.activeProjectId = trimOrFallback(project.dataProjectId || project.id, "");
+      quickSightAccBrowserState.activeProjectName = project.name;
+      quickSightAccBrowserState.entries = localEntries;
+      quickSightAccBrowserState.breadcrumb = [];
+      quickSightAccBrowserState.selectedModel = null;
+      renderQuickSightAccBrowser();
+      setQuickSightAccBrowserStatus(`Explorando ${project.name} con modelos detectados en exportes locales.`);
+      return;
+    }
+    quickSightAccBrowserState.activeHubId = project.hubId;
+    quickSightAccBrowserState.activeHubName = project.hubName;
+    quickSightAccBrowserState.activeProjectId = trimOrFallback(project.dataProjectId || project.id, "");
+    quickSightAccBrowserState.activeProjectName = project.name;
+    quickSightAccBrowserState.entries = [];
+    quickSightAccBrowserState.breadcrumb = [];
+    quickSightAccBrowserState.selectedModel = null;
+    renderQuickSightAccBrowser();
+    setQuickSightAccBrowserStatus(`Explorando ${project.name}, pero no se detectaron carpetas ni modelos locales para este proyecto.`);
+    throw lastError || new Error("No se pudieron resolver las carpetas del proyecto ACC.");
+  }
+  quickSightAccBrowserState.activeHubId = project.hubId;
+  quickSightAccBrowserState.activeHubName = project.hubName;
+  quickSightAccBrowserState.activeProjectId = trimOrFallback(project.dataProjectId || project.id, "");
+  quickSightAccBrowserState.activeProjectName = project.name;
+  quickSightAccBrowserState.entries = buildQuickSightAccEntries(payload, {
+    projectId: project.id,
+    projectName: project.name,
+    hubId: project.hubId,
+    hubName: project.hubName
+  });
+  quickSightAccBrowserState.breadcrumb = [];
+  quickSightAccBrowserState.selectedModel = null;
+  renderQuickSightAccBrowser();
+  setQuickSightAccBrowserStatus(`Explorando ${project.name}.`);
+}
+
+async function loadQuickSightAccFolderContents(folderId, folderName) {
+  const projectId = trimOrFallback(quickSightAccBrowserState.activeProjectId, "");
+  if (!projectId || !folderId) {
+    return;
+  }
+  const payload = await requestQuickSightApsProxy(
+    `/data/v1/projects/${encodeURIComponent(projectId)}/folders/${encodeURIComponent(folderId)}/contents`,
+    { method: "GET" }
+  );
+  quickSightAccBrowserState.entries = buildQuickSightAccEntries(payload, {
+    projectId,
+    projectName: quickSightAccBrowserState.activeProjectName,
+    hubId: quickSightAccBrowserState.activeHubId,
+    hubName: quickSightAccBrowserState.activeHubName
+  });
+  quickSightAccBrowserState.breadcrumb.push({
+    id: folderId,
+    name: folderName
+  });
+  quickSightAccBrowserState.selectedModel = null;
+  renderQuickSightAccBrowser();
+  setQuickSightAccBrowserStatus(`Carpeta: ${folderName}.`);
+}
+
+async function goBackQuickSightAccFolder() {
+  if (quickSightAccBrowserState.breadcrumb.length === 0) {
+    return;
+  }
+  const nextBreadcrumb = quickSightAccBrowserState.breadcrumb.slice(0, -1);
+  quickSightAccBrowserState.breadcrumb = [];
+  if (nextBreadcrumb.length === 0) {
+    await loadQuickSightAccProjectTopFolders(quickSightAccBrowserState.activeProjectId);
+    return;
+  }
+  await loadQuickSightAccProjectTopFolders(quickSightAccBrowserState.activeProjectId);
+  for (const crumb of nextBreadcrumb) {
+    await loadQuickSightAccFolderContents(crumb.id, crumb.name);
+  }
+}
+
+async function resolveQuickSightModelGuid(modelLike) {
+  const explicitGuid = trimOrFallback(modelLike?.modelGuid, "");
+  if (explicitGuid) {
+    return explicitGuid;
+  }
+  const viewerUrn = trimOrFallback(modelLike?.viewerUrn, "");
+  if (!viewerUrn) {
+    throw new Error("Ingresa el Viewer URN del modelo.");
+  }
+  const metadataPayload = await requestQuickSightApsProxy(
+    `/modelderivative/v2/designdata/${encodeURIComponent(viewerUrn)}/metadata`,
+    {
+      method: "GET",
+      headers: getQuickSightModelApsHeaders(modelLike)
+    }
+  );
+  const metadataList = Array.isArray(metadataPayload?.data?.metadata)
+    ? metadataPayload.data.metadata
+    : (Array.isArray(metadataPayload?.metadata) ? metadataPayload.metadata : []);
+  const preferredEntry = metadataList.find((item) => trimOrFallback(item.role, "").toLowerCase() === "3d")
+    || metadataList.find((item) => trimOrFallback(item.type, "").toLowerCase().includes("geometry"))
+    || metadataList[0];
+  const resolvedGuid = trimOrFallback(preferredEntry?.guid, "");
+  if (!resolvedGuid) {
+    throw new Error("APS no devolvio GUID util para el modelo.");
+  }
+  if (els.qsModelGuidInput instanceof HTMLInputElement) {
+    els.qsModelGuidInput.value = resolvedGuid;
+  }
+  return resolvedGuid;
+}
+
+async function syncQuickSightModelPropertiesFromAps() {
+  await refreshQuickSightApsStatus({ silent: true });
+  if (!quickSightApsStatus.configured || !quickSightApsStatus.authenticated) {
+    setStatus("Conecta APS antes de sincronizar propiedades del modelo.");
+    return false;
+  }
+  const draft = getQuickSightModelDraftFromForm();
+  if (!draft.viewerUrn) {
+    setStatus("Ingresa el Viewer URN del modelo ACC / RVT.");
+    return false;
+  }
+  try {
+    const guid = await resolveQuickSightModelGuid(draft);
+    const propertiesPayload = await requestQuickSightApsProxy(
+      `/modelderivative/v2/designdata/${encodeURIComponent(draft.viewerUrn)}/metadata/${encodeURIComponent(guid)}/properties?forceget=true`,
+      {
+        method: "GET",
+        headers: getQuickSightModelApsHeaders({
+          ...draft,
+          modelGuid: guid
+        })
+      }
+    );
+    if (els.qsModelPropertiesJsonInput instanceof HTMLTextAreaElement) {
+      els.qsModelPropertiesJsonInput.value = JSON.stringify(propertiesPayload, null, 2);
+    }
+    const collection = extractAnalyticsModelPayloadRows(propertiesPayload);
+    setStatus(`Propiedades APS sincronizadas: ${collection.length} fila(s) del modelo.`);
+    return true;
+  } catch (error) {
+    setStatus(`No se pudo sincronizar APS: ${String(error.message || error)}`);
+    return false;
+  }
+}
+
+function resetQuickSightModelLinkForm() {
+  quickSightModelLinkEditingId = "";
+  resetQuickSightAccBrowserState();
+  if (els.qsModelNameInput instanceof HTMLInputElement) {
+    els.qsModelNameInput.value = "";
+  }
+  if (els.qsModelTypeSelect instanceof HTMLSelectElement) {
+    els.qsModelTypeSelect.value = "acc-rvt";
+  }
+  if (els.qsModelProjectIdInput instanceof HTMLInputElement) {
+    els.qsModelProjectIdInput.value = "";
+  }
+  if (els.qsModelVersionUrnInput instanceof HTMLInputElement) {
+    els.qsModelVersionUrnInput.value = "";
+  }
+  if (els.qsModelViewerUrnInput instanceof HTMLInputElement) {
+    els.qsModelViewerUrnInput.value = "";
+  }
+  if (els.qsModelGuidInput instanceof HTMLInputElement) {
+    els.qsModelGuidInput.value = "";
+  }
+  if (els.qsModelScopesInput instanceof HTMLInputElement) {
+    els.qsModelScopesInput.value = "";
+  }
+  if (els.qsModelNamespaceSelect instanceof HTMLSelectElement) {
+    els.qsModelNamespaceSelect.value = "WIPDM";
+  }
+  if (els.qsModelPropertiesJsonInput instanceof HTMLTextAreaElement) {
+    els.qsModelPropertiesJsonInput.value = "";
+  }
+  renderQuickSightAccBrowser();
+  setQuickSightAccBrowserStatus("Conecta APS para listar proyectos y navegar sus carpetas.");
+}
+
+function populateQuickSightModelLinkForm(model) {
+  resetQuickSightModelLinkForm();
+  if (!model || typeof model !== "object") {
+    return;
+  }
+  quickSightModelLinkEditingId = trimOrFallback(model.id, "");
+  if (els.qsModelNameInput instanceof HTMLInputElement) {
+    els.qsModelNameInput.value = trimOrFallback(model.name, "");
+  }
+  if (els.qsModelTypeSelect instanceof HTMLSelectElement) {
+    els.qsModelTypeSelect.value = trimOrFallback(model.type, "acc-rvt");
+  }
+  if (els.qsModelProjectIdInput instanceof HTMLInputElement) {
+    els.qsModelProjectIdInput.value = trimOrFallback(model.accProjectId, "");
+  }
+  if (els.qsModelVersionUrnInput instanceof HTMLInputElement) {
+    els.qsModelVersionUrnInput.value = trimOrFallback(model.versionUrn, "");
+  }
+  if (els.qsModelViewerUrnInput instanceof HTMLInputElement) {
+    els.qsModelViewerUrnInput.value = trimOrFallback(model.viewerUrn, "");
+  }
+  if (els.qsModelGuidInput instanceof HTMLInputElement) {
+    els.qsModelGuidInput.value = trimOrFallback(model.modelGuid, "");
+  }
+  if (els.qsModelScopesInput instanceof HTMLInputElement) {
+    els.qsModelScopesInput.value = trimOrFallback(model.accScopes, "");
+  }
+  if (els.qsModelNamespaceSelect instanceof HTMLSelectElement) {
+    els.qsModelNamespaceSelect.value = trimOrFallback(model.accNamespace, "WIPDM") || "WIPDM";
+  }
+  if (els.qsModelPropertiesJsonInput instanceof HTMLTextAreaElement && Array.isArray(model.propertyRows) && model.propertyRows.length > 0) {
+    els.qsModelPropertiesJsonInput.value = JSON.stringify(model.propertyRows, null, 2);
+  }
+  quickSightAccBrowserState.selectedModel = {
+    id: trimOrFallback(model.id, ""),
+    name: trimOrFallback(model.name, ""),
+    type: trimOrFallback(model.type, "acc-rvt"),
+    projectId: trimOrFallback(model.accProjectId, ""),
+    projectName: trimOrFallback(model.datasetLabel || model.name, ""),
+    viewerUrn: trimOrFallback(model.viewerUrn, ""),
+    versionUrn: trimOrFallback(model.versionUrn, ""),
+    accScopes: trimOrFallback(model.accScopes, ""),
+    pathLabel: "Modelo ya vinculado"
+  };
+  renderQuickSightAccSelectedModelCard();
+}
+
+function openQuickSightModelLinkDrawer(modelId = "") {
+  const project = getActiveProject();
+  if (!project || !(els.qsModelLinkOverlay instanceof HTMLElement)) {
+    return;
+  }
+  ensureQuickSightState(project);
+  const model = modelId
+    ? (Array.isArray(project.accModels)
+      ? project.accModels.find((item) => trimOrFallback(item.id, "") === trimOrFallback(modelId, ""))
+      : null)
+    : null;
+  populateQuickSightModelLinkForm(model);
+  els.qsModelLinkOverlay.classList.remove("hidden");
+  els.qsModelLinkOverlay.classList.add("open");
+  document.body.classList.add("no-scroll");
+  void (async () => {
+    const status = await refreshQuickSightApsStatus({ silent: true });
+    if (status.configured && status.authenticated) {
+      try {
+        await loadQuickSightAccProjects();
+      } catch (error) {
+        setQuickSightAccBrowserStatus(`No se pudieron cargar proyectos ACC: ${String(error.message || error)}`);
+      }
+    }
+  })();
+}
+
+function closeQuickSightModelLinkDrawer() {
+  if (!(els.qsModelLinkOverlay instanceof HTMLElement)) {
+    return;
+  }
+  els.qsModelLinkOverlay.classList.add("hidden");
+  els.qsModelLinkOverlay.classList.remove("open");
+  document.body.classList.remove("no-scroll");
+}
+
+function parseQuickSightModelPropertiesPayload(rawText) {
+  const text = trimOrFallback(rawText, "");
+  if (!text) {
+    return { schemaFields: [], propertyRows: [] };
+  }
+  const payload = JSON.parse(text);
+  const rows = extractAnalyticsModelPayloadRows(payload);
+  const schemaFields = deriveAnalyticsModelSchemaFieldsFromRawRows(rows);
+  const propertyRows = normalizeAnalyticsModelPropertyRows(rows, schemaFields);
+  return { schemaFields, propertyRows };
+}
+
+function saveQuickSightModelFromDrawer() {
+  const project = getActiveProject();
+  if (!project) {
+    return false;
+  }
+  ensureQuickSightState(project);
+  const name = trimOrFallback(els.qsModelNameInput?.value, "");
+  if (!name) {
+    setStatus("Ingresa un nombre para el modelo ACC / RVT.");
+    return false;
+  }
+  const existing = quickSightModelLinkEditingId
+    ? project.accModels.find((item) => trimOrFallback(item.id, "") === quickSightModelLinkEditingId)
+    : null;
+  let parsedPayload = { schemaFields: [], propertyRows: [] };
+  const rawPropertiesJson = trimOrFallback(els.qsModelPropertiesJsonInput?.value || "", "");
+  if (rawPropertiesJson) {
+    try {
+      parsedPayload = parseQuickSightModelPropertiesPayload(rawPropertiesJson);
+    } catch {
+      setStatus("El JSON de propiedades APS no es valido.");
+      return false;
+    }
+  } else if (existing) {
+    parsedPayload = {
+      schemaFields: Array.isArray(existing.schemaFields) ? existing.schemaFields.slice() : [],
+      propertyRows: Array.isArray(existing.propertyRows) ? existing.propertyRows.slice() : []
+    };
+  }
+  const normalized = normalizeAccModelEntry({
+    id: existing?.id || quickSightModelLinkEditingId || uid(),
+    name,
+    type: trimOrFallback(els.qsModelTypeSelect?.value, "acc-rvt"),
+    accProjectId: trimOrFallback(els.qsModelProjectIdInput?.value, ""),
+    versionUrn: trimOrFallback(els.qsModelVersionUrnInput?.value, ""),
+    viewerUrn: trimOrFallback(els.qsModelViewerUrnInput?.value, ""),
+    modelGuid: trimOrFallback(els.qsModelGuidInput?.value, ""),
+    accScopes: trimOrFallback(els.qsModelScopesInput?.value, ""),
+    accNamespace: trimOrFallback(els.qsModelNamespaceSelect?.value, "WIPDM"),
+    source: existing?.source || `model:${slugify(name) || uid()}`,
+    datasetLabel: name,
+    schemaFields: parsedPayload.schemaFields,
+    propertyRows: parsedPayload.propertyRows,
+    importedAt: parsedPayload.propertyRows.length > 0 ? new Date().toISOString() : (existing?.importedAt || "")
+  });
+  const nextModels = Array.isArray(project.accModels) ? project.accModels.slice() : [];
+  const existingIndex = nextModels.findIndex((item) => trimOrFallback(item.id, "") === normalized.id);
+  if (existingIndex >= 0) {
+    nextModels[existingIndex] = normalized;
+  } else {
+    nextModels.push(normalized);
+  }
+  project.accModels = normalizeAccModels(nextModels);
+  project.quickSightConfig.source = normalizeQuickSightSourceSelection(project, normalized.source, queryQuickSightProjectRows(project));
+  if (!selectedQuickSightVisualId && project.quickSightVisuals.length === 0) {
+    project.quickSightConfig.chartType = "viewer";
+  }
+  saveState();
+  renderQuickSightPanel(project, { softSelect: true, allowEmptySelection: true });
+  closeQuickSightModelLinkDrawer();
+  setStatus(parsedPayload.propertyRows.length > 0
+    ? `Modelo ${normalized.name} vinculado con ${parsedPayload.propertyRows.length} filas APS.`
+    : `Modelo ${normalized.name} vinculado. Luego podras importar propiedades APS o sincronizarlas por backend.`);
+  return true;
+}
+
+function removeQuickSightModel(project, modelId) {
+  if (!project || !Array.isArray(project.accModels) || !modelId) {
+    return false;
+  }
+  const before = project.accModels.length;
+  const removedModel = project.accModels.find((item) => trimOrFallback(item.id, "") === trimOrFallback(modelId, ""));
+  const removedSource = normalizeAnalyticsSource(removedModel?.source || "");
+  project.accModels = project.accModels.filter((item) => trimOrFallback(item.id, "") !== trimOrFallback(modelId, ""));
+  if (project.accModels.length === before) {
+    return false;
+  }
+  const availableSource = normalizeQuickSightSourceSelection(project, project.quickSightConfig.source, queryQuickSightProjectRows(project));
+  if (normalizeAnalyticsSource(project.quickSightConfig.source || "") === removedSource) {
+    project.quickSightConfig.source = availableSource;
+  }
+  project.quickSightVisuals.forEach((visual) => {
+    if (normalizeAnalyticsSource(visual.source || "") === removedSource) {
+      visual.source = availableSource;
+    }
+  });
+  return true;
+}
+
+function renderQuickSightModelRegistry(project, selectedSource = "") {
+  if (!(els.qsModelsList instanceof HTMLElement) || !(els.qsModelsStatusText instanceof HTMLElement)) {
+    return;
+  }
+  const models = Array.isArray(project?.accModels) ? project.accModels : [];
+  if (models.length === 0) {
+    els.qsModelsStatusText.textContent = "Sin modelos vinculados.";
+    els.qsModelsList.innerHTML = "<div class=\"qs-empty\">Vincula un modelo ACC / RVT para usarlo como dataset o visor.</div>";
+    return;
+  }
+  els.qsModelsStatusText.textContent = `${models.length} modelo(s) vinculados.`;
+  const activeSource = normalizeAnalyticsSource(selectedSource || "");
+  els.qsModelsList.innerHTML = models
+    .map((model) => {
+      const modelSource = normalizeAnalyticsSource(model.source || "");
+      const rowsCount = Array.isArray(model.propertyRows) ? model.propertyRows.length : 0;
+      const activeClass = modelSource === activeSource ? " active" : "";
+      return `<article class="qs-model-card${activeClass}">
+        <div class="qs-model-card-main">
+          <strong>${escapeHtml(trimOrFallback(model.name, "Modelo"))}</strong>
+          <p class="muted">${escapeHtml(trimOrFallback(model.type, "acc-rvt"))} | ${rowsCount} fila(s)</p>
+        </div>
+        <div class="inline-actions qs-model-card-actions">
+          <button type="button" class="secondary" data-qs-model-action="use" data-qs-model-id="${escapeAttribute(model.id)}" data-qs-model-source="${escapeAttribute(modelSource)}">Usar</button>
+          <button type="button" class="secondary" data-qs-model-action="sync" data-qs-model-id="${escapeAttribute(model.id)}">Sync APS</button>
+          <button type="button" class="secondary" data-qs-model-action="edit" data-qs-model-id="${escapeAttribute(model.id)}">Editar</button>
+          <button type="button" class="secondary" data-qs-model-action="remove" data-qs-model-id="${escapeAttribute(model.id)}">Quitar</button>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
+function getAnalyticsFieldRowData(fields, fieldId, rowId) {
   if (!fieldId || !rowId) {
     return { name: "", code: "", label: "" };
   }
@@ -10760,10 +12941,10 @@ function isBiFixedField(field) {
   if (!token) {
     return false;
   }
-  return Array.from(BI_FIXED_FIELD_ALIASES).some((alias) => token.includes(alias));
+  return Array.from(ANALYTICS_FIXED_FIELD_ALIASES).some((alias) => token.includes(alias));
 }
 
-function getBiCustomFieldDefs(project) {
+function getAnalyticsCustomFieldDefs(project) {
   if (!project || !Array.isArray(project.fields)) {
     return [];
   }
@@ -10773,9 +12954,9 @@ function getBiCustomFieldDefs(project) {
     .filter((field) => !!field.id);
 }
 
-function getBiCustomValuesFromRefs(project, rowRefs) {
+function getAnalyticsCustomValuesFromRefs(project, rowRefs) {
   const values = {};
-  const customFields = getBiCustomFieldDefs(project);
+  const customFields = getAnalyticsCustomFieldDefs(project);
   customFields.forEach((field) => {
     const fieldEntity = getFieldById(project.fields, field.id);
     const rowId = trimOrFallback(rowRefs?.[field.id], "");
@@ -10785,7 +12966,111 @@ function getBiCustomValuesFromRefs(project, rowRefs) {
   return values;
 }
 
-function getBiGroupByOptions(project) {
+function getAnalyticsExternalSchemaFieldDefs(project, source = "") {
+  const safeProject = project && typeof project === "object" ? project : null;
+  if (!safeProject) {
+    return [];
+  }
+  const selectedSource = normalizeAnalyticsSource(source || "");
+  const collections = [
+    safeProject.accModels,
+    safeProject.analyticsSources,
+    safeProject.externalSources,
+    safeProject.modelDatasets,
+    safeProject.accModelSources,
+    safeProject.rvtModels
+  ];
+  const result = [];
+  const seen = new Set();
+  collections.forEach((collection) => {
+    if (!Array.isArray(collection)) {
+      return;
+    }
+    collection.forEach((item) => {
+      if (!item || typeof item !== "object") {
+        return;
+      }
+      const itemSource = normalizeAnalyticsSource(
+        item.source
+        || item.datasetSource
+        || item.analyticsSource
+        || item.id
+        || ""
+      );
+      if (!itemSource || itemSource === "all") {
+        return;
+      }
+      if (selectedSource && selectedSource !== "all" && itemSource !== selectedSource) {
+        return;
+      }
+      const schemaFields = Array.isArray(item.schemaFields)
+        ? item.schemaFields
+        : (Array.isArray(item.fields) ? item.fields : []);
+      schemaFields.forEach((field, index) => {
+        const id = normalizeAnalyticsModelFieldId(field?.id || field?.label || field?.name, index);
+        if (seen.has(id)) {
+          return;
+        }
+        seen.add(id);
+        result.push({
+          id,
+          label: trimOrFallback(field?.label || field?.name, `Campo ${index + 1}`),
+          type: trimOrFallback(field?.type, "text"),
+          source: itemSource
+        });
+      });
+    });
+  });
+  return result;
+}
+
+function getAnalyticsModelEntryBySource(project, source = "") {
+  const safeProject = project && typeof project === "object" ? project : null;
+  if (!safeProject) {
+    return null;
+  }
+  const token = normalizeAnalyticsSource(source || "");
+  if (!token || token === "all") {
+    return null;
+  }
+  const collections = [
+    safeProject.accModels,
+    safeProject.analyticsSources,
+    safeProject.externalSources,
+    safeProject.modelDatasets,
+    safeProject.accModelSources,
+    safeProject.rvtModels
+  ];
+  for (const collection of collections) {
+    if (!Array.isArray(collection)) {
+      continue;
+    }
+    const match = collection.find((item) => normalizeAnalyticsSource(
+      item?.source
+      || item?.datasetSource
+      || item?.analyticsSource
+      || item?.id
+      || ""
+    ) === token);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+function getAnalyticsGroupByOptions(project, source = "") {
+  const selectedSource = normalizeAnalyticsSource(source || "");
+  const externalFields = getAnalyticsExternalSchemaFieldDefs(project, selectedSource);
+  if (selectedSource && !new Set(["all", "deliverable", "package", "review-control"]).has(selectedSource) && externalFields.length > 0) {
+    return [
+      { value: "fuente", label: "Fuente" },
+      ...externalFields.map((field) => ({
+        value: `field:${field.id}`,
+        label: field.label
+      }))
+    ];
+  }
   const fixed = [
     { value: "disciplina", label: "Disciplina" },
     { value: "sistema", label: "Sistema" },
@@ -10801,19 +13086,22 @@ function getBiGroupByOptions(project) {
     { value: "mes_inicio", label: "Mes de inicio" },
     { value: "mes_fin", label: "Mes de fin" }
   ];
-  const custom = getBiCustomFieldDefs(project).map((field) => ({
+  const custom = getAnalyticsCustomFieldDefs(project).map((field) => ({
     value: `field:${field.id}`,
     label: field.label
   }));
-  return [...fixed, ...custom];
+  return [...fixed, ...custom, ...externalFields.map((field) => ({
+    value: `field:${field.id}`,
+    label: field.label
+  }))];
 }
 
-function normalizeBiOptionalMetric(value) {
+function normalizeAnalyticsOptionalMetric(value) {
   const metric = trimOrFallback(value, "");
-  return metric ? normalizeBiMetric(metric) : "";
+  return metric ? normalizeAnalyticsMetric(metric) : "";
 }
 
-function normalizeBiDateRole(value) {
+function normalizeAnalyticsDateRole(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   if (!token) {
     return "";
@@ -10830,12 +13118,12 @@ function normalizeBiDateRole(value) {
   return "";
 }
 
-function normalizeBiOptionalGroupBy(value) {
+function normalizeAnalyticsOptionalGroupBy(value) {
   const token = trimOrFallback(value, "");
   if (!token) {
     return "";
   }
-  return normalizeBiGroupBy(token);
+  return normalizeAnalyticsGroupBy(token);
 }
 
 function hasOwnObjectKey(value, key) {
@@ -10849,9 +13137,9 @@ function getOwnObjectValue(value, key, fallback = undefined) {
   return hasOwnObjectKey(value, key) ? value[key] : fallback;
 }
 
-function getBiChartCapabilities(chartType) {
-  const type = normalizeBiChartType(chartType || "bar");
-  const noAxisTypes = new Set(["pie", "donut", "treemap", "funnel", "gauge", "scorecard", "table", "pivot", "sankey", "timeline"]);
+function getAnalyticsChartCapabilities(chartType) {
+  const type = normalizeAnalyticsChartType(chartType || "bar");
+  const noAxisTypes = new Set(["pie", "donut", "treemap", "funnel", "gauge", "scorecard", "table", "pivot", "sankey", "timeline", "viewer"]);
   const legendTypes = new Set(["pie", "donut"]);
   const stackTypes = new Set(["bar", "bar_horizontal", "bar_stacked", "area", "combo"]);
   const breakdownTypes = new Set([
@@ -10881,15 +13169,15 @@ function getBiChartCapabilities(chartType) {
   };
 }
 
-function buildBiDataRolesFromBuilderInput(project, sourceWidget = null) {
-  const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || sourceWidget?.chartType || "bar");
-  const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || sourceWidget?.groupBy || "disciplina");
-  const metric = normalizeBiMetric(els.biWidgetMetricSelect?.value || sourceWidget?.metric || "count");
-  const defaults = buildBiDefaultDataRoles({ groupBy, metric, chartType });
-  const capabilities = getBiChartCapabilities(chartType);
-  const breakdownRaw = normalizeBiGroupBy(els.biWidgetBreakdownSelect?.value || sourceWidget?.dataRoles?.breakdownDimension || "");
-  const optionalMetricRaw = normalizeBiOptionalMetric(els.biWidgetOptionalMetricSelect?.value || sourceWidget?.dataRoles?.optionalMetrics?.[0] || "");
-  const dateRaw = normalizeBiDateRole(els.biWidgetDateDimensionSelect?.value || sourceWidget?.dataRoles?.dateDimension || "");
+function buildAnalyticsDataRolesFromBuilderInput(project, sourceWidget = null) {
+  const chartType = normalizeAnalyticsChartType(els.legacyStudioWidgetChartTypeSelect?.value || sourceWidget?.chartType || "bar");
+  const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect?.value || sourceWidget?.groupBy || "disciplina");
+  const metric = normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect?.value || sourceWidget?.metric || "count");
+  const defaults = buildAnalyticsDefaultDataRoles({ groupBy, metric, chartType });
+  const capabilities = getAnalyticsChartCapabilities(chartType);
+  const breakdownRaw = normalizeAnalyticsGroupBy(els.legacyStudioWidgetBreakdownSelect?.value || sourceWidget?.dataRoles?.breakdownDimension || "");
+  const optionalMetricRaw = normalizeAnalyticsOptionalMetric(els.legacyStudioWidgetOptionalMetricSelect?.value || sourceWidget?.dataRoles?.optionalMetrics?.[0] || "");
+  const dateRaw = normalizeAnalyticsDateRole(els.legacyStudioWidgetDateDimensionSelect?.value || sourceWidget?.dataRoles?.dateDimension || "");
   const breakdownDimension = capabilities.supportsBreakdown
     ? (breakdownRaw || defaults.breakdownDimension || "")
     : null;
@@ -10899,7 +13187,7 @@ function buildBiDataRolesFromBuilderInput(project, sourceWidget = null) {
   const dateDimension = capabilities.supportsDateDimension
     ? (dateRaw || defaults.dateDimension || (capabilities.requiresDateDimension ? "startDate" : ""))
     : null;
-  return normalizeBiDataRoles({
+  return normalizeAnalyticsDataRoles({
     dimensions: [groupBy],
     metrics: [metric],
     optionalMetrics,
@@ -10908,47 +13196,47 @@ function buildBiDataRolesFromBuilderInput(project, sourceWidget = null) {
   }, { groupBy, metric, chartType });
 }
 
-function refreshBiGroupByOptions(project) {
-  if (!els.biWidgetGroupBySelect) {
+function refreshAnalyticsGroupByOptions(project) {
+  if (!els.legacyStudioWidgetGroupBySelect) {
     return;
   }
-  const options = getBiGroupByOptions(project);
-  const currentValue = normalizeBiGroupBy(els.biWidgetGroupBySelect.value || "disciplina");
-  els.biWidgetGroupBySelect.innerHTML = options
+  const options = getAnalyticsGroupByOptions(project);
+  const currentValue = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect.value || "disciplina");
+  els.legacyStudioWidgetGroupBySelect.innerHTML = options
     .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
     .join("");
   const valid = options.some((item) => item.value === currentValue);
-  els.biWidgetGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
+  els.legacyStudioWidgetGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
 }
 
-function refreshBiBreakdownOptions(project) {
-  if (!els.biWidgetBreakdownSelect) {
+function refreshAnalyticsBreakdownOptions(project) {
+  if (!els.legacyStudioWidgetBreakdownSelect) {
     return;
   }
-  const options = getBiGroupByOptions(project);
-  const currentValue = normalizeBiGroupBy(els.biWidgetBreakdownSelect.value || "");
+  const options = getAnalyticsGroupByOptions(project);
+  const currentValue = normalizeAnalyticsGroupBy(els.legacyStudioWidgetBreakdownSelect.value || "");
   const rows = [{ value: "", label: "(sin breakdown)" }, ...options];
-  els.biWidgetBreakdownSelect.innerHTML = rows
+  els.legacyStudioWidgetBreakdownSelect.innerHTML = rows
     .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
     .join("");
   const valid = rows.some((item) => item.value === currentValue);
-  els.biWidgetBreakdownSelect.value = valid ? currentValue : "";
+  els.legacyStudioWidgetBreakdownSelect.value = valid ? currentValue : "";
 }
 
-function refreshBiColorGroupByOptions(project) {
-  if (!els.biColorGroupBySelect) {
+function refreshAnalyticsColorGroupByOptions(project) {
+  if (!els.legacyStudioColorGroupBySelect) {
     return;
   }
-  const options = getBiGroupByOptions(project);
-  const currentValue = normalizeBiGroupBy(els.biColorGroupBySelect.value || "disciplina");
-  els.biColorGroupBySelect.innerHTML = options
+  const options = getAnalyticsGroupByOptions(project);
+  const currentValue = normalizeAnalyticsGroupBy(els.legacyStudioColorGroupBySelect.value || "disciplina");
+  els.legacyStudioColorGroupBySelect.innerHTML = options
     .map((option) => `<option value="${escapeAttribute(option.value)}">${escapeHtml(option.label)}</option>`)
     .join("");
   const valid = options.some((item) => item.value === currentValue);
-  els.biColorGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
+  els.legacyStudioColorGroupBySelect.value = valid ? currentValue : (options[0]?.value || "disciplina");
 }
 
-const BI_VISUAL_CONTROL_IDS = [
+const ANALYTICS_VISUAL_CONTROL_IDS = [
   "biShowLegendCheckbox",
   "biShowGridCheckbox",
   "biShowAxisLabelsCheckbox",
@@ -10993,7 +13281,7 @@ const BI_VISUAL_CONTROL_IDS = [
   "biSmoothLinesCheckbox"
 ];
 
-const BI_CONFIG_SECTION_LABELS = {
+const ANALYTICS_CONFIG_SECTION_LABELS = {
   general: "General",
   axes: "Ejes",
   series: "Series",
@@ -11005,8 +13293,8 @@ const BI_CONFIG_SECTION_LABELS = {
   interaction: "Interaccion"
 };
 
-function createBiChartProfile(chartType) {
-  const type = normalizeBiChartType(chartType || "bar");
+function createAnalyticsChartProfile(chartType) {
+  const type = normalizeAnalyticsChartType(chartType || "bar");
   const common = [
     "biLabelMaxCharsInput",
     "biValueDecimalsInput",
@@ -11086,7 +13374,7 @@ function createBiChartProfile(chartType) {
     addSections(["axes", "series", "legend", "target"]);
     return { controls: all, sections, description: "Configuracion para grafico combinado (lineas + barras)." };
   }
-  if (BI_BAR_FAMILY_TYPES.has(type) || type === "pareto" || type === "waterfall") {
+  if (ANALYTICS_BAR_FAMILY_TYPES.has(type) || type === "pareto" || type === "waterfall") {
     addControls(legend);
     addControls(axes);
     addControls(["biBarWidthRatioInput", "biStackModeSelect", "biShowDataLabelsCheckbox"]);
@@ -11095,7 +13383,7 @@ function createBiChartProfile(chartType) {
     return {
       controls: all,
       sections,
-      description: BI_HORIZONTAL_BAR_TYPES.has(type)
+      description: ANALYTICS_HORIZONTAL_BAR_TYPES.has(type)
         ? "Configuracion para grafico de barras horizontales."
         : "Configuracion para grafico de barras/cartesiano."
     };
@@ -11128,7 +13416,7 @@ function createBiChartProfile(chartType) {
   if (type === "gauge" || type === "bullet") {
     addControls(["biShowDataLabelsCheckbox"]);
     addSections(["series"]);
-    return { controls: all, sections, description: "Configuración para medidor/viñeta (sin ejes/rejilla)." };
+    return { controls: all, sections, description: "ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n para medidor/viÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±eta (sin ejes/rejilla)." };
   }
   if (type === "boxplot" || type === "candlestick") {
     addControls(axes);
@@ -11151,34 +13439,74 @@ function createBiChartProfile(chartType) {
   return { controls: all, sections, description: "Configuracion de grafico general." };
 }
 
-function renderBiChartConfigProfile(profile) {
-  if (els.biChartConfigIntro instanceof HTMLElement) {
-    els.biChartConfigIntro.textContent = trimOrFallback(profile?.description, "");
+function renderAnalyticsChartConfigProfile(profile) {
+  if (els.legacyStudioChartConfigIntro instanceof HTMLElement) {
+    els.legacyStudioChartConfigIntro.textContent = trimOrFallback(profile?.description, "");
   }
-  if (els.biChartConfigGroups instanceof HTMLElement) {
+  if (els.legacyStudioChartConfigGroups instanceof HTMLElement) {
     const sections = Array.isArray(profile?.sections) ? profile.sections : [];
-    els.biChartConfigGroups.innerHTML = sections
+    els.legacyStudioChartConfigGroups.innerHTML = sections
       .map((section) => {
-        const label = BI_CONFIG_SECTION_LABELS[section] || section;
+        const label = ANALYTICS_CONFIG_SECTION_LABELS[section] || section;
         return `<span class="bi-config-chip">${escapeHtml(label)}</span>`;
       })
       .join("");
-    els.biChartConfigGroups.classList.toggle("hidden", sections.length === 0);
+    els.legacyStudioChartConfigGroups.classList.toggle("hidden", sections.length === 0);
   }
 }
 
-function getBiSpecificConfigSchema(kind, chartType) {
-  const safeKind = normalizeBiWidgetKind(kind || "chart");
+function sanitizeAnalyticsUiText(value) {
+  if (typeof value !== "string" || !/[ÃÂâ?]/.test(value)) {
+    return value;
+  }
+  return value
+    .replace(/Configuraci[^ ]*n/g, "Configuracion")
+    .replace(/Presentaci[^ ]*n/g, "Presentacion")
+    .replace(/espec[^ ]*fica/g, "especifica")
+    .replace(/dimensi[^ ]*n/g, "dimension")
+    .replace(/tipograf[^ ]*a/g, "tipografia")
+    .replace(/alineaci[^ ]*n/g, "alineacion")
+    .replace(/Tama[^ ]*o/g, "Tamano")
+    .replace(/T[^ ]*tulo/g, "Titulo")
+    .replace(/M[^ ]*nimo/g, "Minimo")
+    .replace(/M[^ ]*ximo/g, "Maximo")
+    .replace(/M[^ ]*x\./g, "Max.")
+    .replace(/gr[^ ]*fico/g, "grafico")
+    .replace(/l[^ ]*nea/g, "linea")
+    .replace(/vi[^ ]*eta/g, "vineta")
+    .replace(/\?ngulo/g, "Angulo")
+    .replace(/\?ndice/g, "indice");
+}
+
+function sanitizeAnalyticsSpecificConfigSchema(schema) {
+  if (!schema || typeof schema !== "object") {
+    return schema;
+  }
+  return {
+    ...schema,
+    title: sanitizeAnalyticsUiText(schema.title),
+    hint: sanitizeAnalyticsUiText(schema.hint),
+    fields: Array.isArray(schema.fields)
+      ? schema.fields.map((field) => ({
+        ...field,
+        label: sanitizeAnalyticsUiText(field.label)
+      }))
+      : []
+  };
+}
+
+function getAnalyticsSpecificConfigSchema(kind, chartType) {
+  const safeKind = normalizeAnalyticsWidgetKind(kind || "chart");
   if (safeKind === "text") {
     return {
-      title: "Configuración de texto",
-      hint: "Controla tipografía, alineación y espaciado del cuadro de texto.",
+      title: "ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de texto",
+      hint: "Controla tipografÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­a, alineaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n y espaciado del cuadro de texto.",
       fields: [
-        { key: "fontFamily", label: "Fuente", type: "select", options: Array.from(BI_ALLOWED_FONT_FAMILIES).map((item) => ({ value: item, label: item })) },
-        { key: "fontSize", label: "Tamaño (px)", type: "number", min: 12, max: 180, step: 1 },
+        { key: "fontFamily", label: "Fuente", type: "select", options: Array.from(ANALYTICS_ALLOWED_FONT_FAMILIES).map((item) => ({ value: item, label: item })) },
+        { key: "fontSize", label: "TamaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â±o (px)", type: "number", min: 12, max: 180, step: 1 },
         { key: "fontWeight", label: "Peso", type: "number", min: 300, max: 900, step: 100 },
         { key: "fontStyle", label: "Estilo", type: "select", options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Cursiva" }] },
-        { key: "textAlign", label: "Alineación", type: "select", options: [{ value: "left", label: "Izquierda" }, { value: "center", label: "Centro" }, { value: "right", label: "Derecha" }] },
+        { key: "textAlign", label: "AlineaciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n", type: "select", options: [{ value: "left", label: "Izquierda" }, { value: "center", label: "Centro" }, { value: "right", label: "Derecha" }] },
         { key: "lineHeight", label: "Interlineado", type: "number", min: 0.9, max: 2.4, step: 0.01 },
         { key: "color", label: "Color texto", type: "color" },
         { key: "padding", label: "Padding (px)", type: "number", min: 0, max: 48, step: 1 }
@@ -11187,7 +13515,7 @@ function getBiSpecificConfigSchema(kind, chartType) {
   }
   if (safeKind === "image") {
     return {
-      title: "Configuración de imagen",
+      title: "ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de imagen",
       hint: "Controla ajuste, opacidad y marco del widget de imagen.",
       fields: [
         { key: "fit", label: "Ajuste", type: "select", options: [{ value: "contain", label: "Contain" }, { value: "cover", label: "Cover" }, { value: "fill", label: "Fill" }] },
@@ -11199,30 +13527,30 @@ function getBiSpecificConfigSchema(kind, chartType) {
     };
   }
 
-  const safeType = normalizeBiChartType(chartType || "bar");
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
   const base = {
-    title: `Configuración de ${safeType}`,
-    hint: "Opciones específicas del tipo de gráfico seleccionado.",
+    title: `ConfiguraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n de ${safeType}`,
+    hint: "Opciones especÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­ficas del tipo de grÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡fico seleccionado.",
     fields: []
   };
   if (safeType === "pie") {
     base.fields = [
-      { key: "labelMinPercent", label: "Label mínimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "labelMinPercent", label: "Label mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
       { key: "startAngle", label: "?ngulo inicial", type: "number", min: -360, max: 360, step: 1 }
     ];
     return base;
   }
   if (safeType === "donut") {
     base.fields = [
-      { key: "labelMinPercent", label: "Label mínimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
+      { key: "labelMinPercent", label: "Label mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nimo (%)", type: "number", min: 0, max: 100, step: 0.1 },
       { key: "innerRadiusRatio", label: "Radio interno", type: "number", min: 0.35, max: 0.8, step: 0.01 },
-      { key: "centerTitle", label: "Título central", type: "text", maxLength: 20 }
+      { key: "centerTitle", label: "TÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­tulo central", type: "text", maxLength: 20 }
     ];
     return base;
   }
   if (safeType === "treemap") {
     base.fields = [
-      { key: "minTilePercent", label: "Mín. área (%)", type: "number", min: 0, max: 25, step: 0.1 },
+      { key: "minTilePercent", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n. ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡rea (%)", type: "number", min: 0, max: 25, step: 0.1 },
       { key: "showValueText", label: "Mostrar valores", type: "checkbox" }
     ];
     return base;
@@ -11230,21 +13558,21 @@ function getBiSpecificConfigSchema(kind, chartType) {
   if (safeType === "funnel") {
     base.fields = [
       { key: "sortMode", label: "Orden", type: "select", options: [{ value: "desc", label: "Mayor a menor" }, { value: "asc", label: "Menor a mayor" }] },
-      { key: "minSegmentPercent", label: "Mín. segmento (%)", type: "number", min: 0, max: 60, step: 0.1 }
+      { key: "minSegmentPercent", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n. segmento (%)", type: "number", min: 0, max: 60, step: 0.1 }
     ];
     return base;
   }
   if (safeType === "gauge") {
     base.fields = [
-      { key: "minValue", label: "Mínimo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
-      { key: "maxValue", label: "Máximo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
+      { key: "minValue", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nimo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
+      { key: "maxValue", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ximo", type: "number", min: -1000000, max: 1000000, step: 0.1 },
       { key: "targetValue", label: "Meta", type: "number", min: -1000000, max: 1000000, step: 0.1 }
     ];
     return base;
   }
   if (safeType === "table") {
     base.fields = [
-      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "rowLimit", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡x. filas", type: "number", min: 1, max: 200, step: 1 },
       { key: "showIndex", label: "Mostrar ?ndice", type: "checkbox" },
       { key: "compact", label: "Modo compacto", type: "checkbox" }
     ];
@@ -11252,7 +13580,7 @@ function getBiSpecificConfigSchema(kind, chartType) {
   }
   if (safeType === "pivot") {
     base.fields = [
-      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "rowLimit", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡x. filas", type: "number", min: 1, max: 200, step: 1 },
       { key: "showTotals", label: "Mostrar totales", type: "checkbox" },
       { key: "compact", label: "Modo compacto", type: "checkbox" }
     ];
@@ -11277,15 +13605,15 @@ function getBiSpecificConfigSchema(kind, chartType) {
   if (safeType === "scatter") {
     base.fields = [
       { key: "pointAlpha", label: "Opacidad punto", type: "number", min: 0.15, max: 1, step: 0.01 },
-      { key: "minPointRadius", label: "Radio mínimo", type: "number", min: 3, max: 40, step: 1 }
+      { key: "minPointRadius", label: "Radio mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nimo", type: "number", min: 3, max: 40, step: 1 }
     ];
     return base;
   }
   if (safeType === "bubble") {
     base.fields = [
       { key: "pointAlpha", label: "Opacidad burbuja", type: "number", min: 0.15, max: 1, step: 0.01 },
-      { key: "minBubbleRadius", label: "Radio mínimo", type: "number", min: 3, max: 60, step: 1 },
-      { key: "maxBubbleRadius", label: "Radio máximo", type: "number", min: 3, max: 80, step: 1 }
+      { key: "minBubbleRadius", label: "Radio mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nimo", type: "number", min: 3, max: 60, step: 1 },
+      { key: "maxBubbleRadius", label: "Radio mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ximo", type: "number", min: 3, max: 80, step: 1 }
     ];
     return base;
   }
@@ -11314,23 +13642,23 @@ function getBiSpecificConfigSchema(kind, chartType) {
   }
   if (safeType === "sankey") {
     base.fields = [
-      { key: "maxLinks", label: "Máx. enlaces", type: "number", min: 1, max: 200, step: 1 },
-      { key: "minLinkPercent", label: "Mín. ancho (%)", type: "number", min: 0, max: 50, step: 0.1 },
+      { key: "maxLinks", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡x. enlaces", type: "number", min: 1, max: 200, step: 1 },
+      { key: "minLinkPercent", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n. ancho (%)", type: "number", min: 0, max: 50, step: 0.1 },
       { key: "showValues", label: "Mostrar valores", type: "checkbox" }
     ];
     return base;
   }
   if (safeType === "timeline") {
     base.fields = [
-      { key: "rowLimit", label: "Máx. filas", type: "number", min: 1, max: 200, step: 1 },
+      { key: "rowLimit", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡x. filas", type: "number", min: 1, max: 200, step: 1 },
       { key: "showDates", label: "Mostrar fechas", type: "checkbox" },
-      { key: "minBarPercent", label: "Mín. barra (%)", type: "number", min: 0.2, max: 50, step: 0.1 }
+      { key: "minBarPercent", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n. barra (%)", type: "number", min: 0.2, max: 50, step: 0.1 }
     ];
     return base;
   }
   if (safeType === "radar") {
     base.fields = [
-      { key: "maxScale", label: "Escala máxima", type: "number", min: 1, max: 10000, step: 1 },
+      { key: "maxScale", label: "Escala mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡xima", type: "number", min: 1, max: 10000, step: 1 },
       { key: "showPointValues", label: "Mostrar valores", type: "checkbox" }
     ];
     return base;
@@ -11338,18 +13666,18 @@ function getBiSpecificConfigSchema(kind, chartType) {
   if (safeType === "pareto") {
     base.fields = [
       { key: "targetPercent", label: "Meta acumulada (%)", type: "number", min: 1, max: 100, step: 0.1 },
-      { key: "showCumulativeLine", label: "Mostrar línea acumulada", type: "checkbox" }
+      { key: "showCumulativeLine", label: "Mostrar lÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­nea acumulada", type: "checkbox" }
     ];
     return base;
   }
-  if (safeType === "line" || safeType === "timeseries" || safeType === "area" || safeType === "combo" || BI_BAR_FAMILY_TYPES.has(safeType)) {
-    base.fields = [{ key: "labelMinValue", label: "Mín. valor para label", type: "number", min: -1000000, max: 1000000, step: 0.1 }];
+  if (safeType === "line" || safeType === "timeseries" || safeType === "area" || safeType === "combo" || ANALYTICS_BAR_FAMILY_TYPES.has(safeType)) {
+    base.fields = [{ key: "labelMinValue", label: "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­n. valor para label", type: "number", min: -1000000, max: 1000000, step: 0.1 }];
     return base;
   }
   return base;
 }
 
-function buildBiSpecificConfigControlHtml(field, value, disabled, kind, chartType) {
+function buildAnalyticsSpecificConfigControlHtml(field, value, disabled, kind, chartType) {
   const sharedAttrs = `data-bi-specific-key="${escapeAttribute(field.key)}" data-bi-specific-kind="${escapeAttribute(kind)}" data-bi-specific-chart-type="${escapeAttribute(chartType || "")}"`;
   const disabledAttr = disabled ? " disabled" : "";
   if (field.type === "checkbox") {
@@ -11374,43 +13702,43 @@ function buildBiSpecificConfigControlHtml(field, value, disabled, kind, chartTyp
   return `<label>${escapeHtml(field.label)}<input type="number" ${sharedAttrs}${minAttr}${maxAttr}${stepAttr} value="${escapeAttribute(String(value ?? ""))}"${disabledAttr}></label>`;
 }
 
-function renderBiElementConfigPanel(project, selectedWidget, chartTypeHint) {
-  if (!(els.biElementConfigSection instanceof HTMLElement) || !(els.biElementConfigBody instanceof HTMLElement)) {
+function renderAnalyticsElementConfigPanel(project, selectedWidget, chartTypeHint) {
+  if (!(els.legacyStudioElementConfigSection instanceof HTMLElement) || !(els.legacyStudioElementConfigBody instanceof HTMLElement)) {
     return;
   }
   const hasSelection = !!selectedWidget;
-  const kind = normalizeBiWidgetKind(selectedWidget?.kind || "chart");
-  const chartType = normalizeBiChartType(chartTypeHint || selectedWidget?.chartType || "bar");
-  const schema = getBiSpecificConfigSchema(kind, chartType);
-  if (els.biElementConfigTitle instanceof HTMLElement) {
-    els.biElementConfigTitle.textContent = schema.title;
+  const kind = normalizeAnalyticsWidgetKind(selectedWidget?.kind || "chart");
+  const chartType = normalizeAnalyticsChartType(chartTypeHint || selectedWidget?.chartType || "bar");
+  const schema = getAnalyticsSpecificConfigSchema(kind, chartType);
+  if (els.legacyStudioElementConfigTitle instanceof HTMLElement) {
+    els.legacyStudioElementConfigTitle.textContent = schema.title;
   }
-  if (els.biElementConfigHint instanceof HTMLElement) {
-    els.biElementConfigHint.textContent = hasSelection
+  if (els.legacyStudioElementConfigHint instanceof HTMLElement) {
+    els.legacyStudioElementConfigHint.textContent = hasSelection
       ? schema.hint
-      : "Selecciona un widget para aplicar cambios persistentes en su configuración específica.";
+      : "Selecciona un widget para aplicar cambios persistentes en su configuraciÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n especÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â­fica.";
   }
 
   let configValues = {};
   if (kind === "text") {
-    configValues = normalizeBiTextConfig(selectedWidget?.textConfig);
+    configValues = normalizeAnalyticsTextConfig(selectedWidget?.textConfig);
   } else if (kind === "image") {
-    configValues = normalizeBiImageConfig(selectedWidget?.imageConfig);
+    configValues = normalizeAnalyticsImageConfig(selectedWidget?.imageConfig);
   } else {
-    configValues = getBiSpecificChartConfigForWidget(selectedWidget, chartType);
+    configValues = getAnalyticsSpecificChartConfigForWidget(selectedWidget, chartType);
   }
 
   if (!Array.isArray(schema.fields) || schema.fields.length === 0) {
-    els.biElementConfigBody.innerHTML = "<div class=\"muted\">Este tipo no tiene controles adicionales en esta versión.</div>";
+    els.legacyStudioElementConfigBody.innerHTML = "<div class=\"muted\">Este tipo no tiene controles adicionales en esta versiÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³n.</div>";
     return;
   }
   const disabled = !hasSelection;
-  els.biElementConfigBody.innerHTML = schema.fields
-    .map((field) => buildBiSpecificConfigControlHtml(field, configValues[field.key], disabled, kind, chartType))
+  els.legacyStudioElementConfigBody.innerHTML = schema.fields
+    .map((field) => buildAnalyticsSpecificConfigControlHtml(field, configValues[field.key], disabled, kind, chartType))
     .join("");
 }
 
-function applyBiSpecificConfigChange(input, options = {}) {
+function applyAnalyticsSpecificConfigChange(input, options = {}) {
   if (!(input instanceof HTMLElement)) {
     return;
   }
@@ -11422,13 +13750,13 @@ function applyBiSpecificConfigChange(input, options = {}) {
   if (!project) {
     return;
   }
-  ensureBiState(project);
-  const widget = getBiSelectedWidget(project);
+  ensureAnalyticsState(project);
+  const widget = getAnalyticsSelectedWidget(project);
   if (!widget) {
     return;
   }
-  const kind = normalizeBiWidgetKind(input.dataset.biSpecificKind || widget.kind || "chart");
-  const chartType = normalizeBiChartType(input.dataset.biSpecificChartType || widget.chartType || "bar");
+  const kind = normalizeAnalyticsWidgetKind(input.dataset.biSpecificKind || widget.kind || "chart");
+  const chartType = normalizeAnalyticsChartType(input.dataset.biSpecificChartType || widget.chartType || "bar");
   let rawValue = "";
   if (input instanceof HTMLInputElement && input.type === "checkbox") {
     rawValue = input.checked;
@@ -11439,25 +13767,25 @@ function applyBiSpecificConfigChange(input, options = {}) {
   }
 
   if (kind === "text") {
-    const next = normalizeBiTextConfig({ ...normalizeBiTextConfig(widget.textConfig), [key]: rawValue });
+    const next = normalizeAnalyticsTextConfig({ ...normalizeAnalyticsTextConfig(widget.textConfig), [key]: rawValue });
     widget.textConfig = next;
   } else if (kind === "image") {
-    const next = normalizeBiImageConfig({ ...normalizeBiImageConfig(widget.imageConfig), [key]: rawValue });
+    const next = normalizeAnalyticsImageConfig({ ...normalizeAnalyticsImageConfig(widget.imageConfig), [key]: rawValue });
     widget.imageConfig = next;
   } else {
-    const current = getBiSpecificChartConfigForWidget(widget, chartType);
-    const next = normalizeBiChartTypeSpecificConfig({ ...current, [key]: rawValue }, chartType);
-    setBiSpecificChartConfigForWidget(widget, chartType, next);
+    const current = getAnalyticsSpecificChartConfigForWidget(widget, chartType);
+    const next = normalizeAnalyticsChartTypeSpecificConfig({ ...current, [key]: rawValue }, chartType);
+    setAnalyticsSpecificChartConfigForWidget(widget, chartType, next);
   }
   saveState();
-  const filteredRows = queryBiProjectRows(project, project.biConfig);
-  renderBiWidgets(project, filteredRows);
+  const filteredRows = queryAnalyticsProjectRows(project, project.biConfig);
+  renderAnalyticsWidgets(project, filteredRows);
   if (options.refreshInspector) {
-    syncBiInputs(project.biConfig);
+    syncAnalyticsInputs(project.biConfig);
   }
 }
 
-function toggleBiControlLabel(input, visible) {
+function toggleAnalyticsControlLabel(input, visible) {
   if (!(input instanceof HTMLElement)) {
     return;
   }
@@ -11470,61 +13798,61 @@ function toggleBiControlLabel(input, visible) {
   }
 }
 
-function syncBiChartContextControls(project, chartType, widget) {
-  const capabilities = getBiChartCapabilities(chartType);
-  const defaults = buildBiDefaultDataRoles({
-    groupBy: normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || widget?.groupBy || "disciplina"),
-    metric: normalizeBiMetric(els.biWidgetMetricSelect?.value || widget?.metric || "count"),
+function syncAnalyticsChartContextControls(project, chartType, widget) {
+  const capabilities = getAnalyticsChartCapabilities(chartType);
+  const defaults = buildAnalyticsDefaultDataRoles({
+    groupBy: normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect?.value || widget?.groupBy || "disciplina"),
+    metric: normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect?.value || widget?.metric || "count"),
     chartType
   });
-  const dataRoles = normalizeBiDataRoles(widget?.dataRoles, {
+  const dataRoles = normalizeAnalyticsDataRoles(widget?.dataRoles, {
     groupBy: defaults.dimensions?.[0] || "disciplina",
     metric: defaults.metrics?.[0] || "count",
     chartType
   });
-  if (els.biDataRolesSection instanceof HTMLElement) {
+  if (els.legacyStudioDataRolesSection instanceof HTMLElement) {
     const hasDataRoleControls = capabilities.supportsBreakdown || capabilities.supportsOptionalMetric || capabilities.supportsDateDimension;
-    els.biDataRolesSection.classList.toggle("hidden", !hasDataRoleControls);
+    els.legacyStudioDataRolesSection.classList.toggle("hidden", !hasDataRoleControls);
   }
 
-  toggleBiControlLabel(els.biWidgetBreakdownSelect, capabilities.supportsBreakdown);
-  toggleBiControlLabel(els.biWidgetOptionalMetricSelect, capabilities.supportsOptionalMetric);
-  toggleBiControlLabel(els.biWidgetDateDimensionSelect, capabilities.supportsDateDimension);
+  toggleAnalyticsControlLabel(els.legacyStudioWidgetBreakdownSelect, capabilities.supportsBreakdown);
+  toggleAnalyticsControlLabel(els.legacyStudioWidgetOptionalMetricSelect, capabilities.supportsOptionalMetric);
+  toggleAnalyticsControlLabel(els.legacyStudioWidgetDateDimensionSelect, capabilities.supportsDateDimension);
 
-  if (els.biWidgetBreakdownSelect) {
+  if (els.legacyStudioWidgetBreakdownSelect) {
     const value = capabilities.supportsBreakdown
-      ? normalizeBiGroupBy(els.biWidgetBreakdownSelect.value || dataRoles.breakdownDimension || defaults.breakdownDimension || "")
+      ? normalizeAnalyticsGroupBy(els.legacyStudioWidgetBreakdownSelect.value || dataRoles.breakdownDimension || defaults.breakdownDimension || "")
       : "";
-    els.biWidgetBreakdownSelect.value = value || "";
+    els.legacyStudioWidgetBreakdownSelect.value = value || "";
   }
-  if (els.biWidgetOptionalMetricSelect) {
+  if (els.legacyStudioWidgetOptionalMetricSelect) {
     const value = capabilities.supportsOptionalMetric
-      ? normalizeBiOptionalMetric(els.biWidgetOptionalMetricSelect.value || dataRoles.optionalMetrics?.[0] || "")
+      ? normalizeAnalyticsOptionalMetric(els.legacyStudioWidgetOptionalMetricSelect.value || dataRoles.optionalMetrics?.[0] || "")
       : "";
-    const hasOption = Array.from(els.biWidgetOptionalMetricSelect.options).some((option) => option.value === value);
-    els.biWidgetOptionalMetricSelect.value = hasOption ? value : "";
+    const hasOption = Array.from(els.legacyStudioWidgetOptionalMetricSelect.options).some((option) => option.value === value);
+    els.legacyStudioWidgetOptionalMetricSelect.value = hasOption ? value : "";
   }
-  if (els.biWidgetDateDimensionSelect) {
+  if (els.legacyStudioWidgetDateDimensionSelect) {
     const value = capabilities.supportsDateDimension
-      ? (normalizeBiDateRole(els.biWidgetDateDimensionSelect.value || dataRoles.dateDimension || defaults.dateDimension || "") || (capabilities.requiresDateDimension ? "startDate" : ""))
+      ? (normalizeAnalyticsDateRole(els.legacyStudioWidgetDateDimensionSelect.value || dataRoles.dateDimension || defaults.dateDimension || "") || (capabilities.requiresDateDimension ? "startDate" : ""))
       : "";
-    const hasOption = Array.from(els.biWidgetDateDimensionSelect.options).some((option) => option.value === value);
-    els.biWidgetDateDimensionSelect.value = hasOption ? value : "";
+    const hasOption = Array.from(els.legacyStudioWidgetDateDimensionSelect.options).some((option) => option.value === value);
+    els.legacyStudioWidgetDateDimensionSelect.value = hasOption ? value : "";
   }
 
-  const profile = createBiChartProfile(chartType);
-  BI_VISUAL_CONTROL_IDS.forEach((controlId) => {
+  const profile = createAnalyticsChartProfile(chartType);
+  ANALYTICS_VISUAL_CONTROL_IDS.forEach((controlId) => {
     const node = document.getElementById(controlId);
-    toggleBiControlLabel(node, profile.controls.has(controlId));
+    toggleAnalyticsControlLabel(node, profile.controls.has(controlId));
   });
-  renderBiChartConfigProfile(profile);
+  renderAnalyticsChartConfigProfile(profile);
 
   const legendVisible = profile.controls.has("biShowLegendCheckbox");
   const axisVisible = profile.controls.has("biAxisXLabelInput") || profile.controls.has("biShowAxisLabelsCheckbox");
   const stackVisible = profile.controls.has("biStackModeSelect");
 
-  if (els.biDimensionSection instanceof HTMLElement) {
-    const title = els.biDimensionSection.querySelector("h4");
+  if (els.legacyStudioDimensionSection instanceof HTMLElement) {
+    const title = els.legacyStudioDimensionSection.querySelector("h4");
     if (title instanceof HTMLElement) {
       if (!axisVisible) {
         title.textContent = "Dimension";
@@ -11535,8 +13863,8 @@ function syncBiChartContextControls(project, chartType, widget) {
       }
     }
   }
-  if (els.biMetricSection instanceof HTMLElement) {
-    const title = els.biMetricSection.querySelector("h4");
+  if (els.legacyStudioMetricSection instanceof HTMLElement) {
+    const title = els.legacyStudioMetricSection.querySelector("h4");
     if (title instanceof HTMLElement) {
       if (!axisVisible) {
         title.textContent = "Metrica";
@@ -11548,117 +13876,117 @@ function syncBiChartContextControls(project, chartType, widget) {
     }
   }
 
-  if (!legendVisible && els.biShowLegendCheckbox instanceof HTMLInputElement) {
-    els.biShowLegendCheckbox.checked = false;
+  if (!legendVisible && els.legacyStudioShowLegendCheckbox instanceof HTMLInputElement) {
+    els.legacyStudioShowLegendCheckbox.checked = false;
   }
   if (!axisVisible) {
-    if (els.biShowAxisLabelsCheckbox instanceof HTMLInputElement) {
-      els.biShowAxisLabelsCheckbox.checked = false;
+    if (els.legacyStudioShowAxisLabelsCheckbox instanceof HTMLInputElement) {
+      els.legacyStudioShowAxisLabelsCheckbox.checked = false;
     }
-    if (els.biShowGridCheckbox instanceof HTMLInputElement) {
-      els.biShowGridCheckbox.checked = false;
+    if (els.legacyStudioShowGridCheckbox instanceof HTMLInputElement) {
+      els.legacyStudioShowGridCheckbox.checked = false;
     }
   }
-  if (!stackVisible && els.biStackModeSelect instanceof HTMLSelectElement) {
-    els.biStackModeSelect.value = "none";
+  if (!stackVisible && els.legacyStudioStackModeSelect instanceof HTMLSelectElement) {
+    els.legacyStudioStackModeSelect.value = "none";
   }
 }
 
-function syncBiBuilderSelectionUi(project) {
-  const chartType = normalizeBiChartType(els.biWidgetChartTypeSelect?.value || "bar");
-  const selectedWidget = project ? getBiSelectedWidget(project) : null;
+function syncAnalyticsBuilderSelectionUi(project) {
+  const chartType = normalizeAnalyticsChartType(els.legacyStudioWidgetChartTypeSelect?.value || "bar");
+  const selectedWidget = project ? getAnalyticsSelectedWidget(project) : null;
 
-  if (els.biWidgetGroupBySelect) {
-    const groupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect.value || "disciplina");
-    if (els.biSelectedDimensionChip) {
-      els.biSelectedDimensionChip.textContent = getBiGroupLabel(groupBy, project);
+  if (els.legacyStudioWidgetGroupBySelect) {
+    const groupBy = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect.value || "disciplina");
+    if (els.legacyStudioSelectedDimensionChip) {
+      els.legacyStudioSelectedDimensionChip.textContent = getAnalyticsGroupLabel(groupBy, project);
     }
   }
 
-  if (els.biWidgetMetricSelect) {
-    const metric = normalizeBiMetric(els.biWidgetMetricSelect.value || "baseunits");
-    if (els.biSelectedMetricChip) {
-      els.biSelectedMetricChip.textContent = getBiMetricLabel(metric);
+  if (els.legacyStudioWidgetMetricSelect) {
+    const metric = normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect.value || "baseunits");
+    if (els.legacyStudioSelectedMetricChip) {
+      els.legacyStudioSelectedMetricChip.textContent = getAnalyticsMetricLabel(metric);
     }
   }
 
-  if (els.biWidgetChartTypeSelect && els.biChartTypeButtons) {
-    els.biChartTypeButtons
+  if (els.legacyStudioWidgetChartTypeSelect && els.legacyStudioChartTypeButtons) {
+    els.legacyStudioChartTypeButtons
       .querySelectorAll("[data-bi-chart-type]")
       .forEach((node) => {
         if (!(node instanceof HTMLElement)) {
           return;
         }
-        node.classList.toggle("active", normalizeBiChartType(node.dataset.biChartType || "") === chartType);
+        node.classList.toggle("active", normalizeAnalyticsChartType(node.dataset.biChartType || "") === chartType);
       });
   }
 
-  if (els.biWidgetSortModeSelect) {
-    const sortMode = normalizeBiSortMode(els.biWidgetSortModeSelect.value || "value_desc");
-    els.biWidgetSortModeSelect.value = sortMode;
+  if (els.legacyStudioWidgetSortModeSelect) {
+    const sortMode = normalizeAnalyticsSortMode(els.legacyStudioWidgetSortModeSelect.value || "value_desc");
+    els.legacyStudioWidgetSortModeSelect.value = sortMode;
   }
 
-  syncBiChartContextControls(project, chartType, selectedWidget);
-  if (normalizeBiRailMode(biRailMode) === "settings") {
-    renderBiElementConfigPanel(project, selectedWidget || null, chartType);
+  syncAnalyticsChartContextControls(project, chartType, selectedWidget);
+  if (normalizeLegacyStudioRailMode(legacyStudioRailMode) === "settings") {
+    renderAnalyticsElementConfigPanel(project, selectedWidget || null, chartType);
   }
 }
 
-function syncBiBuilderInputsFromSelectedWidget(project) {
+function syncAnalyticsBuilderInputsFromSelectedWidget(project) {
   if (!project) {
     return;
   }
-  const widget = getBiSelectedWidget(project);
-  if (!widget || normalizeBiWidgetKind(widget.kind || "chart") !== "chart") {
+  const widget = getAnalyticsSelectedWidget(project);
+  if (!widget || normalizeAnalyticsWidgetKind(widget.kind || "chart") !== "chart") {
     return;
   }
-  const chartType = normalizeBiChartType(widget.chartType || "bar");
-  const dataRoles = normalizeBiDataRoles(widget.dataRoles, {
-    groupBy: normalizeBiGroupBy(widget.groupBy || "disciplina"),
-    metric: normalizeBiMetric(widget.metric || "baseunits"),
+  const chartType = normalizeAnalyticsChartType(widget.chartType || "bar");
+  const dataRoles = normalizeAnalyticsDataRoles(widget.dataRoles, {
+    groupBy: normalizeAnalyticsGroupBy(widget.groupBy || "disciplina"),
+    metric: normalizeAnalyticsMetric(widget.metric || "baseunits"),
     chartType
   });
-  if (els.biWidgetNameInput) {
-    els.biWidgetNameInput.value = trimOrFallback(widget.name, "").slice(0, 60);
+  if (els.legacyStudioWidgetNameInput) {
+    els.legacyStudioWidgetNameInput.value = trimOrFallback(widget.name, "").slice(0, 60);
   }
-  if (els.biWidgetSourceSelect) {
-    els.biWidgetSourceSelect.value = normalizeBiSource(widget.source || "all");
+  if (els.legacyStudioWidgetSourceSelect) {
+    els.legacyStudioWidgetSourceSelect.value = normalizeAnalyticsSource(widget.source || "all");
   }
-  if (els.biWidgetGroupBySelect) {
-    const nextGroupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || widget.groupBy || "disciplina");
-    const hasGroup = Array.from(els.biWidgetGroupBySelect.options).some((option) => option.value === nextGroupBy);
-    els.biWidgetGroupBySelect.value = hasGroup ? nextGroupBy : (els.biWidgetGroupBySelect.options[0]?.value || "disciplina");
+  if (els.legacyStudioWidgetGroupBySelect) {
+    const nextGroupBy = normalizeAnalyticsGroupBy(dataRoles.dimensions?.[0] || widget.groupBy || "disciplina");
+    const hasGroup = Array.from(els.legacyStudioWidgetGroupBySelect.options).some((option) => option.value === nextGroupBy);
+    els.legacyStudioWidgetGroupBySelect.value = hasGroup ? nextGroupBy : (els.legacyStudioWidgetGroupBySelect.options[0]?.value || "disciplina");
   }
-  if (els.biWidgetMetricSelect) {
-    els.biWidgetMetricSelect.value = normalizeBiMetric(dataRoles.metrics?.[0] || widget.metric || "baseunits");
+  if (els.legacyStudioWidgetMetricSelect) {
+    els.legacyStudioWidgetMetricSelect.value = normalizeAnalyticsMetric(dataRoles.metrics?.[0] || widget.metric || "baseunits");
   }
-  if (els.biWidgetBreakdownSelect) {
-    const nextBreakdown = normalizeBiGroupBy(dataRoles.breakdownDimension || "");
-    const hasBreakdown = Array.from(els.biWidgetBreakdownSelect.options).some((option) => option.value === nextBreakdown);
-    els.biWidgetBreakdownSelect.value = hasBreakdown ? nextBreakdown : "";
+  if (els.legacyStudioWidgetBreakdownSelect) {
+    const nextBreakdown = normalizeAnalyticsGroupBy(dataRoles.breakdownDimension || "");
+    const hasBreakdown = Array.from(els.legacyStudioWidgetBreakdownSelect.options).some((option) => option.value === nextBreakdown);
+    els.legacyStudioWidgetBreakdownSelect.value = hasBreakdown ? nextBreakdown : "";
   }
-  if (els.biWidgetOptionalMetricSelect) {
-    const nextOptionalMetric = normalizeBiOptionalMetric(dataRoles.optionalMetrics?.[0] || "");
-    const hasOptionalMetric = Array.from(els.biWidgetOptionalMetricSelect.options).some((option) => option.value === nextOptionalMetric);
-    els.biWidgetOptionalMetricSelect.value = hasOptionalMetric ? nextOptionalMetric : "";
+  if (els.legacyStudioWidgetOptionalMetricSelect) {
+    const nextOptionalMetric = normalizeAnalyticsOptionalMetric(dataRoles.optionalMetrics?.[0] || "");
+    const hasOptionalMetric = Array.from(els.legacyStudioWidgetOptionalMetricSelect.options).some((option) => option.value === nextOptionalMetric);
+    els.legacyStudioWidgetOptionalMetricSelect.value = hasOptionalMetric ? nextOptionalMetric : "";
   }
-  if (els.biWidgetDateDimensionSelect) {
-    const nextDateDimension = normalizeBiDateRole(dataRoles.dateDimension || "");
-    const hasDateDimension = Array.from(els.biWidgetDateDimensionSelect.options).some((option) => option.value === nextDateDimension);
-    els.biWidgetDateDimensionSelect.value = hasDateDimension ? nextDateDimension : "";
+  if (els.legacyStudioWidgetDateDimensionSelect) {
+    const nextDateDimension = normalizeAnalyticsDateRole(dataRoles.dateDimension || "");
+    const hasDateDimension = Array.from(els.legacyStudioWidgetDateDimensionSelect.options).some((option) => option.value === nextDateDimension);
+    els.legacyStudioWidgetDateDimensionSelect.value = hasDateDimension ? nextDateDimension : "";
   }
-  if (els.biWidgetChartTypeSelect) {
-    els.biWidgetChartTypeSelect.value = chartType;
+  if (els.legacyStudioWidgetChartTypeSelect) {
+    els.legacyStudioWidgetChartTypeSelect.value = chartType;
   }
-  if (els.biWidgetTopNInput) {
-    els.biWidgetTopNInput.value = String(sanitizeBiTopN(widget.topN ?? 10));
+  if (els.legacyStudioWidgetTopNInput) {
+    els.legacyStudioWidgetTopNInput.value = String(sanitizeAnalyticsTopN(widget.topN ?? 10));
   }
-  if (els.biWidgetSortModeSelect) {
-    els.biWidgetSortModeSelect.value = normalizeBiSortMode(widget.sortMode || "value_desc");
+  if (els.legacyStudioWidgetSortModeSelect) {
+    els.legacyStudioWidgetSortModeSelect.value = normalizeAnalyticsSortMode(widget.sortMode || "value_desc");
   }
 }
 
-function getBiCatalogFieldTypeToken(type) {
+function getAnalyticsCatalogFieldTypeToken(type) {
   if (type === "date") return "CAL";
   if (type === "number") return "123";
   if (type === "percent") return "%";
@@ -11666,55 +13994,56 @@ function getBiCatalogFieldTypeToken(type) {
   return "ABC";
 }
 
-function getBiProjectQueryApi() {
+function getAnalyticsProjectQueryApi() {
   if (typeof window === "undefined" || !window.MIDPBIProjectQuery || typeof window.MIDPBIProjectQuery !== "object") {
     return null;
   }
   return window.MIDPBIProjectQuery;
 }
 
-function createBiProjectQueryService(project) {
-  const api = getBiProjectQueryApi();
+function createAnalyticsProjectQueryService(project) {
+  const api = getAnalyticsProjectQueryApi();
   if (!project || !api || typeof api.createProjectQueryService !== "function") {
     return null;
   }
   return api.createProjectQueryService({
     project,
-    getSourceLabel: getBiSourceLabel,
-    getCustomFieldDefs: getBiCustomFieldDefs,
-    normalizeSource: normalizeBiSource,
-    collectRows: collectBiRows,
-    filterRows: filterBiRows,
+    getSourceLabel: (source) => getAnalyticsSourceMeta(project, source).shortLabel,
+    getCustomFieldDefs: getAnalyticsCustomFieldDefs,
+    getExternalSchemaFieldDefs: getAnalyticsExternalSchemaFieldDefs,
+    normalizeSource: normalizeAnalyticsSource,
+    collectRows: collectAnalyticsRows,
+    filterRows: filterAnalyticsRows,
     trimOrFallback
   });
 }
 
-function getBiCatalogFields(project, source) {
-  const service = createBiProjectQueryService(project);
+function getAnalyticsCatalogFields(project, source) {
+  const service = createAnalyticsProjectQueryService(project);
   if (!service || typeof service.getCatalogFields !== "function") {
     return [];
   }
   return service.getCatalogFields(source || "all");
 }
 
-function buildBiQuerySchemaFields(project, source = "all") {
-  const service = createBiProjectQueryService(project);
+function buildAnalyticsQuerySchemaFields(project, source = "all") {
+  const service = createAnalyticsProjectQueryService(project);
   if (!service || typeof service.getSchemaFields !== "function") {
     return [];
   }
   return service.getSchemaFields(source);
 }
 
-function createBiProjectQueryAdapter(project) {
-  const service = createBiProjectQueryService(project);
+function createAnalyticsProjectQueryAdapter(project) {
+  const service = createAnalyticsProjectQueryService(project);
   if (!service || typeof service.createAdapter !== "function") {
     return null;
   }
   return service.createAdapter();
 }
 
-function queryBiProjectRows(project, rawConfig = null) {
-  const service = createBiProjectQueryService(project);
+function queryAnalyticsProjectRows(project, rawConfig = null) {
+  const service = createAnalyticsProjectQueryService(project);
   if (!service || typeof service.queryRows !== "function") {
     return [];
   }
@@ -11725,7 +14054,7 @@ function queryQuickSightProjectRows(project) {
   if (!project) {
     return [];
   }
-  const baseRows = queryBiProjectRows(project, {
+  const baseRows = queryAnalyticsProjectRows(project, {
     source: "all",
     startDate: "",
     endDate: "",
@@ -11737,41 +14066,41 @@ function queryQuickSightProjectRows(project) {
   return filterQuickSightRowsByInteractions(baseRows, project.quickSightConfig);
 }
 
-function renderBiFieldCatalog(project) {
-  if (!els.biCatalogFieldsList) {
+function renderAnalyticsFieldCatalog(project) {
+  if (!els.legacyStudioCatalogFieldsList) {
     return;
   }
 
   if (!project) {
-    if (els.biCatalogSummaryText) {
-      els.biCatalogSummaryText.textContent = "";
+    if (els.legacyStudioCatalogSummaryText) {
+      els.legacyStudioCatalogSummaryText.textContent = "";
     }
-    els.biCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
+    els.legacyStudioCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
     return;
   }
 
-  const selectedSource = normalizeBiSource(els.biCatalogSourceSelect?.value || "deliverable");
-  if (els.biCatalogSourceSelect && els.biCatalogSourceSelect.value !== selectedSource) {
-    els.biCatalogSourceSelect.value = selectedSource;
+  const selectedSource = normalizeAnalyticsSource(els.legacyStudioCatalogSourceSelect?.value || "deliverable");
+  if (els.legacyStudioCatalogSourceSelect && els.legacyStudioCatalogSourceSelect.value !== selectedSource) {
+    els.legacyStudioCatalogSourceSelect.value = selectedSource;
   }
-  const query = normalizeLookup(els.biCatalogSearchInput?.value || "");
-  const fields = getBiCatalogFields(project, selectedSource);
-  const currentGroupBy = normalizeBiGroupBy(els.biWidgetGroupBySelect?.value || "disciplina");
-  const currentMetric = normalizeBiMetric(els.biWidgetMetricSelect?.value || "baseunits");
+  const query = normalizeLookup(els.legacyStudioCatalogSearchInput?.value || "");
+  const fields = getAnalyticsCatalogFields(project, selectedSource);
+  const currentGroupBy = normalizeAnalyticsGroupBy(els.legacyStudioWidgetGroupBySelect?.value || "disciplina");
+  const currentMetric = normalizeAnalyticsMetric(els.legacyStudioWidgetMetricSelect?.value || "baseunits");
   const filtered = query
     ? fields.filter((field) => normalizeLookup(`${field.source} ${field.name}`).includes(query))
     : fields;
 
-  if (els.biCatalogSummaryText) {
-    els.biCatalogSummaryText.textContent = `Fuente: ${getBiSourceLabel(selectedSource)} | Campos: ${filtered.length}/${fields.length}`;
+  if (els.legacyStudioCatalogSummaryText) {
+    els.legacyStudioCatalogSummaryText.textContent = `Fuente: ${getAnalyticsSourceLabel(selectedSource)} | Campos: ${filtered.length}/${fields.length}`;
   }
 
   if (filtered.length === 0) {
-    els.biCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">No hay campos para ese filtro.</div>";
+    els.legacyStudioCatalogFieldsList.innerHTML = "<div class=\"bi-empty\">No hay campos para ese filtro.</div>";
     return;
   }
 
-  els.biCatalogFieldsList.innerHTML = filtered
+  els.legacyStudioCatalogFieldsList.innerHTML = filtered
     .map((field) => {
       const groupBy = trimOrFallback(field.groupBy, "");
       const metric = trimOrFallback(field.metric, "");
@@ -11780,7 +14109,7 @@ function renderBiFieldCatalog(project) {
       const pickableClass = pickable ? " pickable" : "";
       const activeClass = isActive ? " active" : "";
       return `<div class="bi-field-item${pickableClass}${activeClass}"${groupBy ? ` data-bi-groupby="${escapeAttribute(groupBy)}"` : ""}${metric ? ` data-bi-metric="${escapeAttribute(metric)}"` : ""}>
-      <span class="bi-field-type">${escapeHtml(getBiCatalogFieldTypeToken(field.type))}</span>
+      <span class="bi-field-type">${escapeHtml(getAnalyticsCatalogFieldTypeToken(field.type))}</span>
       <span class="bi-field-name">${escapeHtml(field.name)}</span>
       <span class="bi-field-source">${escapeHtml(field.source)}</span>
     </div>`;
@@ -11788,37 +14117,37 @@ function renderBiFieldCatalog(project) {
     .join("");
 }
 
-function getBiColorLegendData(project, rows, source, groupBy) {
+function getAnalyticsColorLegendData(project, rows, source, groupBy) {
   if (!project) {
     return [];
   }
   const safeRows = Array.isArray(rows) ? rows : [];
-  const selectedSource = normalizeBiSource(source || "all");
-  const selectedGroupBy = normalizeBiGroupBy(groupBy || "disciplina");
+  const selectedSource = normalizeAnalyticsSource(source || "all");
+  const selectedGroupBy = normalizeAnalyticsGroupBy(groupBy || "disciplina");
   const scopedRows = selectedSource === "all"
     ? safeRows
     : safeRows.filter((row) => row.source === selectedSource);
-  return buildBiGroupedRows(scopedRows, selectedGroupBy)
+  return buildAnalyticsGroupedRows(scopedRows, selectedGroupBy)
     .sort((a, b) => {
       if (b.count !== a.count) {
         return b.count - a.count;
       }
       return a.label.localeCompare(b.label, "es");
     })
-    .slice(0, BI_COLOR_ROWS_LIMIT)
+    .slice(0, ANALYTICS_COLOR_ROWS_LIMIT)
     .map((item, index) => ({
       label: item.label,
-      color: getBiColorFromConfig(project, selectedGroupBy, item.label, index),
+      color: getAnalyticsColorFromConfig(project, selectedGroupBy, item.label, index),
       index
     }));
 }
 
-function clearBiColorsForGroup(project, groupBy) {
+function clearAnalyticsColorsForGroup(project, groupBy) {
   if (!project?.biConfig) {
     return 0;
   }
-  const safeGroupBy = normalizeBiGroupBy(groupBy || "disciplina");
-  const colorMap = normalizeBiColorMap(project.biConfig.colorMap);
+  const safeGroupBy = normalizeAnalyticsGroupBy(groupBy || "disciplina");
+  const colorMap = normalizeAnalyticsColorMap(project.biConfig.colorMap);
   const prefix = `${safeGroupBy}::`;
   let removed = 0;
   Object.keys(colorMap).forEach((key) => {
@@ -11832,38 +14161,38 @@ function clearBiColorsForGroup(project, groupBy) {
   return removed;
 }
 
-function renderBiColorPanel(project, rows) {
-  if (!els.biColorLegendList || !els.biColorSummaryText) {
+function renderAnalyticsColorPanel(project, rows) {
+  if (!els.legacyStudioColorLegendList || !els.legacyStudioColorSummaryText) {
     return;
   }
   if (!project) {
-    els.biColorLegendList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
-    els.biColorSummaryText.textContent = "";
+    els.legacyStudioColorLegendList.innerHTML = "<div class=\"bi-empty\">Sin proyecto activo.</div>";
+    els.legacyStudioColorSummaryText.textContent = "";
     return;
   }
 
-  ensureBiState(project);
-  const selectedSource = normalizeBiSource(els.biColorSourceSelect?.value || project.biConfig.colorSource || "all");
-  const selectedGroupBy = normalizeBiGroupBy(els.biColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
+  ensureAnalyticsState(project);
+  const selectedSource = normalizeAnalyticsSource(els.legacyStudioColorSourceSelect?.value || project.biConfig.colorSource || "all");
+  const selectedGroupBy = normalizeAnalyticsGroupBy(els.legacyStudioColorGroupBySelect?.value || project.biConfig.colorGroupBy || "disciplina");
   project.biConfig.colorSource = selectedSource;
   project.biConfig.colorGroupBy = selectedGroupBy;
-  if (els.biColorSourceSelect && els.biColorSourceSelect.value !== selectedSource) {
-    els.biColorSourceSelect.value = selectedSource;
+  if (els.legacyStudioColorSourceSelect && els.legacyStudioColorSourceSelect.value !== selectedSource) {
+    els.legacyStudioColorSourceSelect.value = selectedSource;
   }
-  if (els.biColorGroupBySelect && els.biColorGroupBySelect.value !== selectedGroupBy) {
-    els.biColorGroupBySelect.value = selectedGroupBy;
+  if (els.legacyStudioColorGroupBySelect && els.legacyStudioColorGroupBySelect.value !== selectedGroupBy) {
+    els.legacyStudioColorGroupBySelect.value = selectedGroupBy;
   }
 
-  const legendRows = getBiColorLegendData(project, rows, selectedSource, selectedGroupBy);
-  const groupLabel = getBiGroupLabel(selectedGroupBy, project);
-  const sourceLabel = getBiSourceLabel(selectedSource);
-  els.biColorSummaryText.textContent = `Fuente: ${sourceLabel} | Dimension: ${groupLabel} | Codigos: ${legendRows.length}`;
+  const legendRows = getAnalyticsColorLegendData(project, rows, selectedSource, selectedGroupBy);
+  const groupLabel = getAnalyticsGroupLabel(selectedGroupBy, project);
+  const sourceLabel = getAnalyticsSourceLabel(selectedSource);
+  els.legacyStudioColorSummaryText.textContent = `Fuente: ${sourceLabel} | Dimension: ${groupLabel} | Codigos: ${legendRows.length}`;
   if (legendRows.length === 0) {
-    els.biColorLegendList.innerHTML = "<div class=\"bi-empty\">No hay categorias disponibles para colorear.</div>";
+    els.legacyStudioColorLegendList.innerHTML = "<div class=\"bi-empty\">No hay categorias disponibles para colorear.</div>";
     return;
   }
 
-  els.biColorLegendList.innerHTML = legendRows
+  els.legacyStudioColorLegendList.innerHTML = legendRows
     .map((row) => `<div class="bi-color-row">
       <span class="bi-color-label" title="${escapeAttribute(row.label)}">
         <span class="bi-color-bullet" style="background:${escapeAttribute(row.color)};"></span>
@@ -11874,7 +14203,7 @@ function renderBiColorPanel(project, rows) {
     .join("");
 }
 
-function getBiRuntimeStats(projectId) {
+function getAnalyticsRuntimeStats(projectId) {
   if (!projectId) {
     return {
       lastRenderMs: 0,
@@ -11885,7 +14214,7 @@ function getBiRuntimeStats(projectId) {
       points: 0
     };
   }
-  return biRuntimeStatsByProject[projectId] || {
+  return legacyStudioRuntimeStatsByProject[projectId] || {
     lastRenderMs: 0,
     avgRenderMs: 0,
     renderCount: 0,
@@ -11895,29 +14224,29 @@ function getBiRuntimeStats(projectId) {
   };
 }
 
-function updateBiRuntimeStats(projectId, nextStats) {
+function updateAnalyticsRuntimeStats(projectId, nextStats) {
   if (!projectId || !nextStats || typeof nextStats !== "object") {
     return;
   }
-  const previous = getBiRuntimeStats(projectId);
+  const previous = getAnalyticsRuntimeStats(projectId);
   const renderCount = (previous.renderCount || 0) + 1;
-  const lastRenderMs = sanitizeBiDecimal(nextStats.lastRenderMs, 0, 0, 200000);
+  const lastRenderMs = sanitizeAnalyticsDecimal(nextStats.lastRenderMs, 0, 0, 200000);
   const avgRenderMs = ((previous.avgRenderMs || 0) * (renderCount - 1) + lastRenderMs) / renderCount;
-  biRuntimeStatsByProject[projectId] = {
+  legacyStudioRuntimeStatsByProject[projectId] = {
     lastRenderMs,
     avgRenderMs: Math.round(avgRenderMs * 100) / 100,
     renderCount,
-    widgets: sanitizeBiInteger(nextStats.widgets, 0, 0, 9999),
-    rows: sanitizeBiInteger(nextStats.rows, 0, 0, 999999),
-    points: sanitizeBiInteger(nextStats.points, 0, 0, 9999999)
+    widgets: sanitizeAnalyticsInteger(nextStats.widgets, 0, 0, 9999),
+    rows: sanitizeAnalyticsInteger(nextStats.rows, 0, 0, 999999),
+    points: sanitizeAnalyticsInteger(nextStats.points, 0, 0, 9999999)
   };
 }
 
-function runBiAutoOptimize(project, mode) {
+function runAnalyticsAutoOptimize(project, mode) {
   if (!project || !Array.isArray(project.biWidgets)) {
     return { updatedWidgets: 0, topNChanges: 0, visualChanges: 0, tableChanges: 0 };
   }
-  const profile = normalizeBiPerformanceMode(mode || project?.biConfig?.performanceMode || "balanced");
+  const profile = normalizeAnalyticsPerformanceMode(mode || project?.biConfig?.performanceMode || "balanced");
   let updatedWidgets = 0;
   let topNChanges = 0;
   let visualChanges = 0;
@@ -11925,23 +14254,23 @@ function runBiAutoOptimize(project, mode) {
   const topNCap = profile === "turbo" ? 18 : (profile === "balanced" ? 32 : 50);
   const rowLimitCap = profile === "turbo" ? 40 : (profile === "balanced" ? 80 : 160);
   project.biWidgets.forEach((widget, index) => {
-    const normalizedWidget = normalizeBiWidget(widget, index);
-    if (normalizeBiWidgetKind(normalizedWidget.kind) !== "chart") {
+    const normalizedWidget = normalizeAnalyticsWidget(widget, index);
+    if (normalizeAnalyticsWidgetKind(normalizedWidget.kind) !== "chart") {
       return;
     }
     let changed = false;
-    const currentTopN = sanitizeBiTopN(normalizedWidget.topN ?? 10);
+    const currentTopN = sanitizeAnalyticsTopN(normalizedWidget.topN ?? 10);
     if (currentTopN > topNCap) {
       normalizedWidget.topN = topNCap;
       topNChanges += 1;
       changed = true;
     }
-    const chartType = normalizeBiChartType(normalizedWidget.chartType || "bar");
+    const chartType = normalizeAnalyticsChartType(normalizedWidget.chartType || "bar");
     if (chartType === "table" || chartType === "pivot" || chartType === "timeline" || chartType === "sankey") {
-      const current = getBiSpecificChartConfigForWidget(normalizedWidget, chartType);
-      const safeRowLimit = sanitizeBiInteger(current.rowLimit, 60, 1, 200);
+      const current = getAnalyticsSpecificChartConfigForWidget(normalizedWidget, chartType);
+      const safeRowLimit = sanitizeAnalyticsInteger(current.rowLimit, 60, 1, 200);
       if (safeRowLimit > rowLimitCap) {
-        setBiSpecificChartConfigForWidget(normalizedWidget, chartType, {
+        setAnalyticsSpecificChartConfigForWidget(normalizedWidget, chartType, {
           ...current,
           rowLimit: rowLimitCap
         });
@@ -11953,56 +14282,56 @@ function runBiAutoOptimize(project, mode) {
       return;
     }
     widget.topN = normalizedWidget.topN;
-    widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+    widget.chartTypeConfig = normalizeAnalyticsChartTypeConfigMap(normalizedWidget.chartTypeConfig);
     updatedWidgets += 1;
   });
   return { updatedWidgets, topNChanges, visualChanges, tableChanges };
 }
 
-function renderBiPerformancePanel(project, rows) {
+function renderAnalyticsPerformancePanel(project, rows) {
   if (
-    !(els.biPerformanceModeSelect instanceof HTMLSelectElement)
-    || !(els.biPerfRenderMsText instanceof HTMLElement)
-    || !(els.biPerfWidgetsText instanceof HTMLElement)
-    || !(els.biPerfPointsText instanceof HTMLElement)
-    || !(els.biPerfRowsText instanceof HTMLElement)
-    || !(els.biPerfSummaryText instanceof HTMLElement)
+    !(els.legacyStudioPerformanceModeSelect instanceof HTMLSelectElement)
+    || !(els.legacyStudioPerfRenderMsText instanceof HTMLElement)
+    || !(els.legacyStudioPerfWidgetsText instanceof HTMLElement)
+    || !(els.legacyStudioPerfPointsText instanceof HTMLElement)
+    || !(els.legacyStudioPerfRowsText instanceof HTMLElement)
+    || !(els.legacyStudioPerfSummaryText instanceof HTMLElement)
   ) {
     return;
   }
 
   if (!project) {
-    els.biPerformanceModeSelect.value = "balanced";
-    els.biPerfRenderMsText.textContent = "-";
-    els.biPerfWidgetsText.textContent = "-";
-    els.biPerfPointsText.textContent = "-";
-    els.biPerfRowsText.textContent = "-";
-    els.biPerfSummaryText.textContent = "Sin proyecto activo.";
+    els.legacyStudioPerformanceModeSelect.value = "balanced";
+    els.legacyStudioPerfRenderMsText.textContent = "-";
+    els.legacyStudioPerfWidgetsText.textContent = "-";
+    els.legacyStudioPerfPointsText.textContent = "-";
+    els.legacyStudioPerfRowsText.textContent = "-";
+    els.legacyStudioPerfSummaryText.textContent = "Sin proyecto activo.";
     return;
   }
 
-  ensureBiState(project);
-  const runtime = getBiRuntimeStats(project.id);
-  const safeMode = normalizeBiPerformanceMode(project.biConfig.performanceMode || "balanced");
-  if (els.biPerformanceModeSelect.value !== safeMode) {
-    els.biPerformanceModeSelect.value = safeMode;
+  ensureAnalyticsState(project);
+  const runtime = getAnalyticsRuntimeStats(project.id);
+  const safeMode = normalizeAnalyticsPerformanceMode(project.biConfig.performanceMode || "balanced");
+  if (els.legacyStudioPerformanceModeSelect.value !== safeMode) {
+    els.legacyStudioPerformanceModeSelect.value = safeMode;
   }
   const widgets = Array.isArray(project.biWidgets) ? project.biWidgets : [];
-  const chartWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "chart");
-  const textWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "text");
-  const imageWidgets = widgets.filter((item) => normalizeBiWidgetKind(item?.kind || "chart") === "image");
+  const chartWidgets = widgets.filter((item) => normalizeAnalyticsWidgetKind(item?.kind || "chart") === "chart");
+  const textWidgets = widgets.filter((item) => normalizeAnalyticsWidgetKind(item?.kind || "chart") === "text");
+  const imageWidgets = widgets.filter((item) => normalizeAnalyticsWidgetKind(item?.kind || "chart") === "image");
   const safeRows = Array.isArray(rows) ? rows : [];
   const avgByWidget = runtime.widgets > 0
     ? Math.round((runtime.points / runtime.widgets) * 10) / 10
     : 0;
-  els.biPerfRenderMsText.textContent = `${Math.max(0, Math.round(runtime.lastRenderMs))} ms`;
-  els.biPerfWidgetsText.textContent = `${widgets.length} (${chartWidgets.length} gráficos)`;
-  els.biPerfPointsText.textContent = `${runtime.points.toLocaleString("es-PE")} | prom: ${avgByWidget.toLocaleString("es-PE")}`;
-  els.biPerfRowsText.textContent = safeRows.length.toLocaleString("es-PE");
+  els.legacyStudioPerfRenderMsText.textContent = `${Math.max(0, Math.round(runtime.lastRenderMs))} ms`;
+  els.legacyStudioPerfWidgetsText.textContent = `${widgets.length} (${chartWidgets.length} grÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ficos)`;
+  els.legacyStudioPerfPointsText.textContent = `${runtime.points.toLocaleString("es-PE")} | prom: ${avgByWidget.toLocaleString("es-PE")}`;
+  els.legacyStudioPerfRowsText.textContent = safeRows.length.toLocaleString("es-PE");
 
   const modeLabel = safeMode === "turbo"
     ? "Turbo"
-    : (safeMode === "quality" ? "Calidad máxima" : "Balanceado");
+    : (safeMode === "quality" ? "Calidad mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡xima" : "Balanceado");
   const summaryParts = [
     `Perfil activo: ${modeLabel}`,
     `Render promedio: ${Math.round(runtime.avgRenderMs)} ms`,
@@ -12016,18 +14345,18 @@ function renderBiPerformancePanel(project, rows) {
   } else {
     summaryParts.push("Equilibrio entre claridad y performance.");
   }
-  els.biPerfSummaryText.textContent = summaryParts.join(" | ");
+  els.legacyStudioPerfSummaryText.textContent = summaryParts.join(" | ");
 }
 
-function getBiLocalDataApi() {
+function getAnalyticsLocalDataApi() {
   if (typeof window === "undefined" || !window.MIDPBILocalData || typeof window.MIDPBILocalData !== "object") {
     return null;
   }
   return window.MIDPBILocalData;
 }
 
-function createBiLocalDataService(project = null) {
-  const api = getBiLocalDataApi();
+function createAnalyticsLocalDataService(project = null) {
+  const api = getAnalyticsLocalDataApi();
   if (!api || typeof api.createLocalProjectDataService !== "function") {
     return null;
   }
@@ -12038,15 +14367,15 @@ function createBiLocalDataService(project = null) {
     ensureReviewMilestones,
     getPackageControlFieldIds,
     collectDeliverableMetricsByPackageKey,
-    getFieldRowData: getBiFieldRowData,
+    getFieldRowData: getAnalyticsFieldRowData,
     findFieldIdByAlias,
-    getCustomValuesFromRefs: getBiCustomValuesFromRefs,
+    getCustomValuesFromRefs: getAnalyticsCustomValuesFromRefs,
     sanitizeDateInput,
     isDateRangeInvalid,
     buildProgressSnapshot,
     sanitizeBaseUnits,
     sanitizeRealProgress,
-    getSourceLabel: getBiSourceLabel,
+    getSourceLabel: getAnalyticsSourceLabel,
     trimOrFallback,
     buildPackageControlCode,
     computeProjectIncidenceRatio,
@@ -12054,24 +14383,24 @@ function createBiLocalDataService(project = null) {
     normalizeLookup,
     formatNumberForInput,
     formatPercent,
-    normalizeSource: normalizeBiSource,
-    normalizeCrossFilterScope: normalizeBiCrossFilterScope,
-    normalizeCrossFilters: normalizeBiCrossFilters,
+    normalizeSource: normalizeAnalyticsSource,
+    normalizeCrossFilterScope: normalizeAnalyticsCrossFilterScope,
+    normalizeCrossFilters: normalizeAnalyticsCrossFilters,
     rowMatchesCrossFilter: rowMatchesBiCrossFilter,
     getGlobalSearchQuery: () => currentSearchQuery
   });
 }
 
-function collectBiRows(project) {
-  const service = createBiLocalDataService(project);
+function collectAnalyticsRows(project) {
+  const service = createAnalyticsLocalDataService(project);
   if (!service || typeof service.collectRows !== "function") {
     return [];
   }
   return service.collectRows();
 }
 
-function filterBiRows(rows, config) {
-  const service = createBiLocalDataService();
+function filterAnalyticsRows(rows, config) {
+  const service = createAnalyticsLocalDataService();
   if (!service || typeof service.filterRows !== "function") {
     return [];
   }
@@ -12110,19 +14439,19 @@ function pickTopBiGroup(groups, selector, descending = true) {
   return safe[0] || null;
 }
 
-function renderBiInsights(project, rows) {
-  if (!(els.biInsightsGrid instanceof HTMLElement)) {
+function renderAnalyticsInsights(project, rows) {
+  if (!(els.legacyStudioInsightsGrid instanceof HTMLElement)) {
     return;
   }
 
   if (!project || !Array.isArray(rows) || rows.length === 0) {
-    els.biInsightsGrid.innerHTML = "<article class=\"bi-insight-card\"><h4>Insights</h4><p class=\"muted\">Agrega datos o quita filtros para ver recomendaciones inteligentes.</p></article>";
+    els.legacyStudioInsightsGrid.innerHTML = "<article class=\"bi-insight-card\"><h4>Insights</h4><p class=\"muted\">Agrega datos o quita filtros para ver recomendaciones inteligentes.</p></article>";
     return;
   }
 
-  const groupedByDiscipline = buildBiGroupedRows(rows, "disciplina");
-  const groupedBySystem = buildBiGroupedRows(rows, "sistema");
-  const groupedBySource = buildBiGroupedRows(rows, "fuente");
+  const groupedByDiscipline = buildAnalyticsGroupedRows(rows, "disciplina");
+  const groupedBySystem = buildAnalyticsGroupedRows(rows, "sistema");
+  const groupedBySource = buildAnalyticsGroupedRows(rows, "fuente");
   const invalidDatesCount = rows.filter((item) => item.invalidDates).length;
   const weightedProgrammed = rows.reduce((sum, item) => sum + (item.weightedProgrammed || 0), 0);
   const weightedReal = rows.reduce((sum, item) => sum + (item.weightedReal || 0), 0);
@@ -12166,7 +14495,7 @@ function renderBiInsights(project, rows) {
     const lagDelta = (lagDiscipline.realAvg ?? 0) - (lagDiscipline.programmedAvg ?? 0);
     cards.push({
       tone: lagDelta < 0 ? "warning" : "positive",
-      title: "Disciplina más rezagada",
+      title: "Disciplina mÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡s rezagada",
       value: lagDiscipline.label,
       detail: `Brecha ${formatBiSignedPercent(lagDelta, 2)} (Real ${formatPercent(lagDiscipline.realAvg, 2) || "0%"} / Prog ${formatPercent(lagDiscipline.programmedAvg, 2) || "0%"})`,
       action: {
@@ -12220,7 +14549,7 @@ function renderBiInsights(project, rows) {
     });
   }
 
-  els.biInsightsGrid.innerHTML = cards
+  els.legacyStudioInsightsGrid.innerHTML = cards
     .map((card) => {
       const action = card.action;
       const actionHtml = action
@@ -12236,8 +14565,8 @@ function renderBiInsights(project, rows) {
     .join("");
 }
 
-function renderBiKpis(rows) {
-  if (!els.biKpiGrid) {
+function renderAnalyticsKpis(rows) {
+  if (!els.legacyStudioKpiGrid) {
     return;
   }
 
@@ -12267,7 +14596,7 @@ function renderBiKpis(rows) {
     { label: "Fechas invertidas", value: String(invalidDates) }
   ];
 
-  els.biKpiGrid.innerHTML = cards
+  els.legacyStudioKpiGrid.innerHTML = cards
     .map((card) => `<article class="bi-kpi-card">
       <span class="bi-kpi-label">${escapeHtml(card.label)}</span>
       <strong class="bi-kpi-value">${escapeHtml(card.value)}</strong>
@@ -12275,14 +14604,19 @@ function renderBiKpis(rows) {
     .join("");
 }
 
-function getBiGroupLabel(groupBy, project) {
+function getAnalyticsGroupLabel(groupBy, project) {
   if (typeof groupBy === "string" && groupBy.startsWith("field:")) {
     const fieldId = trimOrFallback(groupBy.slice(6), "");
     if (!fieldId) {
       return "Campo";
     }
     const field = getFieldById(project?.fields, fieldId);
-    return trimOrFallback(field?.label, "Campo");
+    if (field) {
+      return trimOrFallback(field?.label, "Campo");
+    }
+    const externalField = getAnalyticsExternalSchemaFieldDefs(project)
+      .find((item) => item.id === fieldId);
+    return trimOrFallback(externalField?.label, "Campo");
   }
   if (groupBy === "proyecto") return "Proyecto";
   if (groupBy === "disciplina") return "Disciplina";
@@ -12300,7 +14634,7 @@ function getBiGroupLabel(groupBy, project) {
   return "Grupo";
 }
 
-function getBiMetricLabel(metric) {
+function getAnalyticsMetricLabel(metric) {
   if (metric === "count") return "Cantidad de filas";
   if (metric === "baseunits") return "UP Base total";
   if (metric === "baseavg") return "UP Base promedio";
@@ -12326,7 +14660,7 @@ function formatBiMonthToken(token) {
   return `${token.slice(5, 7)}/${token.slice(0, 4)}`;
 }
 
-function getBiRowGroupValue(row, groupBy) {
+function getAnalyticsRowGroupValue(row, groupBy) {
   if (typeof groupBy === "string" && groupBy.startsWith("field:")) {
     const fieldId = trimOrFallback(groupBy.slice(6), "");
     return trimOrFallback(row?.customValues?.[fieldId], "(sin dato)") || "(sin dato)";
@@ -12351,14 +14685,14 @@ function rowMatchesBiCrossFilter(row, filter, scope) {
   if (!row || !filter) {
     return true;
   }
-  const normalizedScope = normalizeBiCrossFilterScope(scope || "all");
+  const normalizedScope = normalizeAnalyticsCrossFilterScope(scope || "all");
   if (normalizedScope === "same_source") {
-    const filterSource = normalizeBiSource(filter.source || "all");
+    const filterSource = normalizeAnalyticsSource(filter.source || "all");
     if (filterSource !== "all" && row.source !== filterSource) {
       return true;
     }
   }
-  const rowValue = getBiRowGroupValue(row, filter.groupBy);
+  const rowValue = getAnalyticsRowGroupValue(row, filter.groupBy);
   const left = normalizeLookup(rowValue || "");
   const right = normalizeLookup(filter.label || "");
   return !!left && !!right && left === right;
@@ -12383,7 +14717,7 @@ function filterQuickSightRowsByInteractions(rows, quickSightConfig) {
 function getQuickSightInteractionTargetGroupBy(visual) {
   const safeVisual = visual && typeof visual === "object" ? visual : {};
   const interactions = normalizeQuickSightInteractionSettings(safeVisual.interactions, safeVisual);
-  const breakdownGroupBy = normalizeBiOptionalGroupBy(
+  const breakdownGroupBy = normalizeAnalyticsOptionalGroupBy(
     getOwnObjectValue(
       safeVisual,
       "breakdownDimension",
@@ -12393,7 +14727,7 @@ function getQuickSightInteractionTargetGroupBy(visual) {
   if (interactions.filterBy === "breakdown" && breakdownGroupBy) {
     return breakdownGroupBy;
   }
-  return normalizeBiGroupBy(
+  return normalizeAnalyticsGroupBy(
     safeVisual.groupBy
     || safeVisual.dataRoles?.dimensions?.[0]
     || "disciplina"
@@ -12481,7 +14815,7 @@ function getQuickSightInteractionSummary(project) {
   return filters
     .map((item) => {
       const scopeText = item.scope === "same_source" ? "misma fuente" : "global";
-      return `${getBiGroupLabel(item.groupBy, project)} = ${item.label} (${scopeText})`;
+      return `${getAnalyticsGroupLabel(item.groupBy, project)} = ${item.label} (${scopeText})`;
     })
     .join(" | ");
 }
@@ -12539,7 +14873,7 @@ function createQuickSightDrillThroughSelection(project, visual, snapshotRow) {
     return null;
   }
   const interactions = normalizeQuickSightInteractionSettings(visual.interactions, visual);
-  const breakdownGroupBy = normalizeBiOptionalGroupBy(
+  const breakdownGroupBy = normalizeAnalyticsOptionalGroupBy(
     getOwnObjectValue(
       visual,
       "breakdownDimension",
@@ -12610,7 +14944,7 @@ function renderQuickSightDrillThroughDrawer(project) {
   const filteredRows = searchToken
     ? rows.filter((row) => row.searchBlob.includes(searchToken))
     : rows;
-  const visibleRows = filteredRows.slice(0, BI_DETAIL_ROW_LIMIT);
+  const visibleRows = filteredRows.slice(0, ANALYTICS_DETAIL_ROW_LIMIT);
   const baseUnitsTotal = rows.reduce((sum, row) => sum + (Number(row.baseUnits) || 0), 0);
   const realValues = rows.map((row) => Number(row.realProgress)).filter((value) => Number.isFinite(value));
   const programmedValues = rows.map((row) => Number(row.programmedPercent)).filter((value) => Number.isFinite(value));
@@ -12642,10 +14976,10 @@ function renderQuickSightDrillThroughDrawer(project) {
     els.qsDrillThroughTitle.textContent = "Drill-through QuickSight";
   }
   if (els.qsDrillThroughSubtitle) {
-    els.qsDrillThroughSubtitle.textContent = `${visual.name} | ${getBiGroupLabel(selection.groupBy, project)} = ${selection.label}`;
+    els.qsDrillThroughSubtitle.textContent = `${visual.name} | ${getAnalyticsGroupLabel(selection.groupBy, project)} = ${selection.label}`;
   }
   if (els.qsDrillThroughMeta) {
-    const capLabel = filteredRows.length > BI_DETAIL_ROW_LIMIT
+    const capLabel = filteredRows.length > ANALYTICS_DETAIL_ROW_LIMIT
       ? `Mostrando ${visibleRows.length} de ${filteredRows.length} filas`
       : `${filteredRows.length} filas`;
     const searchLabel = searchToken ? " | filtro local activo" : "";
@@ -12676,7 +15010,7 @@ function renderQuickSightDrillThroughDrawer(project) {
         return `<tr>
           <td>${index + 1}</td>
           <td>${buildQuickSightDrillThroughRowActionHtml(row)}</td>
-          <td>${escapeHtml(row.sourceLabel || getBiSourceLabel(row.source))}</td>
+          <td>${escapeHtml(row.sourceLabel || getAnalyticsSourceLabel(row.source))}</td>
           <td>${escapeHtml(row.itemLabel || "")}</td>
           <td>${escapeHtml(row.projectLabel || "")}</td>
           <td>${escapeHtml(row.disciplineLabel || "")}</td>
@@ -12734,7 +15068,7 @@ function exportQuickSightDrillThroughCsv(project) {
   }
   const headers = ["Fuente", "Item", "Proyecto", "Disciplina", "Sistema", "Paquete", "Hito", "Inicio", "Fin", "UP Base", "Programado", "Real", "Estado"];
   const csvRows = filteredRows.map((row) => ([
-    row.sourceLabel || getBiSourceLabel(row.source),
+    row.sourceLabel || getAnalyticsSourceLabel(row.source),
     row.itemLabel || "",
     row.projectLabel || "",
     row.disciplineLabel || "",
@@ -12748,7 +15082,7 @@ function exportQuickSightDrillThroughCsv(project) {
     row.realProgress === null ? "" : (formatPercent(row.realProgress, 2) || ""),
     row.statusLabel || ""
   ]));
-  downloadCsv(buildBiExportFileName("dechini_quicksight_drillthrough", project), headers, csvRows);
+  downloadCsv(buildAnalyticsExportFileName("dechini_quicksight_drillthrough", project), headers, csvRows);
   setStatus(`Detalle QuickSight exportado (${filteredRows.length} filas).`);
 }
 
@@ -12834,7 +15168,7 @@ async function exportQuickSightBoardPng(project) {
     const h = Math.max(160, Math.round(layout.h));
     const showHead = display.showTitle || display.showSubtitle;
     const headHeight = showHead ? 39 : 0;
-    const innerPadding = Math.max(4, sanitizeBiInteger(display.padding, 8, 0, 24));
+    const innerPadding = Math.max(4, sanitizeAnalyticsInteger(display.padding, 8, 0, 24));
     if (display.showBackground) {
       ctx.fillStyle = hexToRgba(
         display.backgroundColor,
@@ -12864,7 +15198,7 @@ async function exportQuickSightBoardPng(project) {
       if (display.showSubtitle) {
         const drillMeta = getQuickSightVisualDrillMeta(visual, project);
         const subtitle = trimOrFallback(display.subtitle, "")
-          || `${getBiSourceLabel(visual.source)} | ${getBiGroupLabel(drillMeta.currentGroupBy, project)} | ${getBiMetricLabel(visual.metric)}`;
+          || `${getAnalyticsSourceLabel(visual.source)} | ${getAnalyticsGroupLabel(drillMeta.currentGroupBy, project)} | ${getAnalyticsMetricLabel(visual.metric)}`;
         ctx.fillStyle = display.subtitleColor;
         ctx.font = `${Math.max(8, display.subtitleFontSize)}px ${display.subtitleFontFamily}`;
         ctx.fillText(subtitle, textX, y + 32);
@@ -12878,14 +15212,14 @@ async function exportQuickSightBoardPng(project) {
     if (!dataUrl) {
       continue;
     }
-    const image = await loadBiImage(dataUrl);
+    const image = await loadAnalyticsImage(dataUrl);
     if (!image) {
       continue;
     }
     ctx.drawImage(image, chartX, chartY, chartW, chartH);
   }
 
-  downloadDataUrl(buildBiExportFileName("dechini_quicksight_hoja", project, "png"), boardCanvas.toDataURL("image/png"));
+  downloadDataUrl(buildAnalyticsExportFileName("dechini_quicksight_hoja", project, "png"), boardCanvas.toDataURL("image/png"));
   setStatus("QuickSight publicado localmente como PNG.");
 }
 
@@ -13002,7 +15336,7 @@ function applyQuickSightInteractionFromVisual(project, visual, snapshot, rowInde
     saveState();
     renderQuickSightPanel(project, { softSelect: false });
     renderQuickSightDrillThroughDrawer(project);
-    setStatus(`Drill-through QuickSight: ${getBiGroupLabel(nextSelection.groupBy, project)} = ${nextSelection.label}.`);
+    setStatus(`Drill-through QuickSight: ${getAnalyticsGroupLabel(nextSelection.groupBy, project)} = ${nextSelection.label}.`);
     return;
   }
   if (interactions.clickAction === "drill_down") {
@@ -13011,7 +15345,7 @@ function applyQuickSightInteractionFromVisual(project, visual, snapshot, rowInde
       if (result.reason === "no_path") {
         setStatus("Configura al menos un siguiente nivel para usar drill-down.");
       } else if (result.reason === "max_level") {
-        setStatus(`Ya estas en el ultimo nivel de drill: ${getBiGroupLabel(result.currentGroupBy, project)}.`);
+        setStatus(`Ya estas en el ultimo nivel de drill: ${getAnalyticsGroupLabel(result.currentGroupBy, project)}.`);
       } else {
         setStatus("No se pudo aplicar el drill-down.");
       }
@@ -13020,7 +15354,7 @@ function applyQuickSightInteractionFromVisual(project, visual, snapshot, rowInde
     selectedQuickSightVisualId = visual.id;
     saveState();
     renderQuickSightPanel(project, { softSelect: false });
-    setStatus(`Drill QuickSight: ${getBiGroupLabel(result.fromGroupBy, project)} = ${result.label} -> ${getBiGroupLabel(result.toGroupBy, project)}.`);
+    setStatus(`Drill QuickSight: ${getAnalyticsGroupLabel(result.fromGroupBy, project)} = ${result.label} -> ${getAnalyticsGroupLabel(result.toGroupBy, project)}.`);
     return;
   }
   const allowAppend = interactions.appendWithModifier !== false;
@@ -13037,40 +15371,40 @@ function applyQuickSightInteractionFromVisual(project, visual, snapshot, rowInde
     const targetGroupBy = getQuickSightInteractionTargetGroupBy(visual);
     const targetLabel = getQuickSightInteractionTargetLabel(selectedRow, visual);
     const modeLabel = appendMode ? " (multi)" : "";
-    setStatus(`Filtro QuickSight aplicado${modeLabel}: ${getBiGroupLabel(targetGroupBy, project)} = ${targetLabel}`);
+    setStatus(`Filtro QuickSight aplicado${modeLabel}: ${getAnalyticsGroupLabel(targetGroupBy, project)} = ${targetLabel}`);
   } else {
     setStatus("Filtro QuickSight removido.");
   }
 }
 
-function renderBiCrossFilterSummary(project) {
-  if (!els.biCrossFilterText || !els.biClearCrossFilterButton) {
+function renderAnalyticsCrossFilterSummary(project) {
+  if (!els.legacyStudioCrossFilterText || !els.legacyStudioClearCrossFilterButton) {
     return;
   }
-  const filters = normalizeBiCrossFilters(project?.biConfig?.crossFilters);
+  const filters = normalizeAnalyticsCrossFilters(project?.biConfig?.crossFilters);
   if (filters.length === 0) {
-    els.biCrossFilterText.textContent = "Sin filtro cruzado activo.";
-    els.biClearCrossFilterButton.disabled = true;
+    els.legacyStudioCrossFilterText.textContent = "Sin filtro cruzado activo.";
+    els.legacyStudioClearCrossFilterButton.disabled = true;
     return;
   }
-  const scope = normalizeBiCrossFilterScope(project?.biConfig?.crossFilterScope || "all");
+  const scope = normalizeAnalyticsCrossFilterScope(project?.biConfig?.crossFilterScope || "all");
   const summary = filters
     .map((item) => {
       const sourceTag = scope === "same_source"
-        ? ` [${getBiSourceLabel(item.source || "all")}]`
+        ? ` [${getAnalyticsSourceLabel(item.source || "all")}]`
         : "";
-      return `${getBiGroupLabel(item.groupBy, project)} = ${item.label}${sourceTag}`;
+      return `${getAnalyticsGroupLabel(item.groupBy, project)} = ${item.label}${sourceTag}`;
     })
     .join(" | ");
   const scopeText = scope === "same_source" ? "alcance misma fuente" : "alcance global";
-  els.biCrossFilterText.textContent = `Filtro cruzado (${scopeText}): ${summary}`;
-  els.biClearCrossFilterButton.disabled = false;
+  els.legacyStudioCrossFilterText.textContent = `Filtro cruzado (${scopeText}): ${summary}`;
+  els.legacyStudioClearCrossFilterButton.disabled = false;
 }
 
-function buildBiGroupedRows(rows, groupBy) {
+function buildAnalyticsGroupedRows(rows, groupBy) {
   const groups = new Map();
   rows.forEach((row) => {
-    const label = getBiRowGroupValue(row, groupBy);
+    const label = getAnalyticsRowGroupValue(row, groupBy);
     if (!groups.has(label)) {
       groups.set(label, {
         label,
@@ -13126,7 +15460,130 @@ function buildBiGroupedRows(rows, groupBy) {
   }));
 }
 
-function getBiMetricValue(group, metric) {
+function buildAnalyticsAggregateFromRows(rows) {
+  const aggregate = buildAnalyticsGroupedRows(Array.isArray(rows) ? rows : [], "__aggregate__")[0];
+  if (aggregate) {
+    return aggregate;
+  }
+  return {
+    label: "",
+    count: 0,
+    baseUnits: 0,
+    baseMax: 0,
+    baseMin: 0,
+    realSum: 0,
+    realCount: 0,
+    realMax: 0,
+    realMin: 0,
+    programmedSum: 0,
+    programmedCount: 0,
+    programmedMax: 0,
+    programmedMin: 0,
+    weightedReal: 0,
+    weightedProgrammed: 0,
+    invalidDates: 0,
+    realAvg: 0,
+    programmedAvg: 0
+  };
+}
+
+function buildAnalyticsTableSnapshot(sourceRows, source, dimensions, metrics, sortMode, topN) {
+  const safeRows = Array.isArray(sourceRows) ? sourceRows : [];
+  const safeDimensions = Array.isArray(dimensions)
+    ? dimensions.map((item) => normalizeAnalyticsGroupBy(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    : [];
+  const safeMetrics = Array.isArray(metrics)
+    ? metrics.map((item) => normalizeAnalyticsMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    : [];
+  const tableDimensions = safeDimensions.length > 0 ? safeDimensions : ["disciplina"];
+  const tableMetrics = safeMetrics.length > 0 ? safeMetrics : ["count"];
+  const groupMap = new Map();
+
+  safeRows.forEach((row) => {
+    const dimensionValues = tableDimensions.map((dimensionKey) => trimOrFallback(getAnalyticsRowGroupValue(row, dimensionKey), "(sin dato)"));
+    const rowSignature = dimensionValues.map((value) => normalizeLookup(value || "") || "_").join("||");
+    const fallbackSignature = `row_${groupMap.size + 1}`;
+    const signature = rowSignature || fallbackSignature;
+    if (!groupMap.has(signature)) {
+      groupMap.set(signature, {
+        dimensionValues,
+        rows: []
+      });
+    }
+    groupMap.get(signature).rows.push(row);
+  });
+
+  const groupedRows = Array.from(groupMap.values()).map((bucket) => {
+    const aggregate = buildAnalyticsAggregateFromRows(bucket.rows);
+    const metricValues = tableMetrics.map((metricKey) => {
+      const numericValue = getAnalyticsMetricValue(aggregate, metricKey);
+      const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+      return {
+        metric: metricKey,
+        value: safeValue,
+        valueText: formatBiMetricValue(metricKey, safeValue)
+      };
+    });
+    const joinedLabel = bucket.dimensionValues.join(" | ");
+    return {
+      rowKey: buildAnalyticsRowKey(source, tableDimensions.join("_"), joinedLabel),
+      label: joinedLabel,
+      groupLabel: trimOrFallback(bucket.dimensionValues[0], "(sin dato)"),
+      value: metricValues[0]?.value ?? bucket.rows.length,
+      valueText: metricValues[0]?.valueText ?? "",
+      dimensionValues: bucket.dimensionValues.slice(),
+      metricValues,
+      rows: bucket.rows.slice()
+    };
+  });
+
+  sortBiGroupedRows(groupedRows, sortMode);
+  const trimmedRows = groupedRows.slice(0, topN);
+  const columns = [
+    ...tableDimensions.map((dimensionKey) => ({
+      key: `dimension:${dimensionKey}`,
+      role: "dimension",
+      dimension: dimensionKey,
+      label: getAnalyticsGroupLabel(dimensionKey)
+    })),
+    ...tableMetrics.map((metricKey) => ({
+      key: `metric:${metricKey}`,
+      role: "metric",
+      metric: metricKey,
+      label: getAnalyticsMetricLabel(metricKey)
+    }))
+  ];
+
+  return {
+    dimensionKeys: tableDimensions,
+    metricKeys: tableMetrics,
+    columns,
+    rows: trimmedRows.map((row) => ({
+      rowKey: row.rowKey,
+      label: row.label,
+      groupLabel: row.groupLabel,
+      value: row.value,
+      valueText: row.valueText,
+      cells: [
+        ...tableDimensions.map((dimensionKey, index) => ({
+          key: `dimension:${dimensionKey}`,
+          role: "dimension",
+          dimension: dimensionKey,
+          text: trimOrFallback(row.dimensionValues[index], "(sin dato)")
+        })),
+        ...row.metricValues.map((metricEntry) => ({
+          key: `metric:${metricEntry.metric}`,
+          role: "metric",
+          metric: metricEntry.metric,
+          value: metricEntry.value,
+          text: metricEntry.valueText
+        }))
+      ]
+    }))
+  };
+}
+
+function getAnalyticsMetricValue(group, metric) {
   if (metric === "count") return group.count;
   if (metric === "baseunits") return group.baseUnits;
   if (metric === "baseavg") return group.count > 0 ? (group.baseUnits / group.count) : 0;
@@ -13156,7 +15613,7 @@ function isBiPercentMetric(metric) {
     "weightedreal",
     "weightedprogrammed",
     "weightedgap"
-  ]).has(normalizeBiMetric(metric || ""));
+  ]).has(normalizeAnalyticsMetric(metric || ""));
 }
 
 function formatBiMetricValue(metric, value) {
@@ -13169,12 +15626,12 @@ function formatBiMetricValue(metric, value) {
   return formatPercent(value, 2) || "0%";
 }
 
-function getBiPaletteColor(index) {
+function getAnalyticsPaletteColor(index) {
   const palette = ["#2f7ed8", "#24a36c", "#f39c12", "#b551e0", "#e74c3c", "#16a085", "#34495e", "#f06292", "#7cb342", "#5c6bc0"];
   return palette[index % palette.length];
 }
 
-function normalizeBiColorHex(color, fallback = "#2f7ed8") {
+function normalizeAnalyticsColorHex(color, fallback = "#2f7ed8") {
   const raw = trimOrFallback(color, "");
   if (!raw) {
     return fallback;
@@ -13191,8 +15648,8 @@ function normalizeBiColorHex(color, fallback = "#2f7ed8") {
   return fallback;
 }
 
-function buildBiColorKey(groupBy, label) {
-  const safeGroup = normalizeBiGroupBy(groupBy || "disciplina");
+function buildAnalyticsColorKey(groupBy, label) {
+  const safeGroup = normalizeAnalyticsGroupBy(groupBy || "disciplina");
   const safeLabel = normalizeLookup(label || "");
   if (!safeLabel) {
     return "";
@@ -13200,7 +15657,7 @@ function buildBiColorKey(groupBy, label) {
   return `${safeGroup}::${safeLabel}`;
 }
 
-function normalizeBiColorMap(rawMap) {
+function normalizeAnalyticsColorMap(rawMap) {
   if (!rawMap || typeof rawMap !== "object") {
     return {};
   }
@@ -13211,37 +15668,37 @@ function normalizeBiColorMap(rawMap) {
     if (!safeKey) {
       return;
     }
-    normalized[safeKey] = normalizeBiColorHex(String(value || ""), "#2f7ed8");
+    normalized[safeKey] = normalizeAnalyticsColorHex(String(value || ""), "#2f7ed8");
   });
   return normalized;
 }
 
-function getBiColorFromConfig(project, groupBy, label, index) {
-  const key = buildBiColorKey(groupBy, label);
-  const fallback = getBiPaletteColor(index);
+function getAnalyticsColorFromConfig(project, groupBy, label, index) {
+  const key = buildAnalyticsColorKey(groupBy, label);
+  const fallback = getAnalyticsPaletteColor(index);
   if (!key || !project?.biConfig?.colorMap || typeof project.biConfig.colorMap !== "object") {
     return fallback;
   }
   const configured = project.biConfig.colorMap[key];
-  return normalizeBiColorHex(configured, fallback);
+  return normalizeAnalyticsColorHex(configured, fallback);
 }
 
-function getBiSeriesColors(project, groupBy, labels) {
+function getAnalyticsSeriesColors(project, groupBy, labels) {
   if (!Array.isArray(labels)) {
     return [];
   }
-  return labels.map((label, index) => getBiColorFromConfig(project, groupBy, label, index));
+  return labels.map((label, index) => getAnalyticsColorFromConfig(project, groupBy, label, index));
 }
 
-function getBiSnapshotSeriesColors(project, snapshot) {
+function getAnalyticsSnapshotSeriesColors(project, snapshot) {
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
-  const colorDimension = normalizeBiGroupBy(snapshot?.colorByDimension || snapshot?.groupBy || "disciplina");
+  const colorDimension = normalizeAnalyticsGroupBy(snapshot?.colorByDimension || snapshot?.groupBy || "disciplina");
   const colorLabels = rows.map((row) => trimOrFallback(row?.colorKey, row?.label || ""));
-  return getBiSeriesColors(project, colorDimension, colorLabels);
+  return getAnalyticsSeriesColors(project, colorDimension, colorLabels);
 }
 
 function hexToRgba(color, alpha, fallback = "rgba(47, 126, 216, 0.2)") {
-  const safeHex = normalizeBiColorHex(color, "");
+  const safeHex = normalizeAnalyticsColorHex(color, "");
   const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 1;
   if (!safeHex) {
     return fallback;
@@ -13254,7 +15711,7 @@ function hexToRgba(color, alpha, fallback = "rgba(47, 126, 216, 0.2)") {
 }
 
 function biHexToRgb(color, fallback = "#ffffff") {
-  const safeHex = normalizeBiColorHex(color, fallback);
+  const safeHex = normalizeAnalyticsColorHex(color, fallback);
   const raw = safeHex.replace("#", "");
   return {
     r: parseInt(raw.slice(0, 2), 16),
@@ -13286,8 +15743,8 @@ function biContrastRatio(colorA, colorB) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function getBiAutoContrastTextColor(backgroundColor) {
-  const safeBackground = normalizeBiColorHex(backgroundColor || "#ffffff", "#ffffff");
+function getAnalyticsAutoContrastTextColor(backgroundColor) {
+  const safeBackground = normalizeAnalyticsColorHex(backgroundColor || "#ffffff", "#ffffff");
   const dark = "#1f2f44";
   const light = "#ffffff";
   const darkRatio = biContrastRatio(safeBackground, dark);
@@ -13295,58 +15752,58 @@ function getBiAutoContrastTextColor(backgroundColor) {
   return darkRatio >= lightRatio ? dark : light;
 }
 
-function resolveBiLabelColor(visualSettings, backgroundColor = "#ffffff", fallback = "#1f2f44") {
-  const visual = normalizeBiVisualSettings(visualSettings || {});
+function resolveAnalyticsLabelColor(visualSettings, backgroundColor = "#ffffff", fallback = "#1f2f44") {
+  const visual = normalizeAnalyticsVisualSettings(visualSettings || {});
   if (visual.labelColorMode === "manual") {
-    return normalizeBiColorHex(visual.labelColor, fallback);
+    return normalizeAnalyticsColorHex(visual.labelColor, fallback);
   }
-  return getBiAutoContrastTextColor(backgroundColor);
+  return getAnalyticsAutoContrastTextColor(backgroundColor);
 }
 
-function getBiFontFamilyByLayer(visualSettings, layer) {
-  const visual = normalizeBiVisualSettings(visualSettings || {});
+function getAnalyticsFontFamilyByLayer(visualSettings, layer) {
+  const visual = normalizeAnalyticsVisualSettings(visualSettings || {});
   if (layer === "title") {
-    return sanitizeBiFontFamily(visual.fontFamilyTitle, "Segoe UI");
+    return sanitizeAnalyticsFontFamily(visual.fontFamilyTitle, "Segoe UI");
   }
   if (layer === "axis") {
-    return sanitizeBiFontFamily(visual.fontFamilyAxis, "Segoe UI");
+    return sanitizeAnalyticsFontFamily(visual.fontFamilyAxis, "Segoe UI");
   }
   if (layer === "tooltip") {
-    return sanitizeBiFontFamily(visual.fontFamilyTooltip, "Segoe UI");
+    return sanitizeAnalyticsFontFamily(visual.fontFamilyTooltip, "Segoe UI");
   }
-  return sanitizeBiFontFamily(visual.fontFamilyLabel, "Segoe UI");
+  return sanitizeAnalyticsFontFamily(visual.fontFamilyLabel, "Segoe UI");
 }
 
-function getBiFontSizeByLayer(visualSettings, layer, fallback) {
-  const visual = normalizeBiVisualSettings(visualSettings || {});
+function getAnalyticsFontSizeByLayer(visualSettings, layer, fallback) {
+  const visual = normalizeAnalyticsVisualSettings(visualSettings || {});
   if (layer === "title") {
-    return sanitizeBiInteger(visual.fontSizeTitle, fallback ?? 16, 10, 32);
+    return sanitizeAnalyticsInteger(visual.fontSizeTitle, fallback ?? 16, 10, 32);
   }
   if (layer === "axis") {
-    return sanitizeBiInteger(visual.fontSizeAxis, fallback ?? 10, 8, 20);
+    return sanitizeAnalyticsInteger(visual.fontSizeAxis, fallback ?? 10, 8, 20);
   }
   if (layer === "tooltip") {
-    return sanitizeBiInteger(visual.fontSizeTooltip, fallback ?? 11, 8, 20);
+    return sanitizeAnalyticsInteger(visual.fontSizeTooltip, fallback ?? 11, 8, 20);
   }
-  return sanitizeBiInteger(visual.fontSizeLabels, fallback ?? visual.fontSize, 8, 22);
+  return sanitizeAnalyticsInteger(visual.fontSizeLabels, fallback ?? visual.fontSize, 8, 22);
 }
 
-function applyBiCanvasFont(ctx, visualSettings, layer, options = {}) {
+function applyAnalyticsCanvasFont(ctx, visualSettings, layer, options = {}) {
   if (!ctx) {
     return "";
   }
   const weight = options.bold ? 700 : (options.weight || 400);
   const italic = options.italic ? "italic " : "";
   const defaultSize = Number.isFinite(options.fallbackSize) ? options.fallbackSize : 10;
-  const size = getBiFontSizeByLayer(visualSettings, layer, defaultSize);
-  const family = getBiFontFamilyByLayer(visualSettings, layer);
+  const size = getAnalyticsFontSizeByLayer(visualSettings, layer, defaultSize);
+  const family = getAnalyticsFontFamilyByLayer(visualSettings, layer);
   const font = `${italic}${weight} ${size}px ${family}`;
   ctx.font = font;
   return font;
 }
 
-function resolveBiLineDashPattern(visualSettings) {
-  const visual = normalizeBiVisualSettings(visualSettings || {});
+function resolveAnalyticsLineDashPattern(visualSettings) {
+  const visual = normalizeAnalyticsVisualSettings(visualSettings || {});
   if (visual.seriesLineStyle === "dashed") {
     return [10, 6];
   }
@@ -13365,7 +15822,7 @@ function drawBiMarker(ctx, x, y, markerStyle, size, color) {
   if (!Number.isFinite(x) || !Number.isFinite(y) || radius <= 0 || style === "none") {
     return;
   }
-  const fillColor = normalizeBiColorHex(color, "#2f7ed8");
+  const fillColor = normalizeAnalyticsColorHex(color, "#2f7ed8");
   ctx.save();
   ctx.fillStyle = fillColor;
   ctx.beginPath();
@@ -13389,13 +15846,13 @@ function drawBiMarker(ctx, x, y, markerStyle, size, color) {
   ctx.restore();
 }
 
-function getBiRenderedValuesForVisual(values, visualSettings, chartType) {
+function getAnalyticsRenderedValuesForVisual(values, visualSettings, chartType) {
   const safeValues = Array.isArray(values)
     ? values.map((value) => (Number.isFinite(value) ? value : 0))
     : [];
-  const safeType = normalizeBiChartType(chartType || "bar");
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
   const stackable = safeType === "bar" || safeType === "line" || safeType === "area" || safeType === "combo";
-  const visual = normalizeBiVisualSettings(visualSettings || {});
+  const visual = normalizeAnalyticsVisualSettings(visualSettings || {});
   if (!stackable || visual.stackMode === "none" || safeValues.length === 0) {
     return safeValues;
   }
@@ -13440,8 +15897,8 @@ function resizeCanvasForDisplay(canvas, fallbackHeight) {
 }
 
 function formatBiVisualNumber(value, settings, options = {}) {
-  const visual = normalizeBiVisualSettings(settings);
-  const decimals = sanitizeBiInteger(visual.valueDecimals, 1, 0, 4);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const decimals = sanitizeAnalyticsInteger(visual.valueDecimals, 1, 0, 4);
   const numeric = Number(value || 0);
   const usePercent = visual.numberFormat === "percent"
     || (visual.numberFormat === "auto" && options.percentHint === true);
@@ -13465,20 +15922,20 @@ function formatBiVisualNumber(value, settings, options = {}) {
 }
 
 function truncateBiLabel(label, settings, fallbackMax) {
-  const visual = normalizeBiVisualSettings(settings);
-  const maxChars = sanitizeBiInteger(visual.labelMaxChars, fallbackMax, 4, 40);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const maxChars = sanitizeAnalyticsInteger(visual.labelMaxChars, fallbackMax, 4, 40);
   return trimOrFallback(label, "").slice(0, maxChars);
 }
 
 function drawBiHorizontalGrid(ctx, left, top, plotWidth, plotHeight, steps, color, settings) {
-  const visual = normalizeBiVisualSettings(settings);
+  const visual = normalizeAnalyticsVisualSettings(settings);
   const safeSteps = Math.max(2, steps || 5);
   ctx.save();
-  const safeOpacity = sanitizeBiDecimal(visual.gridOpacity, 0.35, 0.1, 1);
+  const safeOpacity = sanitizeAnalyticsDecimal(visual.gridOpacity, 0.35, 0.1, 1);
   ctx.globalAlpha = safeOpacity;
   ctx.strokeStyle = color || "#e4ebf3";
   ctx.lineWidth = 1;
-  const dash = sanitizeBiInteger(visual.gridDash, 4, 0, 12);
+  const dash = sanitizeAnalyticsInteger(visual.gridDash, 4, 0, 12);
   if (dash > 0) {
     ctx.setLineDash([dash, dash]);
   } else {
@@ -13494,8 +15951,8 @@ function drawBiHorizontalGrid(ctx, left, top, plotWidth, plotHeight, steps, colo
   ctx.restore();
 }
 
-function resolveBiAxisRange(values, settings, options = {}) {
-  const visual = normalizeBiVisualSettings(settings);
+function resolveAnalyticsAxisRange(values, settings, options = {}) {
+  const visual = normalizeAnalyticsVisualSettings(settings);
   const safeValues = Array.isArray(values)
     ? values.filter((value) => Number.isFinite(value))
     : [];
@@ -13533,7 +15990,7 @@ function resolveBiAxisRange(values, settings, options = {}) {
   return { min, max, scale };
 }
 
-function normalizeBiAxisValue(value, axisRange) {
+function normalizeAnalyticsAxisValue(value, axisRange) {
   const axis = axisRange || { min: 0, max: 1, scale: "linear" };
   const safeValue = Number.isFinite(value) ? value : 0;
   if (axis.scale === "log") {
@@ -13556,7 +16013,7 @@ function drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, sett
   if (!ctx) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
+  const visual = normalizeAnalyticsVisualSettings(settings);
   if (!visual.showTargetLine || visual.targetLineValue === null) {
     return;
   }
@@ -13567,13 +16024,13 @@ function drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, sett
   if ((axisRange?.scale || "linear") === "log" && targetValue <= 0) {
     return;
   }
-  const normalizedRaw = normalizeBiAxisValue(targetValue, axisRange);
+  const normalizedRaw = normalizeAnalyticsAxisValue(targetValue, axisRange);
   if (!Number.isFinite(normalizedRaw)) {
     return;
   }
   const normalized = Math.max(0, Math.min(1, normalizedRaw));
   const y = top + plotHeight - (normalized * plotHeight);
-  const lineColor = normalizeBiColorHex(visual.targetLineColor, "#b03831");
+  const lineColor = normalizeAnalyticsColorHex(visual.targetLineColor, "#b03831");
   ctx.save();
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = Math.max(1, visual.lineWidth - 1);
@@ -13587,22 +16044,22 @@ function drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, sett
   const valueText = formatBiVisualNumber(targetValue, visual, { percentHint: options.percentHint === true });
   ctx.textAlign = "right";
   ctx.fillStyle = lineColor;
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1), bold: true });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1), bold: true });
   const labelY = Math.max(12, Math.min(top + plotHeight - 2, y - 4));
   ctx.fillText(`${label}: ${valueText}`, left + plotWidth - 3, labelY);
   ctx.restore();
 }
 
 function drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, settings) {
-  const visual = normalizeBiVisualSettings(settings);
-  const axisTitleColor = resolveBiLabelColor(visual, "#ffffff", "#425264");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const axisTitleColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425264");
   const axisXTitle = trimOrFallback(visual.axisXLabel, "");
   const axisYTitle = trimOrFallback(visual.axisYLabel, "");
   if (axisXTitle) {
     ctx.save();
     ctx.textAlign = "center";
     ctx.fillStyle = axisTitleColor;
-    applyBiCanvasFont(ctx, visual, "axis", { bold: true, fallbackSize: Math.max(10, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { bold: true, fallbackSize: Math.max(10, visual.fontSizeAxis) });
     ctx.fillText(axisXTitle, left + (plotWidth / 2), top + plotHeight + 26);
     ctx.restore();
   }
@@ -13612,13 +16069,13 @@ function drawBiAxisTitles(ctx, left, top, plotWidth, plotHeight, settings) {
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
     ctx.fillStyle = axisTitleColor;
-    applyBiCanvasFont(ctx, visual, "axis", { bold: true, fallbackSize: Math.max(10, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { bold: true, fallbackSize: Math.max(10, visual.fontSizeAxis) });
     ctx.fillText(axisYTitle, 0, 0);
     ctx.restore();
   }
 }
 
-function resolveBiLegendAnchor(position, width, height, centerX, centerY, radius, limit) {
+function resolveAnalyticsLegendAnchor(position, width, height, centerX, centerY, radius, limit) {
   const safeLimit = Math.max(1, limit || 1);
   const safePosition = trimOrFallback(position, "right").toLowerCase();
   if (safePosition === "left") {
@@ -13637,7 +16094,7 @@ function resolveBiLegendAnchor(position, width, height, centerX, centerY, radius
   };
 }
 
-function clampBiValue(value, min, max) {
+function clampAnalyticsValue(value, min, max) {
   const safeValue = Number(value);
   if (!Number.isFinite(safeValue)) {
     return min;
@@ -13651,14 +16108,14 @@ function clampBiValue(value, min, max) {
   return safeValue;
 }
 
-function resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout) {
+function resolveAnalyticsCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout) {
   const safeWidth = Math.max(20, Math.floor(width));
   const safeHeight = Math.max(20, Math.floor(height));
-  const safeVisual = normalizeBiVisualSettings(visual);
-  const safeLayout = normalizeBiCircularLayout(circularLayout);
+  const safeVisual = normalizeAnalyticsVisualSettings(visual);
+  const safeLayout = normalizeAnalyticsCircularLayout(circularLayout);
   const padding = 8;
   const gap = 10;
-  const legendFontSize = getBiFontSizeByLayer(safeVisual, "label", 10);
+  const legendFontSize = getAnalyticsFontSizeByLayer(safeVisual, "label", 10);
   const rowHeight = Math.max(16, Math.round(Math.max(9, legendFontSize) * 1.45));
   const available = {
     x: padding,
@@ -13670,13 +16127,13 @@ function resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual
   const legendItems = Array.isArray(legendTexts) ? legendTexts : [];
   const requestedLegendRows = Math.max(0, Math.min(
     legendItems.length,
-    sanitizeBiInteger(safeVisual.legendMaxItems, 8, 3, 20)
+    sanitizeAnalyticsInteger(safeVisual.legendMaxItems, 8, 3, 20)
   ));
   const legendPosition = trimOrFallback(safeVisual.legendPosition, "right").toLowerCase();
   const legendEnabled = !!safeVisual.showLegend && requestedLegendRows > 0;
 
   ctx.save();
-  applyBiCanvasFont(ctx, safeVisual, "label", { fallbackSize: legendFontSize });
+  applyAnalyticsCanvasFont(ctx, safeVisual, "label", { fallbackSize: legendFontSize });
   const legendTextWidths = legendItems.map((text) => ctx.measureText(text).width);
   ctx.restore();
   const maxLegendTextWidth = legendTextWidths.length > 0 ? Math.ceil(Math.max(...legendTextWidths)) : 0;
@@ -13749,12 +16206,12 @@ function resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual
   const centerMaxX = chartArea.x + chartArea.w - radius - 2;
   const centerMinY = chartArea.y + radius + 2;
   const centerMaxY = chartArea.y + chartArea.h - radius - 2;
-  const centerX = Math.round(clampBiValue(
+  const centerX = Math.round(clampAnalyticsValue(
     chartArea.x + (chartArea.w / 2) + safeLayout.chart.x,
     Math.min(centerMinX, centerMaxX),
     Math.max(centerMinX, centerMaxX)
   ));
-  const centerY = Math.round(clampBiValue(
+  const centerY = Math.round(clampAnalyticsValue(
     chartArea.y + (chartArea.h / 2) + safeLayout.chart.y,
     Math.min(centerMinY, centerMaxY),
     Math.max(centerMinY, centerMaxY)
@@ -13769,7 +16226,7 @@ function resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual
       legendRows = legendItems.slice(0, visibleRows);
       const rowsWidths = legendRows.map((text) => {
         ctx.save();
-        applyBiCanvasFont(ctx, safeVisual, "label", { fallbackSize: legendFontSize });
+        applyAnalyticsCanvasFont(ctx, safeVisual, "label", { fallbackSize: legendFontSize });
         const widthText = ctx.measureText(text).width;
         ctx.restore();
         return widthText;
@@ -13783,12 +16240,12 @@ function resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual
       const maxLegendX = legendArea.x + legendArea.w - legendContentWidth - 2;
       const minLegendY = legendArea.y + Math.round(rowHeight * 0.72);
       const maxLegendY = legendArea.y + legendArea.h - (visibleRows * rowHeight) + Math.round(rowHeight * 0.72);
-      const legendX = Math.round(clampBiValue(
+      const legendX = Math.round(clampAnalyticsValue(
         baseX + safeLayout.legend.x,
         Math.min(minLegendX, maxLegendX),
         Math.max(minLegendX, maxLegendX)
       ));
-      const legendStartY = Math.round(clampBiValue(
+      const legendStartY = Math.round(clampAnalyticsValue(
         baseY + safeLayout.legend.y,
         Math.min(minLegendY, maxLegendY),
         Math.max(minLegendY, maxLegendY)
@@ -13863,13 +16320,13 @@ function drawBiSeriesPath(ctx, points, smoothLines) {
 
 function drawBiBarChart(ctx, width, height, labels, values, colors, settings, typeConfig) {
   ctx.clearRect(0, 0, width, height);
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "bar");
-  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "bar");
+  const minLabelValue = sanitizeAnalyticsDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
-  const axisRange = resolveBiAxisRange(values, visual, { forceZeroBaseline: true });
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
+  const axisRange = resolveAnalyticsAxisRange(values, visual, { forceZeroBaseline: true });
   const left = (visual.axisYLabel ? 58 : 44);
   const right = 10;
   const top = 12;
@@ -13877,7 +16334,7 @@ function drawBiBarChart(ctx, width, height, labels, values, colors, settings, ty
   const plotWidth = Math.max(10, width - left - right);
   const plotHeight = Math.max(10, height - top - bottom);
   const slot = plotWidth / Math.max(1, values.length);
-  const barWidth = Math.max(4, slot * sanitizeBiDecimal(visual.barWidthRatio, 0.64, 0.2, 0.9));
+  const barWidth = Math.max(4, slot * sanitizeAnalyticsDecimal(visual.barWidthRatio, 0.64, 0.2, 0.9));
 
   if (visual.showGrid) {
     drawBiHorizontalGrid(ctx, left, top, plotWidth, plotHeight, 5, "#e4ecf5", visual);
@@ -13892,7 +16349,7 @@ function drawBiBarChart(ctx, width, height, labels, values, colors, settings, ty
 
   const fontSize = Math.max(9, visual.fontSize);
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: fontSize });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: fontSize });
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "right";
     ctx.fillText(formatBiVisualNumber(axisRange.max, visual, { percentHint }), left - 4, top + 8);
@@ -13900,22 +16357,22 @@ function drawBiBarChart(ctx, width, height, labels, values, colors, settings, ty
   }
 
   values.forEach((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const barHeight = Math.max(0, normalized * plotHeight);
     const x = left + slot * index + ((slot - barWidth) / 2);
     const y = top + plotHeight - barHeight;
-    ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     ctx.fillRect(x, y, barWidth, barHeight);
     if (visual.showDataLabels && value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
       ctx.fillText(formatBiVisualNumber(value, visual, { percentHint }), x + (barWidth / 2), Math.max(10, y - 4));
     }
     if (visual.showAxisLabels && labels.length <= 12) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: fontSize });
+      applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: fontSize });
       ctx.fillText(truncateBiLabel(labels[index], visual, 8), x + (barWidth / 2), top + plotHeight + 12);
     }
   });
@@ -13929,20 +16386,20 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
     return;
   }
 
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "line");
-  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "line");
+  const minLabelValue = sanitizeAnalyticsDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
-  const offsets = normalizeBiLabelOffsets(labelOffsets);
-  const layoutV2 = normalizeBiLabelLayoutV2(labelLayoutV2);
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
+  const offsets = normalizeAnalyticsLabelOffsets(labelOffsets);
+  const layoutV2 = normalizeAnalyticsLabelLayoutV2(labelLayoutV2);
   const safeRowsData = Array.isArray(rowsData) ? rowsData : [];
   const collector = capture && typeof capture === "object" ? capture : null;
   if (collector) {
     collector.labelItems = [];
   }
-  const axisRange = resolveBiAxisRange(values, visual, { forceZeroBaseline: false });
+  const axisRange = resolveAnalyticsAxisRange(values, visual, { forceZeroBaseline: false });
   const left = (visual.axisYLabel ? 58 : 44);
   const right = 10;
   const top = 12;
@@ -13962,12 +16419,12 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
   ctx.lineTo(left + plotWidth, top + plotHeight);
   ctx.stroke();
 
-  const lineColor = normalizeBiColorHex(colors?.[0], "#2f7ed8");
+  const lineColor = normalizeAnalyticsColorHex(colors?.[0], "#2f7ed8");
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = visual.lineWidth;
-  ctx.setLineDash(resolveBiLineDashPattern(visual));
+  ctx.setLineDash(resolveAnalyticsLineDashPattern(visual));
   const points = values.map((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const x = left + (stepX * index);
     const y = top + plotHeight - (Math.max(0, normalized) * plotHeight);
     return { x, y, value, label: labels[index] || "" };
@@ -13977,16 +16434,16 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
   ctx.setLineDash([]);
 
   points.forEach((point, index) => {
-    const markerColor = normalizeBiColorHex(colors?.[index], lineColor);
+    const markerColor = normalizeAnalyticsColorHex(colors?.[index], lineColor);
     drawBiMarker(ctx, point.x, point.y, visual.seriesMarkerStyle, visual.seriesMarkerSize, markerColor);
     if (visual.showDataLabels && point.value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
       const text = formatBiVisualNumber(point.value, visual, { percentHint });
       const rowKey = trimOrFallback(safeRowsData[index]?.rowKey, "");
-      const fallbackKey = buildBiLabelFallbackKey(point.label);
-      const placement = getBiLabelPlacementFromLayout(layoutV2, rowKey, point.label || fallbackKey || "");
+      const fallbackKey = buildAnalyticsLabelFallbackKey(point.label);
+      const placement = getAnalyticsLabelPlacementFromLayout(layoutV2, rowKey, point.label || fallbackKey || "");
       const legacyOffset = offsets[String(index)] || { x: 0, y: 0 };
       const offsetX = placement
         ? (placement.dxPct * plotWidth)
@@ -14021,7 +16478,7 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
   drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, visual, { percentHint });
 
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "right";
     ctx.fillText(formatBiVisualNumber(axisRange.max, visual, { percentHint }), left - 4, top + 8);
@@ -14030,7 +16487,7 @@ function drawBiLineChart(ctx, width, height, labels, values, colors, settings, l
 
   if (visual.showAxisLabels && labels.length <= 12) {
     ctx.textAlign = "center";
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisTextColor;
     labels.forEach((label, index) => {
       const x = left + (stepX * index);
@@ -14048,9 +16505,9 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
     }
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "donut");
-  const legendTextColor = resolveBiLabelColor(visual, "#ffffff", "#4a5d73");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "donut");
+  const legendTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#4a5d73");
 
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
@@ -14058,30 +16515,30 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
     if (capture && typeof capture === "object") {
       capture.polarModel = { type: "donut", items: [], chartDragRect: null, legendDragRect: null };
     }
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
     ctx.fillStyle = "#748395";
     ctx.textAlign = "center";
     ctx.fillText("Sin datos", Math.floor(width / 2), Math.floor(height / 2));
     return;
   }
 
-  const legendLimit = Math.min(labels.length, sanitizeBiInteger(visual.legendMaxItems, 8, 3, 20));
+  const legendLimit = Math.min(labels.length, sanitizeAnalyticsInteger(visual.legendMaxItems, 8, 3, 20));
   const legendTexts = labels
     .slice(0, legendLimit)
     .map((label, index) => `${truncateBiLabel(label, visual, 16)} (${formatBiVisualNumber(safeValues[index], visual)})`);
-  const layout = resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout);
+  const layout = resolveAnalyticsCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout);
   const centerX = layout.centerX;
   const centerY = layout.centerY;
   const radius = layout.radius;
-  const innerRadius = Math.floor(radius * sanitizeBiDecimal(specific.innerRadiusRatio, 0.58, 0.35, 0.8));
-  const minLabelPercent = sanitizeBiDecimal(specific.labelMinPercent, 4, 0, 100);
+  const innerRadius = Math.floor(radius * sanitizeAnalyticsDecimal(specific.innerRadiusRatio, 0.58, 0.35, 0.8));
+  const minLabelPercent = sanitizeAnalyticsDecimal(specific.labelMinPercent, 4, 0, 100);
   let start = -Math.PI / 2;
   const arcItems = [];
 
   safeValues.forEach((value, index) => {
     const angle = (value / total) * Math.PI * 2;
     const end = start + angle;
-    const sliceColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const sliceColor = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     arcItems.push({
       index,
       kind: "arc",
@@ -14105,8 +16562,8 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
       const labelY = centerY + (Math.sin(mid) * labelRadius);
       const pct = (value / total) * 100;
       if (pct >= minLabelPercent) {
-        ctx.fillStyle = resolveBiLabelColor(visual, sliceColor, "#1f2f44");
-        applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+        ctx.fillStyle = resolveAnalyticsLabelColor(visual, sliceColor, "#1f2f44");
+        applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
         ctx.textAlign = "center";
         ctx.fillText(formatPercent(pct, visual.valueDecimals), labelX, labelY);
       }
@@ -14119,20 +16576,20 @@ function drawBiDonutChart(ctx, width, height, labels, values, colors, settings, 
   ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = resolveBiLabelColor(visual, "#ffffff", "#3b4a5f");
-  applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 12 });
+  ctx.fillStyle = resolveAnalyticsLabelColor(visual, "#ffffff", "#3b4a5f");
+  applyAnalyticsCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 12 });
   ctx.textAlign = "center";
   ctx.fillText(trimOrFallback(specific.centerTitle, "Total"), centerX, centerY - 2);
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 11 });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 11 });
   ctx.fillText(formatBiVisualNumber(total, visual), centerX, centerY + 14);
 
   if (layout.legendRows.length > 0) {
     ctx.textAlign = "left";
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
     for (let index = 0; index < layout.legendRows.length; index += 1) {
       const row = layout.legendRows[index];
       const y = row.y;
-      ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+      ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
       ctx.fillRect(row.x, y - 8, 10, 10);
       ctx.fillStyle = legendTextColor;
       ctx.fillText(row.text, row.x + 14, y);
@@ -14162,41 +16619,41 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
     }
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "pie");
-  const legendTextColor = resolveBiLabelColor(visual, "#ffffff", "#4a5d73");
-  const minLabelPercent = sanitizeBiDecimal(specific.labelMinPercent, 4, 0, 100);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "pie");
+  const legendTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#4a5d73");
+  const minLabelPercent = sanitizeAnalyticsDecimal(specific.labelMinPercent, 4, 0, 100);
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
   if (total <= 0) {
     if (capture && typeof capture === "object") {
       capture.polarModel = { type: "pie", items: [], chartDragRect: null, legendDragRect: null };
     }
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
     ctx.fillStyle = "#748395";
     ctx.textAlign = "center";
     ctx.fillText("Sin datos", Math.floor(width / 2), Math.floor(height / 2));
     return;
   }
 
-  const legendLimit = Math.min(labels.length, sanitizeBiInteger(visual.legendMaxItems, 8, 3, 20));
+  const legendLimit = Math.min(labels.length, sanitizeAnalyticsInteger(visual.legendMaxItems, 8, 3, 20));
   const legendTexts = labels
     .slice(0, legendLimit)
     .map((label, index) => {
       const pct = total > 0 ? ((safeValues[index] / total) * 100) : 0;
       return `${truncateBiLabel(label, visual, 12)} ${formatPercent(pct, visual.valueDecimals)}`;
     });
-  const layout = resolveBiCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout);
+  const layout = resolveAnalyticsCircularLayoutGeometry(ctx, width, height, legendTexts, visual, circularLayout);
   const centerX = layout.centerX;
   const centerY = layout.centerY;
   const radius = layout.radius;
-  const startOffset = sanitizeBiDecimal(specific.startAngle, -90, -360, 360);
+  const startOffset = sanitizeAnalyticsDecimal(specific.startAngle, -90, -360, 360);
   let start = (startOffset * Math.PI) / 180;
   const arcItems = [];
   safeValues.forEach((value, index) => {
     const angle = (value / total) * Math.PI * 2;
     const end = start + angle;
-    const sliceColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const sliceColor = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     arcItems.push({
       index,
       kind: "arc",
@@ -14219,8 +16676,8 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
         const mid = start + (angle / 2);
         const labelX = centerX + (Math.cos(mid) * (radius * 0.65));
         const labelY = centerY + (Math.sin(mid) * (radius * 0.65));
-        ctx.fillStyle = resolveBiLabelColor(visual, sliceColor, "#1f2f44");
-        applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+        ctx.fillStyle = resolveAnalyticsLabelColor(visual, sliceColor, "#1f2f44");
+        applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
         ctx.textAlign = "center";
         ctx.fillText(formatPercent(pct, visual.valueDecimals), labelX, labelY);
       }
@@ -14230,11 +16687,11 @@ function drawBiPieChart(ctx, width, height, labels, values, colors, settings, ci
 
   if (layout.legendRows.length > 0) {
     ctx.textAlign = "left";
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
     for (let index = 0; index < layout.legendRows.length; index += 1) {
       const row = layout.legendRows[index];
       const y = row.y;
-      ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+      ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
       ctx.fillRect(row.x, y - 8, 10, 10);
       ctx.fillStyle = legendTextColor;
       ctx.fillText(row.text, row.x + 14, y);
@@ -14262,13 +16719,13 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
     return;
   }
 
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "area");
-  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "area");
+  const minLabelValue = sanitizeAnalyticsDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
-  const axisRange = resolveBiAxisRange(values, visual, { forceZeroBaseline: false });
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
+  const axisRange = resolveAnalyticsAxisRange(values, visual, { forceZeroBaseline: false });
   const left = (visual.axisYLabel ? 58 : 44);
   const right = 10;
   const top = 12;
@@ -14289,7 +16746,7 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
   ctx.stroke();
 
   const points = values.map((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const x = left + (stepX * index);
     const y = top + plotHeight - (Math.max(0, normalized) * plotHeight);
     return { x, y, value, label: labels[index] || "" };
@@ -14298,13 +16755,13 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
   ctx.lineTo(left + plotWidth, top + plotHeight);
   ctx.lineTo(left, top + plotHeight);
   ctx.closePath();
-  const areaColor = normalizeBiColorHex(colors?.[0], "#2f7ed8");
+  const areaColor = normalizeAnalyticsColorHex(colors?.[0], "#2f7ed8");
   ctx.fillStyle = hexToRgba(areaColor, visual.areaOpacity);
   ctx.fill();
 
   ctx.strokeStyle = areaColor;
   ctx.lineWidth = visual.lineWidth;
-  ctx.setLineDash(resolveBiLineDashPattern(visual));
+  ctx.setLineDash(resolveAnalyticsLineDashPattern(visual));
   drawBiSeriesPath(ctx, points, visual.smoothLines);
   ctx.stroke();
   ctx.setLineDash([]);
@@ -14314,7 +16771,7 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
 
   if (visual.showDataLabels) {
     ctx.textAlign = "center";
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
     points.forEach((point) => {
       if (point.value < minLabelValue) {
         return;
@@ -14327,7 +16784,7 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
   drawBiTargetLine(ctx, left, top, plotWidth, plotHeight, axisRange, visual, { percentHint });
 
   if (visual.showAxisLabels && labels.length <= 12) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "center";
     labels.forEach((label, index) => {
@@ -14336,7 +16793,7 @@ function drawBiAreaChart(ctx, width, height, labels, values, colors, settings, t
     });
   }
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "right";
     ctx.fillText(formatBiVisualNumber(axisRange.max, visual, { percentHint }), left - 4, top + 8);
@@ -14351,13 +16808,13 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings, 
     return;
   }
 
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "combo");
-  const minLabelValue = sanitizeBiDecimal(specific.labelMinValue, 0, -1000000, 1000000);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "combo");
+  const minLabelValue = sanitizeAnalyticsDecimal(specific.labelMinValue, 0, -1000000, 1000000);
   const percentHint = visual.stackMode === "percent";
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
-  const axisRange = resolveBiAxisRange(values, visual, { forceZeroBaseline: false });
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
+  const axisRange = resolveAnalyticsAxisRange(values, visual, { forceZeroBaseline: false });
   const left = (visual.axisYLabel ? 58 : 44);
   const right = 10;
   const top = 12;
@@ -14365,7 +16822,7 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings, 
   const plotWidth = Math.max(10, width - left - right);
   const plotHeight = Math.max(10, height - top - bottom);
   const slot = plotWidth / Math.max(1, values.length);
-  const barWidth = Math.max(6, slot * sanitizeBiDecimal(visual.barWidthRatio, 0.64, 0.2, 0.9));
+  const barWidth = Math.max(6, slot * sanitizeAnalyticsDecimal(visual.barWidthRatio, 0.64, 0.2, 0.9));
   const stepX = values.length <= 1 ? 0 : (plotWidth / (values.length - 1));
 
   if (visual.showGrid) {
@@ -14380,27 +16837,27 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings, 
   ctx.stroke();
 
   values.forEach((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const barHeight = Math.max(0, normalized * plotHeight);
     const x = left + slot * index + ((slot - barWidth) / 2);
     const y = top + plotHeight - barHeight;
-    const slotColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const slotColor = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     ctx.fillStyle = hexToRgba(slotColor, 0.45, "rgba(58, 136, 220, 0.45)");
     ctx.fillRect(x, y, barWidth, barHeight);
     if (visual.showDataLabels && value >= minLabelValue) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
       ctx.fillText(formatBiVisualNumber(value, visual, { percentHint }), x + (barWidth / 2), Math.max(10, y - 4));
     }
   });
 
-  const comboLineColor = normalizeBiColorHex(colors?.[0], "#1f5ea8");
+  const comboLineColor = normalizeAnalyticsColorHex(colors?.[0], "#1f5ea8");
   ctx.strokeStyle = comboLineColor;
   ctx.lineWidth = visual.lineWidth;
-  ctx.setLineDash(resolveBiLineDashPattern(visual));
+  ctx.setLineDash(resolveAnalyticsLineDashPattern(visual));
   const points = values.map((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const x = left + (stepX * index);
     const y = top + plotHeight - (Math.max(0, normalized) * plotHeight);
     return { x, y, value, label: labels[index] || "" };
@@ -14415,7 +16872,7 @@ function drawBiComboChart(ctx, width, height, labels, values, colors, settings, 
   if (visual.showAxisLabels && labels.length <= 12) {
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "center";
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     labels.forEach((label, index) => {
       const x = left + (stepX * index);
       ctx.fillText(truncateBiLabel(label, visual, 8), x, top + plotHeight + 12);
@@ -14432,15 +16889,15 @@ function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "treemap");
-  const defaultTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
-  const minTilePercent = sanitizeBiDecimal(specific.minTilePercent, 1, 0, 25) / 100;
-  const showValueText = normalizeBiToggle(specific.showValueText, true);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "treemap");
+  const defaultTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
+  const minTilePercent = sanitizeAnalyticsDecimal(specific.minTilePercent, 1, 0, 25) / 100;
+  const showValueText = normalizeAnalyticsToggle(specific.showValueText, true);
   const safeValues = values.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
   if (total <= 0) {
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
     ctx.fillStyle = "#748395";
     ctx.textAlign = "center";
     ctx.fillText("Sin datos", Math.floor(width / 2), Math.floor(height / 2));
@@ -14459,13 +16916,13 @@ function drawBiTreemapChart(ctx, width, height, labels, values, colors, settings
     }
     const blockWidth = Math.max(18, Math.round(plotWidth * ratio));
     const finalWidth = Math.min(blockWidth, left + plotWidth - offsetX);
-    const blockColor = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const blockColor = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     ctx.fillStyle = blockColor;
     ctx.fillRect(offsetX, top, finalWidth, plotHeight);
     ctx.fillStyle = visual.labelColorMode === "manual"
       ? defaultTextColor
-      : resolveBiLabelColor(visual, blockColor, "#ffffff");
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
+      : resolveAnalyticsLabelColor(visual, blockColor, "#ffffff");
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
     const labelText = truncateBiLabel(labels[index], visual, 12);
     const valueText = (visual.showDataLabels && showValueText) ? ` ${formatBiVisualNumber(safeValues[index], visual)}` : "";
     ctx.fillText(`${labelText}${valueText}`, offsetX + 6, top + 18);
@@ -14481,16 +16938,16 @@ function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings,
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "funnel");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#24384f");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "funnel");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#24384f");
   const percentHint = visual.stackMode === "percent";
-  const minSegmentRatio = sanitizeBiDecimal(specific.minSegmentPercent, 2, 0, 60) / 100;
+  const minSegmentRatio = sanitizeAnalyticsDecimal(specific.minSegmentPercent, 2, 0, 60) / 100;
   const sortMode = trimOrFallback(specific.sortMode, "desc").toLowerCase() === "asc" ? "asc" : "desc";
   const pairs = labels.map((label, index) => ({
     label,
     value: Number.isFinite(values[index]) ? values[index] : 0,
-    color: normalizeBiColorHex(colors?.[index], getBiPaletteColor(index))
+    color: normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index))
   })).sort((a, b) => sortMode === "asc" ? a.value - b.value : b.value - a.value);
   const sortedLabels = pairs.map((item) => item.label);
   const sortedValues = pairs.map((item) => item.value);
@@ -14520,7 +16977,7 @@ function drawBiFunnelChart(ctx, width, height, labels, values, colors, settings,
     ctx.fill();
 
     ctx.fillStyle = labelTextColor;
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
     ctx.fillText(truncateBiLabel(sortedLabels[index], visual, 16), 8, y + (rowHeight / 2));
     if (visual.showDataLabels) {
       ctx.textAlign = "right";
@@ -14535,13 +16992,13 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings, 
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "gauge");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#2c3e50");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "gauge");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#2c3e50");
   const firstValue = Number.isFinite(values[0]) ? values[0] : 0;
-  const minValue = sanitizeBiDecimal(specific.minValue, 0, -1000000, 1000000);
-  const maxValue = sanitizeBiDecimal(specific.maxValue, 100, minValue, 1000000);
-  const targetValue = sanitizeBiDecimal(specific.targetValue, 80, minValue, maxValue);
+  const minValue = sanitizeAnalyticsDecimal(specific.minValue, 0, -1000000, 1000000);
+  const maxValue = sanitizeAnalyticsDecimal(specific.maxValue, 100, minValue, 1000000);
+  const targetValue = sanitizeAnalyticsDecimal(specific.targetValue, 80, minValue, maxValue);
   const ratio = Math.max(0, Math.min(1, ((firstValue - minValue) / Math.max(1e-6, maxValue - minValue))));
   const targetRatio = Math.max(0, Math.min(1, ((targetValue - minValue) / Math.max(1e-6, maxValue - minValue))));
   const centerX = Math.floor(width / 2);
@@ -14556,7 +17013,7 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings, 
   ctx.arc(centerX, centerY, radius, start, end, false);
   ctx.stroke();
 
-  const gaugeColor = normalizeBiColorHex(colors?.[0], "");
+  const gaugeColor = normalizeAnalyticsColorHex(colors?.[0], "");
   ctx.strokeStyle = gaugeColor || (ratio < 0.4 ? "#e67e22" : (ratio < 0.75 ? "#f1c40f" : "#24a36c"));
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, start, start - (Math.PI * ratio), true);
@@ -14564,7 +17021,7 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings, 
   const targetAngle = start - (Math.PI * targetRatio);
   const targetInner = radius - Math.max(8, visual.lineWidth * 3.6);
   const targetOuter = radius + Math.max(2, visual.lineWidth * 1.4);
-  ctx.strokeStyle = normalizeBiColorHex(visual.targetLineColor, "#b03831");
+  ctx.strokeStyle = normalizeAnalyticsColorHex(visual.targetLineColor, "#b03831");
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(centerX + (Math.cos(targetAngle) * targetInner), centerY + (Math.sin(targetAngle) * targetInner));
@@ -14572,10 +17029,10 @@ function drawBiGaugeChart(ctx, width, height, labels, values, colors, settings, 
   ctx.stroke();
 
   ctx.fillStyle = labelTextColor;
-  applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 22 });
+  applyAnalyticsCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 22 });
   ctx.textAlign = "center";
   ctx.fillText(formatBiVisualNumber(firstValue, visual), centerX, centerY - 10);
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 11 });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 11 });
   ctx.fillStyle = labelTextColor;
   ctx.fillText(truncateBiLabel(labels[0], visual, 22), centerX, centerY + 14);
 }
@@ -14585,10 +17042,10 @@ function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settin
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "waterfall");
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "waterfall");
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
   const cumulatives = [];
   let sum = 0;
   values.forEach((value) => {
@@ -14621,27 +17078,27 @@ function drawBiWaterfallChart(ctx, width, height, labels, values, colors, settin
     const h = Math.max(2, Math.abs(yTo - yFrom));
     const x = left + slot * index + ((slot - barWidth) / 2);
     const defaultColor = value >= 0 ? "#2f7ed8" : "#e06b6b";
-    ctx.fillStyle = normalizeBiColorHex(colors?.[index], defaultColor);
+    ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], defaultColor);
     ctx.fillRect(x, y, barWidth, h);
     if (visual.showDataLabels) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels - 1) });
       ctx.fillText(formatBiVisualNumber(value, visual), x + (barWidth / 2), Math.max(10, y - 4));
     }
     previous = current;
   });
-  if (normalizeBiToggle(specific.showTotalBar, true)) {
+  if (normalizeAnalyticsToggle(specific.showTotalBar, true)) {
     const total = cumulatives[cumulatives.length - 1] || 0;
     ctx.fillStyle = "#1f4d78";
-    applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(9, visual.fontSizeLabels) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(9, visual.fontSizeLabels) });
     ctx.textAlign = "right";
     ctx.fillText(`${trimOrFallback(specific.totalLabel, "Total")}: ${formatBiVisualNumber(total, visual)}`, width - 6, 14);
   }
   if (visual.showAxisLabels && labels.length <= 12) {
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "center";
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     labels.forEach((label, index) => {
       const x = left + slot * index + ((slot - barWidth) / 2) + (barWidth / 2);
       ctx.fillText(truncateBiLabel(label, visual, 8), x, top + plotHeight + 12);
@@ -14655,16 +17112,16 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "radar");
-  const axisColor = resolveBiLabelColor(visual, "#ffffff", "#5a6d84");
-  const labelColor = resolveBiLabelColor(visual, "#ffffff", "#2e4258");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "radar");
+  const axisColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#5a6d84");
+  const labelColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#2e4258");
   const safeValues = values.map((value) => (Number.isFinite(value) ? Math.max(0, value) : 0));
   const maxRaw = Math.max(1, ...safeValues);
-  const axisRange = resolveBiAxisRange(safeValues, { ...visual, axisMin: 0 }, { forceZeroBaseline: true });
-  const maxScale = sanitizeBiDecimal(specific.maxScale, maxRaw, 1, 100000);
+  const axisRange = resolveAnalyticsAxisRange(safeValues, { ...visual, axisMin: 0 }, { forceZeroBaseline: true });
+  const maxScale = sanitizeAnalyticsDecimal(specific.maxScale, maxRaw, 1, 100000);
   const maxValue = Math.max(1, axisRange.max, maxScale);
-  const showPointValues = normalizeBiToggle(specific.showPointValues, true);
+  const showPointValues = normalizeAnalyticsToggle(specific.showPointValues, true);
   const count = Math.max(3, safeValues.length);
   const centerX = Math.floor(width / 2);
   const centerY = Math.floor(height / 2) + 6;
@@ -14674,7 +17131,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
   if (visual.showGrid) {
     ctx.strokeStyle = hexToRgba("#d9e5f2", visual.gridOpacity, "rgba(217,229,242,0.6)");
     ctx.lineWidth = 1;
-    const dash = sanitizeBiInteger(visual.gridDash, 4, 0, 12);
+    const dash = sanitizeAnalyticsInteger(visual.gridDash, 4, 0, 12);
     ctx.setLineDash(dash > 0 ? [dash, dash] : []);
     for (let ring = 1; ring <= ringCount; ring += 1) {
       const ringRadius = (radius * ring) / ringCount;
@@ -14705,7 +17162,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
     ctx.stroke();
   }
 
-  const lineColor = normalizeBiColorHex(colors?.[0], "#2f7ed8");
+  const lineColor = normalizeAnalyticsColorHex(colors?.[0], "#2f7ed8");
   const points = safeValues.map((value, index) => {
     const normalized = Math.max(0, Math.min(1, value / maxValue));
     const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
@@ -14717,7 +17174,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
   ctx.fillStyle = hexToRgba(lineColor, Math.max(0.08, Math.min(0.5, visual.areaOpacity + 0.1)), "rgba(47,126,216,0.25)");
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = visual.lineWidth;
-  ctx.setLineDash(resolveBiLineDashPattern(visual));
+  ctx.setLineDash(resolveAnalyticsLineDashPattern(visual));
   ctx.beginPath();
   points.forEach((point, index) => {
     if (index === 0) {
@@ -14732,12 +17189,12 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
   ctx.setLineDash([]);
 
   points.forEach((point, index) => {
-    const pointColor = normalizeBiColorHex(colors?.[index], lineColor);
+    const pointColor = normalizeAnalyticsColorHex(colors?.[index], lineColor);
     drawBiMarker(ctx, point.x, point.y, visual.seriesMarkerStyle, visual.seriesMarkerSize, pointColor);
   });
 
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisColor;
     ctx.textAlign = "left";
     for (let ring = 1; ring <= ringCount; ring += 1) {
@@ -14746,7 +17203,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
     }
   }
 
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(9, visual.fontSizeLabels) });
   labels.forEach((label, index) => {
     const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
     const labelRadius = radius + 14;
@@ -14758,7 +17215,7 @@ function drawBiRadarChart(ctx, width, height, labels, values, colors, settings, 
   });
 
   if (visual.showDataLabels && showPointValues) {
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
     ctx.textAlign = "center";
     points.forEach((point) => {
       ctx.fillStyle = labelColor;
@@ -14772,12 +17229,12 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "pareto");
-  const showCumulativeLine = normalizeBiToggle(specific.showCumulativeLine, true);
-  const targetPercent = sanitizeBiDecimal(specific.targetPercent, 80, 1, 100);
-  const axisTextColor = resolveBiLabelColor(visual, "#ffffff", "#6a7686");
-  const labelTextColor = resolveBiLabelColor(visual, "#ffffff", "#425064");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "pareto");
+  const showCumulativeLine = normalizeAnalyticsToggle(specific.showCumulativeLine, true);
+  const targetPercent = sanitizeAnalyticsDecimal(specific.targetPercent, 80, 1, 100);
+  const axisTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#6a7686");
+  const labelTextColor = resolveAnalyticsLabelColor(visual, "#ffffff", "#425064");
   const safeValues = values.map((value) => (Number.isFinite(value) ? Math.max(0, value) : 0));
   const total = safeValues.reduce((sum, value) => sum + value, 0);
   const cumulativePct = [];
@@ -14787,7 +17244,7 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
     cumulativePct.push(total <= 0 ? 0 : ((accumulated / total) * 100));
   });
 
-  const axisRange = resolveBiAxisRange(safeValues, { ...visual, axisMin: 0 }, { forceZeroBaseline: true });
+  const axisRange = resolveAnalyticsAxisRange(safeValues, { ...visual, axisMin: 0 }, { forceZeroBaseline: true });
   const left = 44;
   const right = 44;
   const top = 12;
@@ -14795,8 +17252,8 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   const plotWidth = Math.max(10, width - left - right);
   const plotHeight = Math.max(10, height - top - bottom);
   const slot = plotWidth / Math.max(1, safeValues.length);
-  const barWidth = Math.max(5, slot * sanitizeBiDecimal(visual.barWidthRatio, 0.62, 0.2, 0.9));
-  const lineColor = normalizeBiColorHex(colors?.[0], "#235fa3");
+  const barWidth = Math.max(5, slot * sanitizeAnalyticsDecimal(visual.barWidthRatio, 0.62, 0.2, 0.9));
+  const lineColor = normalizeAnalyticsColorHex(colors?.[0], "#235fa3");
 
   if (visual.showGrid) {
     drawBiHorizontalGrid(ctx, left, top, plotWidth, plotHeight, 5, "#e4ecf5", visual);
@@ -14811,16 +17268,16 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   ctx.stroke();
 
   safeValues.forEach((value, index) => {
-    const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+    const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
     const barHeight = Math.max(0, normalized * plotHeight);
     const x = left + slot * index + ((slot - barWidth) / 2);
     const y = top + plotHeight - barHeight;
-    ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     ctx.fillRect(x, y, barWidth, barHeight);
     if (visual.showDataLabels) {
       ctx.fillStyle = labelTextColor;
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
       ctx.fillText(formatBiVisualNumber(value, visual), x + (barWidth / 2), Math.max(10, y - 4));
     }
   });
@@ -14833,7 +17290,7 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   if (showCumulativeLine) {
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = visual.lineWidth;
-    ctx.setLineDash(resolveBiLineDashPattern(visual));
+    ctx.setLineDash(resolveAnalyticsLineDashPattern(visual));
     drawBiSeriesPath(ctx, points, visual.smoothLines);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -14844,7 +17301,7 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
 
   if (visual.showDataLabels && showCumulativeLine) {
     ctx.textAlign = "center";
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
     points.forEach((point) => {
       ctx.fillStyle = lineColor;
       ctx.fillText(formatPercent(point.value, visual.valueDecimals), point.x, Math.max(10, point.y - 8));
@@ -14858,7 +17315,7 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   }, { percentHint: false });
 
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = axisTextColor;
     ctx.textAlign = "right";
     ctx.fillText(formatBiVisualNumber(axisRange.max, visual), left - 4, top + 8);
@@ -14868,7 +17325,7 @@ function drawBiParetoChart(ctx, width, height, labels, values, colors, settings,
   }
 
   if (visual.showAxisLabels && labels.length <= 12) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = labelTextColor;
     ctx.textAlign = "center";
     labels.forEach((label, index) => {
@@ -14885,20 +17342,20 @@ function drawBiScatterLikeChart(ctx, width, height, labels, values, colors, sett
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, bubbleMode ? "bubble" : "scatter");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, bubbleMode ? "bubble" : "scatter");
   const safeRows = Array.isArray(rows) ? rows : [];
-  const offsets = normalizeBiLabelOffsets(labelOffsets);
-  const layoutV2 = normalizeBiLabelLayoutV2(labelLayoutV2);
+  const offsets = normalizeAnalyticsLabelOffsets(labelOffsets);
+  const layoutV2 = normalizeAnalyticsLabelLayoutV2(labelLayoutV2);
   const collector = capture && typeof capture === "object" ? capture : null;
   if (collector) {
     collector.labelItems = [];
   }
   const minRadius = bubbleMode
-    ? sanitizeBiInteger(specific.minBubbleRadius, 6, 3, 60)
-    : sanitizeBiInteger(specific.minPointRadius, 7, 3, 40);
+    ? sanitizeAnalyticsInteger(specific.minBubbleRadius, 6, 3, 60)
+    : sanitizeAnalyticsInteger(specific.minPointRadius, 7, 3, 40);
   const maxRadius = bubbleMode
-    ? sanitizeBiInteger(specific.maxBubbleRadius, 40, minRadius, 80)
+    ? sanitizeAnalyticsInteger(specific.maxBubbleRadius, 40, minRadius, 80)
     : minRadius;
   const pointsData = values.map((value, index) => {
     const row = safeRows[index] || {};
@@ -14940,8 +17397,8 @@ function drawBiScatterLikeChart(ctx, width, height, labels, values, colors, sett
   pointsData.forEach((item, index) => {
     const x = left + (((item.xValue - xMin) / xRange) * plotWidth);
     const y = top + plotHeight - (((item.yValue - yMin) / yRange) * plotHeight);
-    const color = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
-    const pointAlpha = sanitizeBiDecimal(specific.pointAlpha, bubbleMode ? 0.95 : 1, 0.15, 1);
+    const color = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
+    const pointAlpha = sanitizeAnalyticsDecimal(specific.pointAlpha, bubbleMode ? 0.95 : 1, 0.15, 1);
     ctx.fillStyle = bubbleMode ? hexToRgba(color, pointAlpha, color) : hexToRgba(color, pointAlpha, color);
     ctx.strokeStyle = color;
     ctx.beginPath();
@@ -14952,13 +17409,13 @@ function drawBiScatterLikeChart(ctx, width, height, labels, values, colors, sett
       ctx.stroke();
     }
     if (visual.showDataLabels) {
-      ctx.fillStyle = resolveBiLabelColor(visual, "#ffffff", "#2f425a");
+      ctx.fillStyle = resolveAnalyticsLabelColor(visual, "#ffffff", "#2f425a");
       ctx.textAlign = "center";
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
       const text = formatBiVisualNumber(item.yValue, visual);
       const rowKey = trimOrFallback(safeRows[index]?.rowKey, "");
-      const fallbackKey = buildBiLabelFallbackKey(labels[index] || "");
-      const placement = getBiLabelPlacementFromLayout(layoutV2, rowKey, labels[index] || fallbackKey || "");
+      const fallbackKey = buildAnalyticsLabelFallbackKey(labels[index] || "");
+      const placement = getAnalyticsLabelPlacementFromLayout(layoutV2, rowKey, labels[index] || fallbackKey || "");
       const legacyOffset = offsets[String(index)] || { x: 0, y: 0 };
       const offsetX = placement
         ? (placement.dxPct * plotWidth)
@@ -14990,7 +17447,7 @@ function drawBiScatterLikeChart(ctx, width, height, labels, values, colors, sett
     }
   });
   if (visual.showAxisLabels) {
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = "#6a7686";
     ctx.textAlign = "right";
     ctx.fillText(formatBiVisualNumber(yMax, visual), left - 4, top + 8);
@@ -15007,13 +17464,13 @@ function drawBiBulletChart(ctx, width, height, labels, values, colors, settings,
   if (!Array.isArray(values) || values.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "bullet");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "bullet");
   const safeRows = Array.isArray(rows) ? rows : [];
   const maxValue = Math.max(1, ...values.map((item) => Math.abs(item)));
-  const targetPercent = sanitizeBiDecimal(specific.targetValue, Number.isFinite(visual.targetLineValue) ? visual.targetLineValue : 80, 0, 100);
-  const lowBand = sanitizeBiDecimal(specific.lowBand, 40, 0, 100);
-  const midBand = sanitizeBiDecimal(specific.midBand, 70, lowBand, 100);
+  const targetPercent = sanitizeAnalyticsDecimal(specific.targetValue, Number.isFinite(visual.targetLineValue) ? visual.targetLineValue : 80, 0, 100);
+  const lowBand = sanitizeAnalyticsDecimal(specific.lowBand, 40, 0, 100);
+  const midBand = sanitizeAnalyticsDecimal(specific.midBand, 70, lowBand, 100);
   const left = 12;
   const right = 12;
   const top = 10;
@@ -15031,15 +17488,15 @@ function drawBiBulletChart(ctx, width, height, labels, values, colors, settings,
     ctx.fillRect(left + 76, y + 4, Math.round(trackWidth * (lowBand / 100)), rowHeight - 8);
     ctx.fillStyle = "rgba(44, 153, 110, 0.14)";
     ctx.fillRect(left + 76 + Math.round(trackWidth * (lowBand / 100)), y + 4, Math.round(trackWidth * ((midBand - lowBand) / 100)), rowHeight - 8);
-    ctx.fillStyle = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    ctx.fillStyle = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     ctx.fillRect(left + 76, y + 4, barW, rowHeight - 8);
-    ctx.strokeStyle = normalizeBiColorHex(visual.targetLineColor || "#b03831", "#b03831");
+    ctx.strokeStyle = normalizeAnalyticsColorHex(visual.targetLineColor || "#b03831", "#b03831");
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(targetX, y + 2);
     ctx.lineTo(targetX, y + rowHeight - 2);
     ctx.stroke();
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
     ctx.fillStyle = "#2c405a";
     ctx.textAlign = "left";
     ctx.fillText(label, left, y + Math.round(rowHeight * 0.64));
@@ -15054,9 +17511,9 @@ function drawBiBoxplotChart(ctx, width, height, labels, values, colors, settings
   if (safeRows.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "boxplot");
-  const showMedianValue = normalizeBiToggle(specific.showMedianValue, true);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "boxplot");
+  const showMedianValue = normalizeAnalyticsToggle(specific.showMedianValue, true);
   const max = Math.max(1, ...safeRows.map((row) => Number(row?.box?.max) || 0));
   const min = Math.min(0, ...safeRows.map((row) => Number(row?.box?.min) || 0));
   const range = max - min <= 0 ? 1 : (max - min);
@@ -15069,7 +17526,7 @@ function drawBiBoxplotChart(ctx, width, height, labels, values, colors, settings
   const slot = plotWidth / Math.max(1, safeRows.length);
   safeRows.forEach((row, index) => {
     const box = row?.box || {};
-    const color = normalizeBiColorHex(colors?.[index], getBiPaletteColor(index));
+    const color = normalizeAnalyticsColorHex(colors?.[index], getAnalyticsPaletteColor(index));
     const toY = (v) => top + plotHeight - (((Number(v) - min) / range) * plotHeight);
     const xCenter = left + (slot * index) + (slot / 2);
     const boxW = Math.max(8, slot * 0.42);
@@ -15095,12 +17552,12 @@ function drawBiBoxplotChart(ctx, width, height, labels, values, colors, settings
     ctx.lineTo(xCenter + (boxW / 2), yMedian);
     ctx.stroke();
     if (showMedianValue) {
-      applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
+      applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(8, visual.fontSizeLabels - 1) });
       ctx.fillStyle = "#2a3f56";
       ctx.textAlign = "center";
       ctx.fillText(formatBiVisualNumber(Number(box.median) || 0, visual), xCenter, Math.max(10, yMedian - 4));
     }
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = "#5f7186";
     ctx.textAlign = "center";
     ctx.fillText(truncateBiLabel(labels[index] || "", visual, 10), xCenter, top + plotHeight + 12);
@@ -15113,11 +17570,11 @@ function drawBiCandlestickChart(ctx, width, height, labels, values, colors, sett
   if (safeRows.length === 0) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "candlestick");
-  const upColor = normalizeBiColorHex(specific.upColor, "#25a368");
-  const downColor = normalizeBiColorHex(specific.downColor, "#d7565b");
-  const wickWidth = sanitizeBiInteger(specific.wickWidth, 1, 1, 4);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "candlestick");
+  const upColor = normalizeAnalyticsColorHex(specific.upColor, "#25a368");
+  const downColor = normalizeAnalyticsColorHex(specific.downColor, "#d7565b");
+  const wickWidth = sanitizeAnalyticsInteger(specific.wickWidth, 1, 1, 4);
   const max = Math.max(1, ...safeRows.map((row) => Number(row?.candle?.high) || 0));
   const min = Math.min(0, ...safeRows.map((row) => Number(row?.candle?.low) || 0));
   const range = max - min <= 0 ? 1 : (max - min);
@@ -15154,7 +17611,7 @@ function drawBiCandlestickChart(ctx, width, height, labels, values, colors, sett
     const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
     ctx.fillRect(xCenter - (bodyW / 2), bodyTop, bodyW, bodyHeight);
     ctx.strokeRect(xCenter - (bodyW / 2), bodyTop, bodyW, bodyHeight);
-    applyBiCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
+    applyAnalyticsCanvasFont(ctx, visual, "axis", { fallbackSize: Math.max(9, visual.fontSizeAxis) });
     ctx.fillStyle = "#5f7186";
     ctx.textAlign = "center";
     ctx.fillText(truncateBiLabel(labels[index] || "", visual, 10), xCenter, top + plotHeight + 12);
@@ -15209,14 +17666,14 @@ function drawBiHoverHighlight(ctx, model, highlightIndex) {
 }
 
 function buildSeriesModel(type, snapshotRows, labels, values, chartConfig, typeConfig) {
-  const safeType = normalizeBiChartType(type || "bar");
+  const safeType = normalizeAnalyticsChartType(type || "bar");
   return {
     type: safeType,
     rows: Array.isArray(snapshotRows) ? snapshotRows : [],
     labels: Array.isArray(labels) ? labels : [],
     values: Array.isArray(values) ? values : [],
-    chartConfig: normalizeBiChartConfig(chartConfig, safeType),
-    typeConfig: normalizeBiChartTypeSpecificConfig(typeConfig, safeType)
+    chartConfig: normalizeAnalyticsChartConfig(chartConfig, safeType),
+    typeConfig: normalizeAnalyticsChartTypeSpecificConfig(typeConfig, safeType)
   };
 }
 
@@ -15224,11 +17681,11 @@ function drawSeriesModel(ctx, width, height, model, colors, visual, labelOffsets
   if (!ctx || !model) {
     return;
   }
-  const safeType = normalizeBiChartType(model.type || "bar");
+  const safeType = normalizeAnalyticsChartType(model.type || "bar");
   const safeLabels = model.labels || [];
   const safeValues = model.values || [];
   const safeRows = model.rows || [];
-  const safeTypeConfig = normalizeBiChartTypeSpecificConfig(model.typeConfig, safeType);
+  const safeTypeConfig = normalizeAnalyticsChartTypeSpecificConfig(model.typeConfig, safeType);
   if (safeType === "line" || safeType === "timeseries") {
     drawBiLineChart(ctx, width, height, safeLabels, safeValues, colors, visual, labelOffsets, geometry, safeRows, labelLayoutV2, safeTypeConfig);
     return;
@@ -15302,24 +17759,24 @@ function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, co
   }
 
   const { ctx, width, height } = resizeCanvasForDisplay(canvas, 160);
-  const visual = normalizeBiVisualSettings(settings);
+  const visual = normalizeAnalyticsVisualSettings(settings);
   const safeLabels = Array.isArray(labels) ? labels : [];
   const safeValues = Array.isArray(values)
     ? values.map((value) => (Number.isFinite(value) ? value : 0))
     : [];
-  const safeColors = Array.isArray(colors) ? colors.map((color, index) => normalizeBiColorHex(color, getBiPaletteColor(index))) : [];
+  const safeColors = Array.isArray(colors) ? colors.map((color, index) => normalizeAnalyticsColorHex(color, getAnalyticsPaletteColor(index))) : [];
 
   if (safeLabels.length === 0 || safeValues.length === 0) {
     ctx.clearRect(0, 0, width, height);
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 12 });
     ctx.fillStyle = "#748395";
     ctx.textAlign = "center";
     ctx.fillText("Sin datos para este widget", Math.floor(width / 2), Math.floor(height / 2));
     return { type: "none", items: [] };
   }
 
-  const safeType = normalizeBiChartType(chartType || "bar");
-  const renderedValues = getBiRenderedValuesForVisual(safeValues, visual, safeType);
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
+  const renderedValues = getAnalyticsRenderedValuesForVisual(safeValues, visual, safeType);
   const typeConfig = typeConfigMap && typeof typeConfigMap === "object"
     ? typeConfigMap[safeType]
     : null;
@@ -15338,7 +17795,7 @@ function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, co
     labelLayoutV2
   );
 
-  const model = buildBiHoverModel(safeType, width, height, safeLabels, renderedValues, {
+  const model = buildAnalyticsHoverModel(safeType, width, height, safeLabels, renderedValues, {
     visualSettings: visual,
     labelItems: geometry.labelItems,
     polarModel: geometry.polarModel,
@@ -15351,15 +17808,15 @@ function drawBiWidgetChart(canvas, chartType, labels, values, highlightIndex, co
   return model;
 }
 
-function buildBiHoverModel(chartType, width, height, labels, values, options) {
+function buildAnalyticsHoverModel(chartType, width, height, labels, values, options) {
   const safeLabels = Array.isArray(labels) ? labels : [];
   const safeValues = Array.isArray(values) ? values : [];
   if (safeLabels.length === 0 || safeValues.length === 0) {
     return { type: "none", items: [] };
   }
 
-  const type = normalizeBiChartType(chartType || "bar");
-  const visual = normalizeBiVisualSettings(options?.visualSettings || {});
+  const type = normalizeAnalyticsChartType(chartType || "bar");
+  const visual = normalizeAnalyticsVisualSettings(options?.visualSettings || {});
   const labelItems = Array.isArray(options?.labelItems)
     ? options.labelItems.filter((item) => item && Number.isInteger(item.index))
     : [];
@@ -15372,9 +17829,9 @@ function buildBiHoverModel(chartType, width, height, labels, values, options) {
     const plotWidth = Math.max(10, width - left - right);
     const plotHeight = Math.max(10, height - top - bottom);
     const stepX = safeValues.length <= 1 ? 0 : (plotWidth / (safeValues.length - 1));
-    const axisRange = resolveBiAxisRange(safeValues, visual, { forceZeroBaseline: false });
+    const axisRange = resolveAnalyticsAxisRange(safeValues, visual, { forceZeroBaseline: false });
     safeValues.forEach((value, index) => {
-      const normalized = Math.max(0, Math.min(1, normalizeBiAxisValue(value, axisRange)));
+      const normalized = Math.max(0, Math.min(1, normalizeAnalyticsAxisValue(value, axisRange)));
       const x = left + (stepX * index);
       const y = top + plotHeight - (Math.max(0, normalized) * plotHeight);
       items.push({ index, kind: "point", x, y, r: 12 });
@@ -15651,7 +18108,7 @@ function biAngleBetween(start, end, angle) {
   return normalizedAngle >= normalizedStart && normalizedAngle <= normalizedEnd;
 }
 
-function resolveBiHoverIndex(model, x, y) {
+function resolveAnalyticsHoverIndex(model, x, y) {
   if (!model || !Array.isArray(model.items) || model.items.length === 0) {
     return -1;
   }
@@ -15736,7 +18193,7 @@ function resolveBiHoverIndex(model, x, y) {
   return -1;
 }
 
-function resolveBiLabelDragIndex(model, x, y) {
+function resolveAnalyticsLabelDragIndex(model, x, y) {
   if (!model || !Array.isArray(model.labelItems) || model.labelItems.length === 0) {
     return -1;
   }
@@ -15753,7 +18210,7 @@ function resolveBiLabelDragIndex(model, x, y) {
   return -1;
 }
 
-function resolveBiPolarDragTarget(model, x, y) {
+function resolveAnalyticsPolarDragTarget(model, x, y) {
   if (!model || typeof model !== "object") {
     return "";
   }
@@ -15775,17 +18232,17 @@ function resolveBiPolarDragTarget(model, x, y) {
   return "";
 }
 
-function toggleBiCrossFilter(project, groupBy, label, source, appendMode = false) {
+function toggleAnalyticsCrossFilter(project, groupBy, label, source, appendMode = false) {
   if (!project || !groupBy || !label) {
     return false;
   }
-  ensureBiState(project);
-  const nextEntry = normalizeBiCrossFilterEntry({ groupBy, label, source });
+  ensureAnalyticsState(project);
+  const nextEntry = normalizeAnalyticsCrossFilterEntry({ groupBy, label, source });
   if (!nextEntry) {
     return false;
   }
 
-  const current = normalizeBiCrossFilters(project.biConfig.crossFilters);
+  const current = normalizeAnalyticsCrossFilters(project.biConfig.crossFilters);
   const isSameEntry = (entry) => entry
     && entry.groupBy === nextEntry.groupBy
     && entry.source === nextEntry.source
@@ -15810,7 +18267,7 @@ function toggleBiCrossFilter(project, groupBy, label, source, appendMode = false
   return true;
 }
 
-function applyBiCrossFilterFromWidget(project, snapshot, rowIndex, event) {
+function applyAnalyticsCrossFilterFromWidget(project, snapshot, rowIndex, event) {
   if (!project || !snapshot || !Array.isArray(snapshot.rows)) {
     return;
   }
@@ -15819,16 +18276,16 @@ function applyBiCrossFilterFromWidget(project, snapshot, rowIndex, event) {
     return;
   }
   const appendMode = !!(event && (event.ctrlKey || event.metaKey));
-  const changed = toggleBiCrossFilter(project, snapshot.groupBy, selected.label, snapshot.source, appendMode);
+  const changed = toggleAnalyticsCrossFilter(project, snapshot.groupBy, selected.label, snapshot.source, appendMode);
   if (!changed) {
     return;
   }
   saveState();
-  renderBiPanel(project);
-  const hasFilter = normalizeBiCrossFilters(project.biConfig.crossFilters).length > 0;
+  renderLegacyStudioPanel(project);
+  const hasFilter = normalizeAnalyticsCrossFilters(project.biConfig.crossFilters).length > 0;
   if (hasFilter) {
     const modeLabel = appendMode ? " (multi)" : "";
-    setStatus(`Filtro cruzado aplicado${modeLabel}: ${getBiGroupLabel(snapshot.groupBy, project)} = ${selected.label}`);
+    setStatus(`Filtro cruzado aplicado${modeLabel}: ${getAnalyticsGroupLabel(snapshot.groupBy, project)} = ${selected.label}`);
   } else {
     setStatus("Filtro cruzado removido.");
   }
@@ -15844,9 +18301,9 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
   if (labels.length === 0 || values.length === 0) {
     return;
   }
-  const safeType = normalizeBiChartType(chartType || "bar");
-  const visual = normalizeBiVisualSettings(settings);
-  const renderedValues = getBiRenderedValuesForVisual(values, visual, safeType);
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const renderedValues = getAnalyticsRenderedValuesForVisual(values, visual, safeType);
   const canDragLayout = (safeType === "pie" || safeType === "donut") && !!widget;
   let model = initialModel || drawBiWidgetChart(
     canvas,
@@ -15867,8 +18324,8 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     return;
   }
   const canDragLabels = () => !!widget && Array.isArray(model?.labelItems) && model.labelItems.length > 0;
-  tooltip.style.fontFamily = getBiFontFamilyByLayer(visual, "tooltip");
-  tooltip.style.fontSize = `${getBiFontSizeByLayer(visual, "tooltip", 11)}px`;
+  tooltip.style.fontFamily = getAnalyticsFontFamilyByLayer(visual, "tooltip");
+  tooltip.style.fontSize = `${getAnalyticsFontSizeByLayer(visual, "tooltip", 11)}px`;
   let highlightedIndex = -1;
   let suppressClickUntil = 0;
   let dragState = null;
@@ -15914,19 +18371,19 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     }
     let cursor = "default";
     if (canDragLabels()) {
-      const labelHover = resolveBiLabelDragIndex(model, x, y);
+      const labelHover = resolveAnalyticsLabelDragIndex(model, x, y);
       if (labelHover >= 0) {
         cursor = "grab";
       }
     }
     if (cursor === "default" && canDragLayout) {
-      const layoutTarget = resolveBiPolarDragTarget(model, x, y);
+      const layoutTarget = resolveAnalyticsPolarDragTarget(model, x, y);
       if (layoutTarget) {
         cursor = "grab";
       }
     }
     canvas.style.cursor = cursor;
-    const index = resolveBiHoverIndex(model, x, y);
+    const index = resolveAnalyticsHoverIndex(model, x, y);
     if (index < 0 || index >= snapshot.rows.length) {
       hideTooltip();
       return;
@@ -15967,7 +18424,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     const y = event.clientY - rect.top;
 
     if (canDragLabels()) {
-      const labelIndex = resolveBiLabelDragIndex(model, x, y);
+      const labelIndex = resolveAnalyticsLabelDragIndex(model, x, y);
       if (labelIndex >= 0 && labelIndex < snapshot.rows.length) {
         event.preventDefault();
         const labelItem = Array.isArray(model?.labelItems)
@@ -15975,9 +18432,9 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
           : null;
         const rowKey = trimOrFallback(snapshot.rows[labelIndex]?.rowKey || labelItem?.rowKey, "");
         const rowLabel = trimOrFallback(snapshot.rows[labelIndex]?.label || labelItem?.rowLabel || labels[labelIndex] || "", "");
-        const safeOffsets = normalizeBiLabelOffsets(widget.labelOffsets);
+        const safeOffsets = normalizeAnalyticsLabelOffsets(widget.labelOffsets);
         const currentLegacy = safeOffsets[String(labelIndex)] || { x: 0, y: 0 };
-        const currentPlacement = getBiLabelPlacement(widget, rowKey, rowLabel);
+        const currentPlacement = getAnalyticsLabelPlacement(widget, rowKey, rowLabel);
         const plotWidth = Math.max(1, Number.isFinite(labelItem?.plotWidth) ? labelItem.plotWidth : 1);
         const plotHeight = Math.max(1, Number.isFinite(labelItem?.plotHeight) ? labelItem.plotHeight : 1);
         dragState = {
@@ -16010,12 +18467,12 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     if (!canDragLayout) {
       return;
     }
-    const layoutTarget = resolveBiPolarDragTarget(model, x, y);
+    const layoutTarget = resolveAnalyticsPolarDragTarget(model, x, y);
     if (!layoutTarget) {
       return;
     }
     event.preventDefault();
-    const safeLayout = normalizeBiCircularLayout(widget.polarLayout);
+    const safeLayout = normalizeAnalyticsCircularLayout(widget.polarLayout);
     const currentOffset = layoutTarget === "chart" ? safeLayout.chart : safeLayout.legend;
     dragState = {
       type: "layout",
@@ -16074,7 +18531,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     const nextX = dragState.startOffsetX + (x - dragState.startX);
     const nextY = dragState.startOffsetY + (y - dragState.startY);
     if (dragState.type === "label") {
-      const safeOffsets = normalizeBiLabelOffsets(widget.labelOffsets);
+      const safeOffsets = normalizeAnalyticsLabelOffsets(widget.labelOffsets);
       safeOffsets[String(dragState.index)] = {
         x: Math.max(-400, Math.min(400, Math.round(nextX))),
         y: Math.max(-220, Math.min(220, Math.round(nextY)))
@@ -16094,7 +18551,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
       redraw(dragState.index);
       highlightedIndex = dragState.index;
     } else {
-      const safeLayout = normalizeBiCircularLayout(widget.polarLayout);
+      const safeLayout = normalizeAnalyticsCircularLayout(widget.polarLayout);
       if (dragState.target === "chart") {
         safeLayout.chart = {
           x: Math.max(-520, Math.min(520, Math.round(nextX))),
@@ -16121,7 +18578,7 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const index = resolveBiHoverIndex(model, x, y);
+    const index = resolveAnalyticsHoverIndex(model, x, y);
     if (index < 0 || index >= snapshot.rows.length) {
       return;
     }
@@ -16131,33 +18588,56 @@ function bindBiCanvasHover(canvas, tooltip, snapshot, chartType, onSelect, initi
   });
 }
 
-function renderBiWidgetCustomContent(target, snapshot, widget, project) {
+function renderAnalyticsWidgetCustomContent(target, snapshot, widget, project) {
   if (!(target instanceof HTMLElement) || !snapshot || !widget) {
     return;
   }
-  const chartType = normalizeBiChartType(widget.chartType || "bar");
-  const typeConfig = getBiSpecificChartConfigForWidget(widget, chartType);
+  const chartType = normalizeAnalyticsChartType(widget.chartType || "bar");
+  const typeConfig = getAnalyticsSpecificChartConfigForWidget(widget, chartType);
   if (chartType === "table") {
-    const groupLabel = getBiGroupLabel(snapshot.groupBy, project);
-    const metricLabel = getBiMetricLabel(snapshot.metric);
-    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
-    const rows = snapshot.rows.slice(0, rowLimit);
-    const showIndex = normalizeBiToggle(typeConfig.showIndex, true);
-    const compactClass = normalizeBiToggle(typeConfig.compact, false) ? " compact" : "";
+    const rowLimit = sanitizeAnalyticsInteger(typeConfig.rowLimit, ANALYTICS_WIDGET_TABLE_LIMIT, 1, 200);
+    const showIndex = normalizeAnalyticsToggle(typeConfig.showIndex, true);
+    const compactClass = normalizeAnalyticsToggle(typeConfig.compact, false) ? " compact" : "";
+    const tableSnapshot = snapshot.table && typeof snapshot.table === "object"
+      ? snapshot.table
+      : null;
+    const columns = Array.isArray(tableSnapshot?.columns) && tableSnapshot.columns.length > 0
+      ? tableSnapshot.columns
+      : [
+        { key: `dimension:${snapshot.groupBy}`, role: "dimension", label: getAnalyticsGroupLabel(snapshot.groupBy, project) },
+        { key: `metric:${snapshot.metric}`, role: "metric", label: getAnalyticsMetricLabel(snapshot.metric) }
+      ];
+    const rows = Array.isArray(tableSnapshot?.rows) && tableSnapshot.rows.length > 0
+      ? tableSnapshot.rows.slice(0, rowLimit)
+      : snapshot.rows.slice(0, rowLimit).map((row) => ({
+        rowKey: row.rowKey,
+        label: row.label,
+        cells: [
+          { key: `dimension:${snapshot.groupBy}`, role: "dimension", text: row.label },
+          { key: `metric:${snapshot.metric}`, role: "metric", text: row.valueText }
+        ]
+      }));
+    const headerHtml = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+    const colSpan = columns.length + (showIndex ? 1 : 0);
     const body = rows.length === 0
-      ? `<tr><td colspan="3" class="muted">Sin datos.</td></tr>`
-      : rows.map((row, index) => `<tr data-bi-row-index="${index}" data-bi-label="${escapeAttribute(row.label)}">
-          <td>${showIndex ? (index + 1) : ""}</td>
-          <td>${escapeHtml(row.label)}</td>
-          <td>${escapeHtml(row.valueText)}</td>
-        </tr>`).join("");
+      ? `<tr><td colspan="${colSpan}" class="muted">Sin datos.</td></tr>`
+      : rows.map((row, index) => {
+        const cells = Array.isArray(row.cells) ? row.cells : [];
+        const cellsHtml = columns.map((column, columnIndex) => {
+          const cell = cells[columnIndex] || { text: "" };
+          return `<td>${escapeHtml(trimOrFallback(cell.text, ""))}</td>`;
+        }).join("");
+        return `<tr data-bi-row-index="${index}" data-bi-label="${escapeAttribute(row.label || "")}">
+          ${showIndex ? `<td>${index + 1}</td>` : ""}
+          ${cellsHtml}
+        </tr>`;
+      }).join("");
     target.innerHTML = `<div class="bi-widget-table-view${compactClass}">
       <table>
         <thead>
           <tr>
-            <th>${showIndex ? "#" : ""}</th>
-            <th>${escapeHtml(groupLabel)}</th>
-            <th>${escapeHtml(metricLabel)}</th>
+            ${showIndex ? "<th>#</th>" : ""}
+            ${headerHtml}
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -16169,29 +18649,29 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
   if (chartType === "scorecard") {
     const total = snapshot.rows.reduce((sum, row) => sum + (row.value || 0), 0);
     const valueText = `${trimOrFallback(typeConfig.prefix, "")}${formatBiMetricValue(snapshot.metric, total)}${trimOrFallback(typeConfig.suffix, "")}`;
-    const showSource = normalizeBiToggle(typeConfig.showSource, true);
-    const showGroups = normalizeBiToggle(typeConfig.showGroups, true);
+    const showSource = normalizeAnalyticsToggle(typeConfig.showSource, true);
+    const showGroups = normalizeAnalyticsToggle(typeConfig.showGroups, true);
     const subTokens = [];
     if (showSource) {
-      subTokens.push(`Fuente: ${getBiSourceLabel(snapshot.source)}`);
+      subTokens.push(`Fuente: ${getAnalyticsSourceLabel(snapshot.source)}`);
     }
     if (showGroups) {
       subTokens.push(`grupos: ${snapshot.groupCount}`);
     }
     target.innerHTML = `<div class="bi-scorecard-view" data-bi-row-index="0">
       <div class="bi-scorecard-value">${escapeHtml(valueText)}</div>
-      <div class="bi-scorecard-label">${escapeHtml(getBiMetricLabel(snapshot.metric))}</div>
+      <div class="bi-scorecard-label">${escapeHtml(getAnalyticsMetricLabel(snapshot.metric))}</div>
       <div class="bi-scorecard-sub">${escapeHtml(subTokens.join(" | "))}</div>
     </div>`;
     return;
   }
 
   if (chartType === "pivot") {
-    const rowLabel = getBiGroupLabel(snapshot.pivot?.rowDimension || snapshot.groupBy, project);
+    const rowLabel = getAnalyticsGroupLabel(snapshot.pivot?.rowDimension || snapshot.groupBy, project);
     const colLabels = Array.isArray(snapshot.pivot?.columns) ? snapshot.pivot.columns : [];
-    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
-    const showTotals = normalizeBiToggle(typeConfig.showTotals, true);
-    const compactClass = normalizeBiToggle(typeConfig.compact, false) ? " compact" : "";
+    const rowLimit = sanitizeAnalyticsInteger(typeConfig.rowLimit, ANALYTICS_WIDGET_TABLE_LIMIT, 1, 200);
+    const showTotals = normalizeAnalyticsToggle(typeConfig.showTotals, true);
+    const compactClass = normalizeAnalyticsToggle(typeConfig.compact, false) ? " compact" : "";
     const rows = (Array.isArray(snapshot.pivot?.rows) ? snapshot.pivot.rows : []).slice(0, rowLimit);
     const headerCols = colLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join("");
     const body = rows.length === 0
@@ -16223,9 +18703,9 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
   }
 
   if (chartType === "sankey") {
-    const maxLinks = sanitizeBiInteger(typeConfig.maxLinks, 12, 1, 200);
-    const minLinkPercent = sanitizeBiDecimal(typeConfig.minLinkPercent, 2, 0, 50);
-    const showValues = normalizeBiToggle(typeConfig.showValues, true);
+    const maxLinks = sanitizeAnalyticsInteger(typeConfig.maxLinks, 12, 1, 200);
+    const minLinkPercent = sanitizeAnalyticsDecimal(typeConfig.minLinkPercent, 2, 0, 50);
+    const showValues = normalizeAnalyticsToggle(typeConfig.showValues, true);
     const links = (Array.isArray(snapshot.sankey?.links) ? snapshot.sankey.links : []).slice(0, maxLinks);
     const maxValue = links.length > 0 ? Math.max(...links.map((item) => Number(item.value) || 0), 1) : 1;
     const body = links.length === 0
@@ -16249,9 +18729,9 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
   }
 
   if (chartType === "timeline") {
-    const rowLimit = sanitizeBiInteger(typeConfig.rowLimit, 20, 1, 200);
-    const showDates = normalizeBiToggle(typeConfig.showDates, true);
-    const minBarPercent = sanitizeBiDecimal(typeConfig.minBarPercent, 1, 0.2, 50);
+    const rowLimit = sanitizeAnalyticsInteger(typeConfig.rowLimit, 20, 1, 200);
+    const showDates = normalizeAnalyticsToggle(typeConfig.showDates, true);
+    const minBarPercent = sanitizeAnalyticsDecimal(typeConfig.minBarPercent, 1, 0.2, 50);
     const items = (Array.isArray(snapshot.timeline?.items) ? snapshot.timeline.items : []).slice(0, rowLimit);
     const minDay = Number.isFinite(snapshot.timeline?.minDay) ? snapshot.timeline.minDay : 0;
     const maxDay = Number.isFinite(snapshot.timeline?.maxDay) ? snapshot.timeline.maxDay : (minDay + 1);
@@ -16278,7 +18758,7 @@ function renderBiWidgetCustomContent(target, snapshot, widget, project) {
   target.innerHTML = "";
 }
 
-function normalizeBiDateDimension(value) {
+function normalizeAnalyticsDateDimension(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   if (token === "enddate" || token === "fin" || token === "fechafin") {
     return "endDate";
@@ -16289,8 +18769,8 @@ function normalizeBiDateDimension(value) {
   return "startDate";
 }
 
-function getBiRowMetricValue(row, metric) {
-  const safeMetric = normalizeBiMetric(metric || "count");
+function getAnalyticsRowMetricValue(row, metric) {
+  const safeMetric = normalizeAnalyticsMetric(metric || "count");
   if (safeMetric === "count") {
     return 1;
   }
@@ -16323,7 +18803,7 @@ function getBiRowMetricValue(row, metric) {
   return 0;
 }
 
-function computeBiQuantile(values, q) {
+function computeAnalyticsQuantile(values, q) {
   if (!Array.isArray(values) || values.length === 0) {
     return 0;
   }
@@ -16364,29 +18844,42 @@ function sortBiGroupedRows(grouped, sortMode) {
   });
 }
 
-function buildBiWidgetSnapshot(rows, widget) {
-  const source = normalizeBiSource(widget?.source || "all");
-  const chartType = normalizeBiChartType(widget?.chartType || "bar");
-  const sortMode = normalizeBiSortMode(widget?.sortMode || "value_desc");
-  const topN = sanitizeBiTopN(widget?.topN ?? 10);
-  const dataRoles = normalizeBiDataRoles(widget?.dataRoles, widget);
-  const groupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || widget?.groupBy || "disciplina");
-  const metric = normalizeBiMetric(dataRoles.metrics?.[0] || widget?.metric || "count");
-  const optionalMetric = normalizeBiMetric(dataRoles.optionalMetrics?.[0] || "baseunits");
-  const breakdownDimension = normalizeBiOptionalGroupBy(dataRoles.breakdownDimension || "");
+function buildAnalyticsWidgetSnapshot(rows, widget) {
+  const source = normalizeAnalyticsSource(widget?.source || "all");
+  const chartType = normalizeAnalyticsChartType(widget?.chartType || "bar");
+  const sortMode = normalizeAnalyticsSortMode(widget?.sortMode || "value_desc");
+  const topN = sanitizeAnalyticsTopN(widget?.topN ?? 10);
+  const dataRoles = normalizeAnalyticsDataRoles(widget?.dataRoles, widget);
+  const groupBy = normalizeAnalyticsGroupBy(dataRoles.dimensions?.[0] || widget?.groupBy || "disciplina");
+  const metric = normalizeAnalyticsMetric(dataRoles.metrics?.[0] || widget?.metric || "count");
+  const optionalMetric = normalizeAnalyticsMetric(dataRoles.optionalMetrics?.[0] || "baseunits");
+  const breakdownDimension = normalizeAnalyticsOptionalGroupBy(dataRoles.breakdownDimension || "");
   const effectiveBreakdownDimension = breakdownDimension || "fuente";
-  const dateDimension = normalizeBiDateDimension(dataRoles.dateDimension || "startDate");
+  const dateDimension = normalizeAnalyticsDateDimension(dataRoles.dateDimension || "startDate");
   const sourceRows = source === "all"
     ? rows.slice()
     : rows.filter((row) => row.source === source);
+  const tableDimensions = chartType === "table"
+    ? (Array.isArray(dataRoles.dimensions) && dataRoles.dimensions.length > 0
+      ? dataRoles.dimensions.map((item) => normalizeAnalyticsGroupBy(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+      : [groupBy])
+    : [groupBy];
+  const tableMetrics = chartType === "table"
+    ? (Array.isArray(dataRoles.metrics) && dataRoles.metrics.length > 0
+      ? dataRoles.metrics.map((item) => normalizeAnalyticsMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+      : [metric])
+    : [metric];
+  const tableSnapshot = chartType === "table"
+    ? buildAnalyticsTableSnapshot(sourceRows, source, tableDimensions, tableMetrics, sortMode, topN)
+    : null;
   const canUseBreakdownSeries = !!breakdownDimension && new Set([
     "bar", "bar_horizontal", "bar_stacked", "line", "timeseries", "area", "combo", "pie", "donut",
     "scatter", "bubble", "radar", "waterfall", "pareto", "treemap", "funnel"
   ]).has(chartType);
   const rowsBySnapshotLabel = new Map();
   sourceRows.forEach((row) => {
-    const groupLabel = getBiRowGroupValue(row, groupBy);
-    const breakdownLabel = canUseBreakdownSeries ? getBiRowGroupValue(row, breakdownDimension) : "";
+    const groupLabel = getAnalyticsRowGroupValue(row, groupBy);
+    const breakdownLabel = canUseBreakdownSeries ? getAnalyticsRowGroupValue(row, breakdownDimension) : "";
     const label = canUseBreakdownSeries
       ? `${groupLabel} | ${breakdownLabel}`
       : groupLabel;
@@ -16400,7 +18893,7 @@ function buildBiWidgetSnapshot(rows, widget) {
     rowsBySnapshotLabel.get(label).rows.push(row);
   });
   const groupedRaw = Array.from(rowsBySnapshotLabel.entries()).map(([label, bucket]) => {
-    const groupedBucket = buildBiGroupedRows(bucket.rows, groupBy);
+    const groupedBucket = buildAnalyticsGroupedRows(bucket.rows, groupBy);
     const aggregate = groupedBucket[0] || {
       label,
       rows: bucket.rows.slice(),
@@ -16423,17 +18916,17 @@ function buildBiWidgetSnapshot(rows, widget) {
 
   const grouped = groupedRaw
     .map((group) => {
-      const value = getBiMetricValue(group, metric);
+      const value = getAnalyticsMetricValue(group, metric);
       const safeValue = Number.isFinite(value) ? value : 0;
       const sourceGroupRows = rowsBySnapshotLabel.get(group.label)?.rows || [];
       const sourceGroupMetricValues = sourceGroupRows
-        .map((row) => getBiRowMetricValue(row, metric))
+        .map((row) => getAnalyticsRowMetricValue(row, metric))
         .filter((item) => Number.isFinite(item));
-      const optionalValue = getBiMetricValue(group, optionalMetric);
+      const optionalValue = getAnalyticsMetricValue(group, optionalMetric);
       const xValue = Number.isFinite(optionalValue) ? optionalValue : group.count;
-      const q1 = computeBiQuantile(sourceGroupMetricValues, 0.25);
-      const median = computeBiQuantile(sourceGroupMetricValues, 0.5);
-      const q3 = computeBiQuantile(sourceGroupMetricValues, 0.75);
+      const q1 = computeAnalyticsQuantile(sourceGroupMetricValues, 0.25);
+      const median = computeAnalyticsQuantile(sourceGroupMetricValues, 0.5);
+      const q3 = computeAnalyticsQuantile(sourceGroupMetricValues, 0.75);
       const min = sourceGroupMetricValues.length > 0 ? Math.min(...sourceGroupMetricValues) : 0;
       const max = sourceGroupMetricValues.length > 0 ? Math.max(...sourceGroupMetricValues) : 0;
       const orderedByDate = sourceGroupRows
@@ -16443,9 +18936,9 @@ function buildBiWidgetSnapshot(rows, widget) {
           const b = sanitizeDateInput(right?.[dateDimension] || right?.startDate || "");
           return a.localeCompare(b);
         });
-      const open = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[0], metric) : safeValue;
-      const close = orderedByDate.length > 0 ? getBiRowMetricValue(orderedByDate[orderedByDate.length - 1], metric) : safeValue;
-      const rowKey = buildBiRowKey(
+      const open = orderedByDate.length > 0 ? getAnalyticsRowMetricValue(orderedByDate[0], metric) : safeValue;
+      const close = orderedByDate.length > 0 ? getAnalyticsRowMetricValue(orderedByDate[orderedByDate.length - 1], metric) : safeValue;
+      const rowKey = buildAnalyticsRowKey(
         source,
         canUseBreakdownSeries ? `${groupBy}_${breakdownDimension}` : groupBy,
         group.label
@@ -16477,9 +18970,9 @@ function buildBiWidgetSnapshot(rows, widget) {
   const pivotColumnsSet = new Set();
   const pivotMap = new Map();
   sourceRows.forEach((row) => {
-    const rowLabel = getBiRowGroupValue(row, groupBy);
-    const colLabel = getBiRowGroupValue(row, effectiveBreakdownDimension);
-    const cellValue = getBiRowMetricValue(row, metric);
+    const rowLabel = getAnalyticsRowGroupValue(row, groupBy);
+    const colLabel = getAnalyticsRowGroupValue(row, effectiveBreakdownDimension);
+    const cellValue = getAnalyticsRowMetricValue(row, metric);
     pivotColumnsSet.add(colLabel);
     if (!pivotMap.has(rowLabel)) {
       pivotMap.set(rowLabel, new Map());
@@ -16492,14 +18985,14 @@ function buildBiWidgetSnapshot(rows, widget) {
     const cells = pivotColumns.map((columnLabel) => {
       const value = rowBucket.get(columnLabel) || 0;
       return {
-        key: buildBiRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${rowLabel}|${columnLabel}`),
+        key: buildAnalyticsRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${rowLabel}|${columnLabel}`),
         label: columnLabel,
         value
       };
     });
     const total = cells.reduce((sum, cell) => sum + (cell.value || 0), 0);
     return {
-      rowKey: buildBiRowKey(source, groupBy, rowLabel),
+      rowKey: buildAnalyticsRowKey(source, groupBy, rowLabel),
       label: rowLabel,
       cells,
       total
@@ -16508,17 +19001,17 @@ function buildBiWidgetSnapshot(rows, widget) {
 
   const sankeyMap = new Map();
   sourceRows.forEach((row) => {
-    const fromLabel = getBiRowGroupValue(row, groupBy);
-    const toLabel = getBiRowGroupValue(row, effectiveBreakdownDimension);
+    const fromLabel = getAnalyticsRowGroupValue(row, groupBy);
+    const toLabel = getAnalyticsRowGroupValue(row, effectiveBreakdownDimension);
     const key = `${fromLabel}__${toLabel}`;
-    const value = getBiRowMetricValue(row, metric);
+    const value = getAnalyticsRowMetricValue(row, metric);
     sankeyMap.set(key, (sankeyMap.get(key) || 0) + value);
   });
   const sankeyLinks = Array.from(sankeyMap.entries())
     .map(([key, value]) => {
       const [from, to] = key.split("__");
       return {
-        rowKey: buildBiRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${from}->${to}`),
+        rowKey: buildAnalyticsRowKey(source, `${groupBy}_${effectiveBreakdownDimension}`, `${from}->${to}`),
         from,
         to,
         value
@@ -16529,7 +19022,7 @@ function buildBiWidgetSnapshot(rows, widget) {
 
   const timelineItems = sourceRows
     .map((row, index) => {
-      const label = getBiRowGroupValue(row, groupBy);
+      const label = getAnalyticsRowGroupValue(row, groupBy);
       const startDate = sanitizeDateInput(row?.[dateDimension] || row?.startDate || "");
       const endDate = sanitizeDateInput(row?.endDate || row?.startDate || "");
       if (!startDate || !endDate) {
@@ -16543,13 +19036,13 @@ function buildBiWidgetSnapshot(rows, widget) {
       const safeStartDay = Math.min(startDay, endDay);
       const safeEndDay = Math.max(startDay, endDay);
       return {
-        rowKey: buildBiRowKey(source, groupBy, `${label}_${startDate}_${endDate}_${index}`),
+        rowKey: buildAnalyticsRowKey(source, groupBy, `${label}_${startDate}_${endDate}_${index}`),
         label,
         startDate,
         endDate,
         startDay: safeStartDay,
         endDay: safeEndDay,
-        value: getBiRowMetricValue(row, metric)
+        value: getAnalyticsRowMetricValue(row, metric)
       };
     })
     .filter((item) => !!item)
@@ -16579,6 +19072,7 @@ function buildBiWidgetSnapshot(rows, widget) {
     colorByDimension: canUseBreakdownSeries ? breakdownDimension : groupBy,
     dateDimension,
     rows: trimmed,
+    table: tableSnapshot,
     pivot: {
       rowDimension: groupBy,
       colDimension: effectiveBreakdownDimension,
@@ -16598,8 +19092,8 @@ function buildBiWidgetSnapshot(rows, widget) {
   };
 }
 
-function buildBiWidgetMetaLabel(widget, snapshot, project) {
-  const kind = normalizeBiWidgetKind(widget?.kind || "chart");
+function buildAnalyticsWidgetMetaLabel(widget, snapshot, project) {
+  const kind = normalizeAnalyticsWidgetKind(widget?.kind || "chart");
   if (kind === "text") {
     return "Cuadro de texto";
   }
@@ -16609,17 +19103,17 @@ function buildBiWidgetMetaLabel(widget, snapshot, project) {
   if (!snapshot) {
     return "Widget";
   }
-  const groupLabel = getBiGroupLabel(snapshot.groupBy, project);
-  const metricLabel = getBiMetricLabel(snapshot.metric);
-  const sourceLabel = getBiSourceLabel(snapshot.source);
+  const groupLabel = getAnalyticsGroupLabel(snapshot.groupBy, project);
+  const metricLabel = getAnalyticsMetricLabel(snapshot.metric);
+  const sourceLabel = getAnalyticsSourceLabel(snapshot.source);
   return `${sourceLabel} | ${metricLabel} por ${groupLabel}`;
 }
 
-function renderBiTextWidgetContent(target, widget) {
+function renderAnalyticsTextWidgetContent(target, widget) {
   if (!(target instanceof HTMLElement) || !widget) {
     return;
   }
-  const textConfig = normalizeBiTextConfig(widget.textConfig);
+  const textConfig = normalizeAnalyticsTextConfig(widget.textConfig);
   const text = typeof widget.textContent === "string"
     ? widget.textContent.slice(0, 4000)
     : "";
@@ -16636,11 +19130,11 @@ function renderBiTextWidgetContent(target, widget) {
   target.innerHTML = `<div class="bi-text-widget-box" data-bi-text-widget="${escapeAttribute(widget.id)}" data-placeholder="Escribe texto..." contenteditable="true" spellcheck="true" style="${escapeAttribute(style)}">${escapeHtml(text)}</div>`;
 }
 
-function renderBiImageWidgetContent(target, widget) {
+function renderAnalyticsImageWidgetContent(target, widget) {
   if (!(target instanceof HTMLElement) || !widget) {
     return;
   }
-  const imageConfig = normalizeBiImageConfig(widget.imageConfig);
+  const imageConfig = normalizeAnalyticsImageConfig(widget.imageConfig);
   const src = trimOrFallback(widget.imageSrc, "");
   const alt = trimOrFallback(widget.imageAlt || widget.name || "Imagen", "Imagen");
   const frameStyle = `background:${imageConfig.background};border-radius:${imageConfig.borderRadius}px;border-color:${imageConfig.frameColor};`;
@@ -16658,8 +19152,8 @@ function renderBiImageWidgetContent(target, widget) {
   </div>`;
 }
 
-function renderBiWidgets(project, rows) {
-  if (!project || !els.biWidgetsGrid) {
+function renderAnalyticsWidgets(project, rows) {
+  if (!project || !els.legacyStudioWidgetsGrid) {
     return;
   }
   const renderStartedAt = typeof performance !== "undefined" && typeof performance.now === "function"
@@ -16668,21 +19162,21 @@ function renderBiWidgets(project, rows) {
 
   const widgets = Array.isArray(project.biWidgets) ? project.biWidgets : [];
   const snapshots = {};
-  biWidgetSnapshotsByProject[project.id] = snapshots;
+  legacyStudioWidgetSnapshotsByProject[project.id] = snapshots;
 
-  if (els.biWidgetsMetaText) {
-    els.biWidgetsMetaText.textContent = `Widgets: ${widgets.length}/${BI_MAX_WIDGETS} | Filas: ${rows.length}`;
+  if (els.legacyStudioWidgetsMetaText) {
+    els.legacyStudioWidgetsMetaText.textContent = `Widgets: ${widgets.length}/${ANALYTICS_MAX_WIDGETS} | Filas: ${rows.length}`;
   }
 
-  const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
   const surfaceWidth = canvasSize.width;
   const surfaceHeight = canvasSize.height;
-  const zoomPercent = sanitizeBiCanvasZoom(project?.biConfig?.canvasZoom, BI_CANVAS_ZOOM_DEFAULT);
-  const zoomScale = getBiCanvasZoomScale(project?.biConfig);
+  const zoomPercent = sanitizeAnalyticsCanvasZoom(project?.biConfig?.canvasZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
+  const zoomScale = getAnalyticsCanvasZoomScale(project?.biConfig);
   const scaledSurfaceWidth = Math.max(1, Math.round(surfaceWidth * zoomScale));
   const scaledSurfaceHeight = Math.max(1, Math.round(surfaceHeight * zoomScale));
-  const showCanvasGrid = normalizeBiToggle(project?.biConfig?.showCanvasGrid, false);
-  const gridSize = sanitizeBiInteger(project?.biConfig?.gridSnapSize, 12, 4, 120);
+  const showCanvasGrid = normalizeAnalyticsToggle(project?.biConfig?.showCanvasGrid, false);
+  const gridSize = sanitizeAnalyticsInteger(project?.biConfig?.gridSnapSize, 12, 4, 120);
   const canvasClass = showCanvasGrid ? "bi-canvas-surface show-grid" : "bi-canvas-surface";
   const canvasStyleSuffix = showCanvasGrid ? `;--bi-canvas-grid-size:${gridSize}px` : "";
   const stageStyle = `--bi-canvas-zoom:${zoomScale};`;
@@ -16690,7 +19184,7 @@ function renderBiWidgets(project, rows) {
   const surfaceStyle = `position:absolute;left:0;top:0;width:${surfaceWidth}px;height:${surfaceHeight}px;min-width:${surfaceWidth}px;min-height:${surfaceHeight}px;transform:scale(${zoomScale});transform-origin:top left;${canvasStyleSuffix}`;
 
   if (widgets.length === 0) {
-    els.biWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
+    els.legacyStudioWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
       <div class="bi-canvas-zoom-wrap" style="${escapeAttribute(zoomWrapStyle)}">
         <div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" data-bi-canvas-zoom="${zoomPercent}" style="${escapeAttribute(surfaceStyle)}">
           <div class="bi-empty">Lienzo vacio. Configura Dimension/Metrica y usa "Agregar widget".</div>
@@ -16700,7 +19194,7 @@ function renderBiWidgets(project, rows) {
     const renderEndedAt = typeof performance !== "undefined" && typeof performance.now === "function"
       ? performance.now()
       : Date.now();
-    updateBiRuntimeStats(project.id, {
+    updateAnalyticsRuntimeStats(project.id, {
       lastRenderMs: Math.max(0, renderEndedAt - renderStartedAt),
       widgets: 0,
       rows: Array.isArray(rows) ? rows.length : 0,
@@ -16711,51 +19205,51 @@ function renderBiWidgets(project, rows) {
 
   const widgetsHtml = widgets
     .map((widget, index) => {
-      const normalizedWidget = normalizeBiWidget(widget, index);
-      widget.layout = normalizeBiWidgetLayout(normalizedWidget.layout, index, normalizedWidget);
+      const normalizedWidget = normalizeAnalyticsWidget(widget, index);
+      widget.layout = normalizeAnalyticsWidgetLayout(normalizedWidget.layout, index, normalizedWidget);
       widget.kind = normalizedWidget.kind;
-      widget.labelOffsets = normalizeBiLabelOffsets(normalizedWidget.labelOffsets);
-      widget.labelLayoutV2 = normalizeBiLabelLayoutV2(normalizedWidget.labelLayoutV2);
-      widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
-      widget.textConfig = normalizeBiTextConfig(normalizedWidget.textConfig);
-      widget.imageConfig = normalizeBiImageConfig(normalizedWidget.imageConfig);
-      widget.polarLayout = normalizeBiCircularLayout(normalizedWidget.polarLayout);
+      widget.labelOffsets = normalizeAnalyticsLabelOffsets(normalizedWidget.labelOffsets);
+      widget.labelLayoutV2 = normalizeAnalyticsLabelLayoutV2(normalizedWidget.labelLayoutV2);
+      widget.chartTypeConfig = normalizeAnalyticsChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+      widget.textConfig = normalizeAnalyticsTextConfig(normalizedWidget.textConfig);
+      widget.imageConfig = normalizeAnalyticsImageConfig(normalizedWidget.imageConfig);
+      widget.polarLayout = normalizeAnalyticsCircularLayout(normalizedWidget.polarLayout);
       widget.showTitle = normalizedWidget.showTitle !== false;
       widget.showBorder = normalizedWidget.showBorder !== false;
       widget.showBackground = normalizedWidget.showBackground !== false;
       widget.layout.x = Math.max(0, Math.min(surfaceWidth - widget.layout.w, widget.layout.x));
       widget.layout.y = Math.max(0, Math.min(surfaceHeight - widget.layout.h, widget.layout.y));
-      const widgetKind = normalizeBiWidgetKind(normalizedWidget.kind || "chart");
+      const widgetKind = normalizeAnalyticsWidgetKind(normalizedWidget.kind || "chart");
       const isChartWidget = widgetKind === "chart";
-      const snapshot = isChartWidget ? buildBiWidgetSnapshot(rows, normalizedWidget) : null;
+      const snapshot = isChartWidget ? buildAnalyticsWidgetSnapshot(rows, normalizedWidget) : null;
       const effectiveVisual = isChartWidget
-        ? getBiEffectiveVisualSettings(project, normalizedWidget)
-        : createDefaultBiVisualSettings();
+        ? getAnalyticsEffectiveVisualSettings(project, normalizedWidget)
+        : createDefaultAnalyticsVisualSettings();
       if (snapshot) {
         snapshots[normalizedWidget.id] = snapshot;
       }
 
-      const sourceLabel = buildBiWidgetMetaLabel(normalizedWidget, snapshot, project);
+      const sourceLabel = buildAnalyticsWidgetMetaLabel(normalizedWidget, snapshot, project);
       const chartCanvasId = `biWidgetCanvas_${normalizedWidget.id}`;
       const contentTargetId = `biWidgetContent_${normalizedWidget.id}`;
       const tooltipId = `biWidgetTooltip_${normalizedWidget.id}`;
-      const useCanvas = !!(snapshot && !BI_CUSTOM_CONTENT_TYPES.has(snapshot.chartType));
-      const selectedClass = selectedBiWidgetId === normalizedWidget.id ? " selected" : "";
+      const useCanvas = !!(snapshot && !ANALYTICS_CUSTOM_CONTENT_TYPES.has(snapshot.chartType));
+      const selectedClass = selectedLegacyStudioWidgetId === normalizedWidget.id ? " selected" : "";
       const widgetKindClass = widgetKind === "text"
         ? " is-text-widget"
         : (widgetKind === "image" ? " is-image-widget" : "");
       const showTitle = normalizedWidget.showTitle !== false;
       const showBorder = normalizedWidget.showBorder !== false;
       const showBackground = normalizedWidget.showBackground !== false;
-      const locked = normalizeBiToggle(normalizedWidget.locked, false);
+      const locked = normalizeAnalyticsToggle(normalizedWidget.locked, false);
       const borderClass = showBorder ? "" : " no-border";
       const titleClass = showTitle ? "" : " no-title";
       const backgroundClass = showBackground ? "" : " no-background";
       const lockedClass = locked ? " locked" : "";
-      const titleSize = getBiFontSizeByLayer(effectiveVisual, "title", 16);
-      const titleFamily = getBiFontFamilyByLayer(effectiveVisual, "title");
+      const titleSize = getAnalyticsFontSizeByLayer(effectiveVisual, "title", 16);
+      const titleFamily = getAnalyticsFontFamilyByLayer(effectiveVisual, "title");
       const metaSize = Math.max(9, Math.round(titleSize * 0.68));
-      const labelFamily = getBiFontFamilyByLayer(effectiveVisual, "label");
+      const labelFamily = getAnalyticsFontFamilyByLayer(effectiveVisual, "label");
       const titleStyle = `font-size:${titleSize}px;font-family:${escapeAttribute(titleFamily)};`;
       const metaStyle = `font-size:${metaSize}px;font-family:${escapeAttribute(labelFamily)};`;
       const lockLabel = locked ? "Desbloquear" : "Bloquear";
@@ -16785,27 +19279,27 @@ function renderBiWidgets(project, rows) {
     })
     .join("");
 
-  els.biWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
+  els.legacyStudioWidgetsGrid.innerHTML = `<div class="bi-canvas-stage" style="${escapeAttribute(stageStyle)}">
     <div class="bi-canvas-zoom-wrap" style="${escapeAttribute(zoomWrapStyle)}">
       <div class="${canvasClass}" data-bi-canvas-surface data-bi-canvas-width="${surfaceWidth}" data-bi-canvas-height="${surfaceHeight}" data-bi-canvas-zoom="${zoomPercent}" style="${escapeAttribute(surfaceStyle)}">${widgetsHtml}</div>
     </div>
   </div>`;
 
   widgets.forEach((widget, index) => {
-    const normalizedWidget = normalizeBiWidget(widget, index);
+    const normalizedWidget = normalizeAnalyticsWidget(widget, index);
     widget.kind = normalizedWidget.kind;
-    widget.labelOffsets = normalizeBiLabelOffsets(normalizedWidget.labelOffsets);
-    widget.labelLayoutV2 = normalizeBiLabelLayoutV2(normalizedWidget.labelLayoutV2);
-    widget.chartTypeConfig = normalizeBiChartTypeConfigMap(normalizedWidget.chartTypeConfig);
-    widget.textConfig = normalizeBiTextConfig(normalizedWidget.textConfig);
-    widget.imageConfig = normalizeBiImageConfig(normalizedWidget.imageConfig);
-    widget.polarLayout = normalizeBiCircularLayout(normalizedWidget.polarLayout);
+    widget.labelOffsets = normalizeAnalyticsLabelOffsets(normalizedWidget.labelOffsets);
+    widget.labelLayoutV2 = normalizeAnalyticsLabelLayoutV2(normalizedWidget.labelLayoutV2);
+    widget.chartTypeConfig = normalizeAnalyticsChartTypeConfigMap(normalizedWidget.chartTypeConfig);
+    widget.textConfig = normalizeAnalyticsTextConfig(normalizedWidget.textConfig);
+    widget.imageConfig = normalizeAnalyticsImageConfig(normalizedWidget.imageConfig);
+    widget.polarLayout = normalizeAnalyticsCircularLayout(normalizedWidget.polarLayout);
     widget.showTitle = normalizedWidget.showTitle !== false;
     widget.showBorder = normalizedWidget.showBorder !== false;
     widget.showBackground = normalizedWidget.showBackground !== false;
-    widget.locked = normalizeBiToggle(normalizedWidget.locked, false);
-    widget.sortMode = normalizeBiSortMode(normalizedWidget.sortMode || "value_desc");
-    const widgetKind = normalizeBiWidgetKind(normalizedWidget.kind || "chart");
+    widget.locked = normalizeAnalyticsToggle(normalizedWidget.locked, false);
+    widget.sortMode = normalizeAnalyticsSortMode(normalizedWidget.sortMode || "value_desc");
+    const widgetKind = normalizeAnalyticsWidgetKind(normalizedWidget.kind || "chart");
     const snapshot = widgetKind === "chart" ? snapshots[normalizedWidget.id] : null;
     const canvas = document.getElementById(`biWidgetCanvas_${normalizedWidget.id}`);
     const contentTarget = document.getElementById(`biWidgetContent_${normalizedWidget.id}`);
@@ -16814,21 +19308,21 @@ function renderBiWidgets(project, rows) {
       if (tooltip instanceof HTMLElement) {
         tooltip.classList.add("hidden");
       }
-      renderBiTextWidgetContent(contentTarget, normalizedWidget);
+      renderAnalyticsTextWidgetContent(contentTarget, normalizedWidget);
       return;
     }
     if (widgetKind === "image") {
       if (tooltip instanceof HTMLElement) {
         tooltip.classList.add("hidden");
       }
-      renderBiImageWidgetContent(contentTarget, normalizedWidget);
+      renderAnalyticsImageWidgetContent(contentTarget, normalizedWidget);
       return;
     }
     if (!snapshot) {
       return;
     }
-    if (BI_CUSTOM_CONTENT_TYPES.has(snapshot.chartType)) {
-      renderBiWidgetCustomContent(contentTarget, snapshot, normalizedWidget, project);
+    if (ANALYTICS_CUSTOM_CONTENT_TYPES.has(snapshot.chartType)) {
+      renderAnalyticsWidgetCustomContent(contentTarget, snapshot, normalizedWidget, project);
       if (tooltip instanceof HTMLElement) {
         tooltip.classList.add("hidden");
       }
@@ -16845,14 +19339,14 @@ function renderBiWidgets(project, rows) {
           const label = trimOrFallback(rowNode.dataset.biLabel || "", "");
           if (label) {
             const appendMode = !!(event && (event.ctrlKey || event.metaKey));
-            const changed = toggleBiCrossFilter(project, snapshot.groupBy, label, snapshot.source, appendMode);
+            const changed = toggleAnalyticsCrossFilter(project, snapshot.groupBy, label, snapshot.source, appendMode);
             if (changed) {
               saveState();
-              renderBiPanel(project);
-              const hasFilter = normalizeBiCrossFilters(project.biConfig.crossFilters).length > 0;
+              renderLegacyStudioPanel(project);
+              const hasFilter = normalizeAnalyticsCrossFilters(project.biConfig.crossFilters).length > 0;
               if (hasFilter) {
                 const modeLabel = appendMode ? " (multi)" : "";
-                setStatus(`Filtro cruzado aplicado${modeLabel}: ${getBiGroupLabel(snapshot.groupBy, project)} = ${label}`);
+                setStatus(`Filtro cruzado aplicado${modeLabel}: ${getAnalyticsGroupLabel(snapshot.groupBy, project)} = ${label}`);
               } else {
                 setStatus("Filtro cruzado removido.");
               }
@@ -16863,15 +19357,15 @@ function renderBiWidgets(project, rows) {
           if (Number.isNaN(rowIndex)) {
             return;
           }
-          applyBiCrossFilterFromWidget(project, snapshot, rowIndex, event);
+          applyAnalyticsCrossFilterFromWidget(project, snapshot, rowIndex, event);
         });
       }
     } else {
       if (contentTarget instanceof HTMLElement) {
         contentTarget.innerHTML = "";
       }
-      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
-      const effectiveVisual = getBiEffectiveVisualSettings(project, normalizedWidget);
+      const seriesColors = getAnalyticsSnapshotSeriesColors(project, snapshot);
+      const effectiveVisual = getAnalyticsEffectiveVisualSettings(project, normalizedWidget);
       const hoverModel = drawBiWidgetChart(
         canvas,
         snapshot.chartType,
@@ -16888,7 +19382,7 @@ function renderBiWidgets(project, rows) {
         normalizedWidget.chartTypeConfig
       );
       bindBiCanvasHover(canvas, tooltip, snapshot, snapshot.chartType, (index, event) => {
-        applyBiCrossFilterFromWidget(project, snapshot, index, event);
+        applyAnalyticsCrossFilterFromWidget(project, snapshot, index, event);
       }, hoverModel, seriesColors, effectiveVisual, widget);
     }
   });
@@ -16900,7 +19394,7 @@ function renderBiWidgets(project, rows) {
   const renderEndedAt = typeof performance !== "undefined" && typeof performance.now === "function"
     ? performance.now()
     : Date.now();
-  updateBiRuntimeStats(project.id, {
+  updateAnalyticsRuntimeStats(project.id, {
     lastRenderMs: Math.max(0, renderEndedAt - renderStartedAt),
     widgets: widgets.length,
     rows: Array.isArray(rows) ? rows.length : 0,
@@ -16908,7 +19402,7 @@ function renderBiWidgets(project, rows) {
   });
 }
 
-function buildBiDuplicateName(baseName, existingNames) {
+function buildAnalyticsDuplicateName(baseName, existingNames) {
   const sourceName = trimOrFallback(baseName, "Widget").slice(0, 60);
   const normalizedExisting = new Set((existingNames || []).map((name) => normalizeLookup(name || "")));
   const baseCandidate = `${sourceName} copia`.slice(0, 60);
@@ -16924,11 +19418,11 @@ function buildBiDuplicateName(baseName, existingNames) {
   return `${sourceName} copia`.slice(0, 60);
 }
 
-function clampBiWidgetLayoutToCanvas(layout, canvasWidth, canvasHeight, minSize) {
-  const minWidth = Math.max(80, Math.round(minSize?.width || BI_CANVAS_MIN_WIDTH));
-  const minHeight = Math.max(52, Math.round(minSize?.height || BI_CANVAS_MIN_HEIGHT));
-  const width = Math.max(minWidth, Math.round(canvasWidth || BI_CANVAS_SURFACE_MIN_WIDTH));
-  const height = Math.max(minHeight, Math.round(canvasHeight || BI_CANVAS_SURFACE_HEIGHT));
+function clampAnalyticsWidgetLayoutToCanvas(layout, canvasWidth, canvasHeight, minSize) {
+  const minWidth = Math.max(80, Math.round(minSize?.width || ANALYTICS_CANVAS_MIN_WIDTH));
+  const minHeight = Math.max(52, Math.round(minSize?.height || ANALYTICS_CANVAS_MIN_HEIGHT));
+  const width = Math.max(minWidth, Math.round(canvasWidth || ANALYTICS_CANVAS_SURFACE_MIN_WIDTH));
+  const height = Math.max(minHeight, Math.round(canvasHeight || ANALYTICS_CANVAS_SURFACE_HEIGHT));
   const w = Math.max(minWidth, Math.min(width, Math.round(layout?.w || minWidth)));
   const h = Math.max(minHeight, Math.min(height, Math.round(layout?.h || minHeight)));
   const x = Math.max(0, Math.min(width - w, Math.round(layout?.x || 0)));
@@ -16936,35 +19430,35 @@ function clampBiWidgetLayoutToCanvas(layout, canvasWidth, canvasHeight, minSize)
   return { x, y, w, h };
 }
 
-function duplicateBiWidget(project, widgetId) {
+function duplicateAnalyticsWidget(project, widgetId) {
   if (!project || !widgetId) {
     return { ok: false, message: "Widget no encontrado." };
   }
-  ensureBiState(project);
-  if (!Array.isArray(project.biWidgets) || project.biWidgets.length >= BI_MAX_WIDGETS) {
-    return { ok: false, message: `Maximo de ${BI_MAX_WIDGETS} widgets alcanzado.` };
+  ensureAnalyticsState(project);
+  if (!Array.isArray(project.biWidgets) || project.biWidgets.length >= ANALYTICS_MAX_WIDGETS) {
+    return { ok: false, message: `Maximo de ${ANALYTICS_MAX_WIDGETS} widgets alcanzado.` };
   }
-  const sourceWidget = getBiWidgetById(project, widgetId);
+  const sourceWidget = getAnalyticsWidgetById(project, widgetId);
   if (!sourceWidget) {
     return { ok: false, message: "Widget no encontrado." };
   }
-  const normalized = normalizeBiWidget(sourceWidget, project.biWidgets.length);
-  const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
-  const minSize = getBiWidgetMinSize(normalized);
+  const normalized = normalizeAnalyticsWidget(sourceWidget, project.biWidgets.length);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
+  const minSize = getAnalyticsWidgetMinSize(normalized);
   const duplicated = {
     ...normalized,
     id: uid(),
-    name: buildBiDuplicateName(normalized.name, project.biWidgets.map((item) => item?.name)),
-    labelOffsets: normalizeBiLabelOffsets(normalized.labelOffsets),
-    labelLayoutV2: normalizeBiLabelLayoutV2(normalized.labelLayoutV2),
-    chartTypeConfig: normalizeBiChartTypeConfigMap(normalized.chartTypeConfig),
-    textConfig: normalizeBiTextConfig(normalized.textConfig),
-    imageConfig: normalizeBiImageConfig(normalized.imageConfig),
-    polarLayout: normalizeBiCircularLayout(normalized.polarLayout),
-    visualOverride: normalized.visualOverride ? normalizeBiVisualSettings(normalized.visualOverride) : null,
+    name: buildAnalyticsDuplicateName(normalized.name, project.biWidgets.map((item) => item?.name)),
+    labelOffsets: normalizeAnalyticsLabelOffsets(normalized.labelOffsets),
+    labelLayoutV2: normalizeAnalyticsLabelLayoutV2(normalized.labelLayoutV2),
+    chartTypeConfig: normalizeAnalyticsChartTypeConfigMap(normalized.chartTypeConfig),
+    textConfig: normalizeAnalyticsTextConfig(normalized.textConfig),
+    imageConfig: normalizeAnalyticsImageConfig(normalized.imageConfig),
+    polarLayout: normalizeAnalyticsCircularLayout(normalized.polarLayout),
+    visualOverride: normalized.visualOverride ? normalizeAnalyticsVisualSettings(normalized.visualOverride) : null,
     locked: false
   };
-  duplicated.layout = clampBiWidgetLayoutToCanvas({
+  duplicated.layout = clampAnalyticsWidgetLayoutToCanvas({
     x: (normalized.layout?.x || 0) + 26,
     y: (normalized.layout?.y || 0) + 26,
     w: normalized.layout?.w || minSize.width,
@@ -16974,22 +19468,22 @@ function duplicateBiWidget(project, widgetId) {
   return { ok: true, newWidgetId: duplicated.id };
 }
 
-function toggleBiWidgetLock(project, widgetId) {
-  const widget = getBiWidgetById(project, widgetId);
+function toggleAnalyticsWidgetLock(project, widgetId) {
+  const widget = getAnalyticsWidgetById(project, widgetId);
   if (!widget) {
     return { ok: false, locked: false };
   }
-  widget.locked = !normalizeBiToggle(widget.locked, false);
+  widget.locked = !normalizeAnalyticsToggle(widget.locked, false);
   return { ok: true, locked: widget.locked };
 }
 
-function autoArrangeBiWidgets(project, options = {}) {
+function autoArrangeAnalyticsWidgets(project, options = {}) {
   if (!project || !Array.isArray(project.biWidgets) || project.biWidgets.length === 0) {
     return { arranged: 0 };
   }
-  ensureBiState(project);
+  ensureAnalyticsState(project);
   const expandCanvas = options.expandCanvas !== false;
-  const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
   const margin = 20;
   const gap = 14;
   const availableWidth = Math.max(280, canvasSize.width - (margin * 2));
@@ -16998,8 +19492,8 @@ function autoArrangeBiWidgets(project, options = {}) {
   let rowHeight = 0;
 
   project.biWidgets.forEach((widget, index) => {
-    const normalized = normalizeBiWidget(widget, index);
-    const minSize = getBiWidgetMinSize(normalized);
+    const normalized = normalizeAnalyticsWidget(widget, index);
+    const minSize = getAnalyticsWidgetMinSize(normalized);
     const fallbackWidth = normalized.kind === "text"
       ? 520
       : (normalized.kind === "image" ? 420 : 420);
@@ -17016,7 +19510,7 @@ function autoArrangeBiWidgets(project, options = {}) {
       rowHeight = 0;
     }
 
-    widget.layout = clampBiWidgetLayoutToCanvas({
+    widget.layout = clampAnalyticsWidgetLayoutToCanvas({
       x: cursorX,
       y: cursorY,
       w: widgetWidth,
@@ -17029,11 +19523,11 @@ function autoArrangeBiWidgets(project, options = {}) {
 
   const requiredHeight = cursorY + rowHeight + margin;
   if (expandCanvas && requiredHeight > canvasSize.height) {
-    project.biConfig.canvasHeight = sanitizeBiCanvasDimension(
+    project.biConfig.canvasHeight = sanitizeAnalyticsCanvasDimension(
       requiredHeight,
-      BI_CANVAS_SURFACE_HEIGHT,
-      BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
-      BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+      ANALYTICS_CANVAS_SURFACE_HEIGHT,
+      ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT,
+      ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
     );
   }
 
@@ -17044,7 +19538,7 @@ function generateBiStarterDashboard(project) {
   if (!project) {
     return { added: 0 };
   }
-  ensureBiState(project);
+  ensureAnalyticsState(project);
   const templates = [
     { name: "KPI Total de filas", source: "all", groupBy: "proyecto", metric: "count", chartType: "scorecard", topN: 1, sortMode: "value_desc" },
     { name: "Avance real por Disciplina", source: "all", groupBy: "disciplina", metric: "weightedreal", chartType: "bar", topN: 12, sortMode: "value_desc" },
@@ -17057,20 +19551,20 @@ function generateBiStarterDashboard(project) {
 
   const existingSignatures = new Set(
     project.biWidgets.map((widget) => {
-      const normalized = normalizeBiWidget(widget, 0);
+      const normalized = normalizeAnalyticsWidget(widget, 0);
       return [
         normalized.source,
         normalized.groupBy,
         normalized.metric,
         normalized.chartType,
-        normalizeBiSortMode(normalized.sortMode || "value_desc")
+        normalizeAnalyticsSortMode(normalized.sortMode || "value_desc")
       ].join("|");
     })
   );
 
   let added = 0;
   templates.forEach((template) => {
-    if (project.biWidgets.length >= BI_MAX_WIDGETS) {
+    if (project.biWidgets.length >= ANALYTICS_MAX_WIDGETS) {
       return;
     }
     const signature = [
@@ -17078,7 +19572,7 @@ function generateBiStarterDashboard(project) {
       template.groupBy,
       template.metric,
       template.chartType,
-      normalizeBiSortMode(template.sortMode || "value_desc")
+      normalizeAnalyticsSortMode(template.sortMode || "value_desc")
     ].join("|");
     if (existingSignatures.has(signature)) {
       return;
@@ -17088,12 +19582,12 @@ function generateBiStarterDashboard(project) {
       id: uid(),
       kind: "chart",
       name: template.name.slice(0, 60),
-      source: normalizeBiSource(template.source),
-      groupBy: normalizeBiGroupBy(template.groupBy),
-      metric: normalizeBiMetric(template.metric),
-      chartType: normalizeBiChartType(template.chartType),
-      sortMode: normalizeBiSortMode(template.sortMode || "value_desc"),
-      topN: sanitizeBiTopN(template.topN),
+      source: normalizeAnalyticsSource(template.source),
+      groupBy: normalizeAnalyticsGroupBy(template.groupBy),
+      metric: normalizeAnalyticsMetric(template.metric),
+      chartType: normalizeAnalyticsChartType(template.chartType),
+      sortMode: normalizeAnalyticsSortMode(template.sortMode || "value_desc"),
+      topN: sanitizeAnalyticsTopN(template.topN),
       textContent: "",
       imageSrc: "",
       imageAlt: "",
@@ -17101,46 +19595,46 @@ function generateBiStarterDashboard(project) {
       showBorder: true,
       showBackground: true,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: template.groupBy, metric: template.metric, chartType: template.chartType }),
-      chartConfig: createDefaultBiChartConfig(template.chartType),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: template.groupBy, metric: template.metric, chartType: template.chartType }),
+      chartConfig: createDefaultAnalyticsChartConfig(template.chartType),
       chartTypeConfig: {
-        [normalizeBiChartType(template.chartType)]: normalizeBiChartTypeSpecificConfig({}, template.chartType)
+        [normalizeAnalyticsChartType(template.chartType)]: normalizeAnalyticsChartTypeSpecificConfig({}, template.chartType)
       },
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       layout: getDefaultBiWidgetLayout(project.biWidgets.length),
       visualOverride: null
     };
     project.biWidgets.push(widget);
-    selectedBiWidgetId = widget.id;
+    selectedLegacyStudioWidgetId = widget.id;
     added += 1;
   });
 
   if (added > 0) {
-    autoArrangeBiWidgets(project, { expandCanvas: true });
+    autoArrangeAnalyticsWidgets(project, { expandCanvas: true });
   }
   return { added };
 }
 
-function getBiCanvasSurface() {
-  return els.biWidgetsGrid?.querySelector("[data-bi-canvas-surface]") || null;
+function getAnalyticsCanvasSurface() {
+  return els.legacyStudioWidgetsGrid?.querySelector("[data-bi-canvas-surface]") || null;
 }
 
-function getBiWidgetById(project, widgetId) {
+function getAnalyticsWidgetById(project, widgetId) {
   if (!project || !Array.isArray(project.biWidgets) || !widgetId) {
     return null;
   }
   return project.biWidgets.find((item) => item.id === widgetId) || null;
 }
 
-function findBiWidgetElement(widgetId) {
-  if (!els.biWidgetsGrid || !widgetId) {
+function findAnalyticsWidgetElement(widgetId) {
+  if (!els.legacyStudioWidgetsGrid || !widgetId) {
     return null;
   }
-  const items = els.biWidgetsGrid.querySelectorAll("[data-bi-widget-id]");
+  const items = els.legacyStudioWidgetsGrid.querySelectorAll("[data-bi-widget-id]");
   for (let index = 0; index < items.length; index += 1) {
     const node = items[index];
     if (node instanceof HTMLElement && trimOrFallback(node.dataset.biWidgetId, "") === widgetId) {
@@ -17150,30 +19644,30 @@ function findBiWidgetElement(widgetId) {
   return null;
 }
 
-function startBiWidgetInteraction(project, widget, widgetElement, mode, pointerEvent) {
+function startAnalyticsWidgetInteraction(project, widget, widgetElement, mode, pointerEvent) {
   if (!project || !widget || !widgetElement || !(pointerEvent instanceof PointerEvent)) {
     return;
   }
   if (widget.locked) {
     return;
   }
-  const surface = getBiCanvasSurface();
+  const surface = getAnalyticsCanvasSurface();
   if (!(surface instanceof HTMLElement)) {
     return;
   }
 
-  const layout = normalizeBiWidgetLayout(widget.layout, 0, widget);
+  const layout = normalizeAnalyticsWidgetLayout(widget.layout, 0, widget);
   const zoomScale = Math.max(
     0.25,
-    Math.min(2, sanitizeBiCanvasZoom(surface.dataset.biCanvasZoom, BI_CANVAS_ZOOM_DEFAULT) / 100)
+    Math.min(2, sanitizeAnalyticsCanvasZoom(surface.dataset.biCanvasZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT) / 100)
   );
   const kindHint = widgetElement.classList.contains("is-text-widget")
     ? "text"
     : (widgetElement.classList.contains("is-image-widget") ? "image" : "chart");
-  widget.kind = normalizeBiWidgetKind(widget.kind || kindHint);
-  const minSize = getBiWidgetMinSize(widget);
+  widget.kind = normalizeAnalyticsWidgetKind(widget.kind || kindHint);
+  const minSize = getAnalyticsWidgetMinSize(widget);
   widget.layout = layout;
-  biCanvasInteraction = {
+  legacyStudioCanvasInteraction = {
     projectId: project.id,
     widgetId: widget.id,
     mode,
@@ -17191,29 +19685,29 @@ function startBiWidgetInteraction(project, widget, widgetElement, mode, pointerE
   pointerEvent.preventDefault();
 }
 
-function clampBiWidgetLayout(layout, surface, minSize) {
+function clampAnalyticsWidgetLayout(layout, surface, minSize) {
   const configuredWidth = parseInt(surface.dataset.biCanvasWidth || "", 10);
   const configuredHeight = parseInt(surface.dataset.biCanvasHeight || "", 10);
-  const widthFallback = Number.isFinite(configuredWidth) ? configuredWidth : BI_CANVAS_SURFACE_MIN_WIDTH;
-  const heightFallback = Number.isFinite(configuredHeight) ? configuredHeight : BI_CANVAS_SURFACE_HEIGHT;
+  const widthFallback = Number.isFinite(configuredWidth) ? configuredWidth : ANALYTICS_CANVAS_SURFACE_MIN_WIDTH;
+  const heightFallback = Number.isFinite(configuredHeight) ? configuredHeight : ANALYTICS_CANVAS_SURFACE_HEIGHT;
   const width = Math.round(surface.clientWidth || widthFallback);
   const height = Math.round(surface.clientHeight || heightFallback);
-  return clampBiWidgetLayoutToCanvas(layout, width, height, minSize);
+  return clampAnalyticsWidgetLayoutToCanvas(layout, width, height, minSize);
 }
 
-function updateBiSurfaceDimensionsInDom(surface, width, height) {
+function updateAnalyticsSurfaceDimensionsInDom(surface, width, height) {
   if (!(surface instanceof HTMLElement)) {
     return;
   }
-  const safeWidth = sanitizeBiCanvasDimension(width, BI_CANVAS_SURFACE_MIN_WIDTH, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
-  const safeHeight = sanitizeBiCanvasDimension(height, BI_CANVAS_SURFACE_HEIGHT, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  const safeWidth = sanitizeAnalyticsCanvasDimension(width, ANALYTICS_CANVAS_SURFACE_MIN_WIDTH, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const safeHeight = sanitizeAnalyticsCanvasDimension(height, ANALYTICS_CANVAS_SURFACE_HEIGHT, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
   surface.dataset.biCanvasWidth = String(safeWidth);
   surface.dataset.biCanvasHeight = String(safeHeight);
   surface.style.width = `${safeWidth}px`;
   surface.style.height = `${safeHeight}px`;
   surface.style.minWidth = `${safeWidth}px`;
   surface.style.minHeight = `${safeHeight}px`;
-  const zoomPercent = sanitizeBiCanvasZoom(surface.dataset.biCanvasZoom, BI_CANVAS_ZOOM_DEFAULT);
+  const zoomPercent = sanitizeAnalyticsCanvasZoom(surface.dataset.biCanvasZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT);
   const zoomScale = Math.max(0.25, Math.min(2, zoomPercent / 100));
   const zoomWrap = surface.parentElement;
   if (zoomWrap instanceof HTMLElement && zoomWrap.classList.contains("bi-canvas-zoom-wrap")) {
@@ -17222,79 +19716,79 @@ function updateBiSurfaceDimensionsInDom(surface, width, height) {
   }
 }
 
-function ensureBiCanvasHasDragSpace(project, interaction, layoutCandidate) {
+function ensureAnalyticsCanvasHasDragSpace(project, interaction, layoutCandidate) {
   if (!project || !interaction || !(interaction.surface instanceof HTMLElement) || !layoutCandidate) {
     return;
   }
   const rawWidth = Number(interaction.surface.dataset.biCanvasWidth || 0);
   const rawHeight = Number(interaction.surface.dataset.biCanvasHeight || 0);
-  const currentWidth = sanitizeBiCanvasDimension(rawWidth, BI_CANVAS_SURFACE_MIN_WIDTH, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
-  const currentHeight = sanitizeBiCanvasDimension(rawHeight, BI_CANVAS_SURFACE_HEIGHT, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
-  const targetRight = Math.max(0, Math.round(layoutCandidate.x + layoutCandidate.w + BI_CANVAS_AUTO_EXPAND_MARGIN));
-  const targetBottom = Math.max(0, Math.round(layoutCandidate.y + layoutCandidate.h + BI_CANVAS_AUTO_EXPAND_MARGIN));
-  const requiredWidth = Math.max(currentWidth, Math.ceil(targetRight / BI_CANVAS_AUTO_EXPAND_STEP) * BI_CANVAS_AUTO_EXPAND_STEP);
-  const requiredHeight = Math.max(currentHeight, Math.ceil(targetBottom / BI_CANVAS_AUTO_EXPAND_STEP) * BI_CANVAS_AUTO_EXPAND_STEP);
-  const nextWidth = sanitizeBiCanvasDimension(requiredWidth, currentWidth, BI_CANVAS_SURFACE_MIN_EDIT_WIDTH, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH);
-  const nextHeight = sanitizeBiCanvasDimension(requiredHeight, currentHeight, BI_CANVAS_SURFACE_MIN_EDIT_HEIGHT, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  const currentWidth = sanitizeAnalyticsCanvasDimension(rawWidth, ANALYTICS_CANVAS_SURFACE_MIN_WIDTH, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const currentHeight = sanitizeAnalyticsCanvasDimension(rawHeight, ANALYTICS_CANVAS_SURFACE_HEIGHT, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
+  const targetRight = Math.max(0, Math.round(layoutCandidate.x + layoutCandidate.w + ANALYTICS_CANVAS_AUTO_EXPAND_MARGIN));
+  const targetBottom = Math.max(0, Math.round(layoutCandidate.y + layoutCandidate.h + ANALYTICS_CANVAS_AUTO_EXPAND_MARGIN));
+  const requiredWidth = Math.max(currentWidth, Math.ceil(targetRight / ANALYTICS_CANVAS_AUTO_EXPAND_STEP) * ANALYTICS_CANVAS_AUTO_EXPAND_STEP);
+  const requiredHeight = Math.max(currentHeight, Math.ceil(targetBottom / ANALYTICS_CANVAS_AUTO_EXPAND_STEP) * ANALYTICS_CANVAS_AUTO_EXPAND_STEP);
+  const nextWidth = sanitizeAnalyticsCanvasDimension(requiredWidth, currentWidth, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_WIDTH, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH);
+  const nextHeight = sanitizeAnalyticsCanvasDimension(requiredHeight, currentHeight, ANALYTICS_CANVAS_SURFACE_MIN_EDIT_HEIGHT, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT);
   if (nextWidth === currentWidth && nextHeight === currentHeight) {
     return;
   }
   project.biConfig.canvasWidth = nextWidth;
   project.biConfig.canvasHeight = nextHeight;
-  updateBiSurfaceDimensionsInDom(interaction.surface, nextWidth, nextHeight);
-  if (els.biCanvasWidthInput instanceof HTMLInputElement) {
-    els.biCanvasWidthInput.value = String(nextWidth);
+  updateAnalyticsSurfaceDimensionsInDom(interaction.surface, nextWidth, nextHeight);
+  if (els.legacyStudioCanvasWidthInput instanceof HTMLInputElement) {
+    els.legacyStudioCanvasWidthInput.value = String(nextWidth);
   }
-  if (els.biCanvasHeightInput instanceof HTMLInputElement) {
-    els.biCanvasHeightInput.value = String(nextHeight);
+  if (els.legacyStudioCanvasHeightInput instanceof HTMLInputElement) {
+    els.legacyStudioCanvasHeightInput.value = String(nextHeight);
   }
 }
 
-function getBiGridSettings(project) {
+function getAnalyticsGridSettings(project) {
   return {
-    enabled: normalizeBiToggle(project?.biConfig?.snapToGrid, true),
-    size: sanitizeBiInteger(project?.biConfig?.gridSnapSize, 12, 4, 120)
+    enabled: normalizeAnalyticsToggle(project?.biConfig?.snapToGrid, true),
+    size: sanitizeAnalyticsInteger(project?.biConfig?.gridSnapSize, 12, 4, 120)
   };
 }
 
-function snapBiCoordinate(value, size) {
+function snapAnalyticsCoordinate(value, size) {
   if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 1) {
     return Math.round(Number.isFinite(value) ? value : 0);
   }
   return Math.round(value / size) * size;
 }
 
-function snapBiWidgetLayout(layout, mode, gridSize, minSize) {
+function snapAnalyticsWidgetLayout(layout, mode, gridSize, minSize) {
   if (!layout || !Number.isFinite(gridSize) || gridSize <= 1) {
     return layout;
   }
-  const minWidth = Math.max(80, sanitizeBiInteger(minSize?.width, 120, 80, BI_CANVAS_SURFACE_MAX_EDIT_WIDTH));
-  const minHeight = Math.max(52, sanitizeBiInteger(minSize?.height, 64, 52, BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT));
+  const minWidth = Math.max(80, sanitizeAnalyticsInteger(minSize?.width, 120, 80, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH));
+  const minHeight = Math.max(52, sanitizeAnalyticsInteger(minSize?.height, 64, 52, ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT));
   const snapped = {
     ...layout,
-    x: snapBiCoordinate(layout.x, gridSize),
-    y: snapBiCoordinate(layout.y, gridSize)
+    x: snapAnalyticsCoordinate(layout.x, gridSize),
+    y: snapAnalyticsCoordinate(layout.y, gridSize)
   };
   if (mode === "resize") {
-    snapped.w = Math.max(minWidth, snapBiCoordinate(layout.w, gridSize));
-    snapped.h = Math.max(minHeight, snapBiCoordinate(layout.h, gridSize));
+    snapped.w = Math.max(minWidth, snapAnalyticsCoordinate(layout.w, gridSize));
+    snapped.h = Math.max(minHeight, snapAnalyticsCoordinate(layout.h, gridSize));
   }
   return snapped;
 }
 
-function updateBiWidgetInteraction(pointerEvent) {
-  if (!biCanvasInteraction || !(pointerEvent instanceof PointerEvent)) {
+function updateAnalyticsWidgetInteraction(pointerEvent) {
+  if (!legacyStudioCanvasInteraction || !(pointerEvent instanceof PointerEvent)) {
     return;
   }
-  if (pointerEvent.pointerId !== biCanvasInteraction.pointerId) {
+  if (pointerEvent.pointerId !== legacyStudioCanvasInteraction.pointerId) {
     return;
   }
 
-  const interactionScale = Math.max(0.25, Math.min(2, Number(biCanvasInteraction.zoomScale) || 1));
-  const deltaX = (pointerEvent.clientX - biCanvasInteraction.startX) / interactionScale;
-  const deltaY = (pointerEvent.clientY - biCanvasInteraction.startY) / interactionScale;
-  const next = { ...biCanvasInteraction.layoutStart };
-  if (biCanvasInteraction.mode === "drag") {
+  const interactionScale = Math.max(0.25, Math.min(2, Number(legacyStudioCanvasInteraction.zoomScale) || 1));
+  const deltaX = (pointerEvent.clientX - legacyStudioCanvasInteraction.startX) / interactionScale;
+  const deltaY = (pointerEvent.clientY - legacyStudioCanvasInteraction.startY) / interactionScale;
+  const next = { ...legacyStudioCanvasInteraction.layoutStart };
+  if (legacyStudioCanvasInteraction.mode === "drag") {
     next.x += deltaX;
     next.y += deltaY;
   } else {
@@ -17302,49 +19796,49 @@ function updateBiWidgetInteraction(pointerEvent) {
     next.h += deltaY;
   }
 
-  const project = state.projects.find((item) => item.id === biCanvasInteraction.projectId);
-  const gridSettings = getBiGridSettings(project);
+  const project = state.projects.find((item) => item.id === legacyStudioCanvasInteraction.projectId);
+  const gridSettings = getAnalyticsGridSettings(project);
   const snapped = gridSettings.enabled
-    ? snapBiWidgetLayout(next, biCanvasInteraction.mode, gridSettings.size, biCanvasInteraction.minSize)
+    ? snapAnalyticsWidgetLayout(next, legacyStudioCanvasInteraction.mode, gridSettings.size, legacyStudioCanvasInteraction.minSize)
     : next;
-  ensureBiCanvasHasDragSpace(project, biCanvasInteraction, snapped);
-  const clamped = clampBiWidgetLayout(snapped, biCanvasInteraction.surface, biCanvasInteraction.minSize);
-  biCanvasInteraction.layoutLive = clamped;
-  biCanvasInteraction.element.style.left = `${clamped.x}px`;
-  biCanvasInteraction.element.style.top = `${clamped.y}px`;
-  biCanvasInteraction.element.style.width = `${clamped.w}px`;
-  biCanvasInteraction.element.style.height = `${clamped.h}px`;
+  ensureAnalyticsCanvasHasDragSpace(project, legacyStudioCanvasInteraction, snapped);
+  const clamped = clampAnalyticsWidgetLayout(snapped, legacyStudioCanvasInteraction.surface, legacyStudioCanvasInteraction.minSize);
+  legacyStudioCanvasInteraction.layoutLive = clamped;
+  legacyStudioCanvasInteraction.element.style.left = `${clamped.x}px`;
+  legacyStudioCanvasInteraction.element.style.top = `${clamped.y}px`;
+  legacyStudioCanvasInteraction.element.style.width = `${clamped.w}px`;
+  legacyStudioCanvasInteraction.element.style.height = `${clamped.h}px`;
 }
 
 function endBiWidgetInteraction(pointerEvent) {
-  if (!biCanvasInteraction || !(pointerEvent instanceof PointerEvent)) {
+  if (!legacyStudioCanvasInteraction || !(pointerEvent instanceof PointerEvent)) {
     return;
   }
-  if (pointerEvent.pointerId !== biCanvasInteraction.pointerId) {
+  if (pointerEvent.pointerId !== legacyStudioCanvasInteraction.pointerId) {
     return;
   }
 
-  const interaction = biCanvasInteraction;
-  biCanvasInteraction = null;
+  const interaction = legacyStudioCanvasInteraction;
+  legacyStudioCanvasInteraction = null;
   interaction.element.classList.remove("moving");
 
   const project = state.projects.find((item) => item.id === interaction.projectId);
-  const widget = getBiWidgetById(project, interaction.widgetId);
+  const widget = getAnalyticsWidgetById(project, interaction.widgetId);
   if (!project || !widget) {
     return;
   }
 
   widget.layout = { ...interaction.layoutLive };
   saveState();
-  renderBiPanel(project);
+  renderLegacyStudioPanel(project);
 }
 
-function renderBiRowsTable(project, rows) {
-  if (!els.biRowsHeader || !els.biRowsBody) {
+function renderAnalyticsRowsTable(project, rows) {
+  if (!els.legacyStudioRowsHeader || !els.legacyStudioRowsBody) {
     return;
   }
 
-  const customFields = getBiCustomFieldDefs(project);
+  const customFields = getAnalyticsCustomFieldDefs(project);
   const columns = [
     "#",
     "Fuente",
@@ -17370,34 +19864,34 @@ function renderBiRowsTable(project, rows) {
     "Estado",
     "Creado"
   ];
-  els.biRowsHeader.innerHTML = `<tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
+  els.legacyStudioRowsHeader.innerHTML = `<tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr>`;
 
   const totalRows = rows.length;
-  const visibleRows = rows.slice(0, BI_DETAIL_ROW_LIMIT);
+  const visibleRows = rows.slice(0, ANALYTICS_DETAIL_ROW_LIMIT);
 
   const sourceCounts = new Map();
   rows.forEach((row) => {
-    const sourceLabel = row.sourceLabel || getBiSourceLabel(row.source);
+    const sourceLabel = row.sourceLabel || getAnalyticsSourceLabel(row.source);
     sourceCounts.set(sourceLabel, (sourceCounts.get(sourceLabel) || 0) + 1);
   });
   const sourceSummary = Array.from(sourceCounts.entries())
     .map(([label, count]) => `${label}: ${count}`)
     .join(" | ");
 
-  if (els.biRowsMetaText) {
-    const capLabel = totalRows > BI_DETAIL_ROW_LIMIT
+  if (els.legacyStudioRowsMetaText) {
+    const capLabel = totalRows > ANALYTICS_DETAIL_ROW_LIMIT
       ? ` | mostrando ${visibleRows.length} de ${totalRows}`
       : ` | ${totalRows} filas`;
     const sourceLabel = sourceSummary ? ` | ${sourceSummary}` : "";
-    els.biRowsMetaText.textContent = `Detalle BI${capLabel}${sourceLabel}`;
+    els.legacyStudioRowsMetaText.textContent = `Detalle BI${capLabel}${sourceLabel}`;
   }
 
   if (totalRows === 0) {
-    els.biRowsBody.innerHTML = `<tr><td colspan="${columns.length}" class="muted">Sin datos para los filtros actuales.</td></tr>`;
+    els.legacyStudioRowsBody.innerHTML = `<tr><td colspan="${columns.length}" class="muted">Sin datos para los filtros actuales.</td></tr>`;
     return;
   }
 
-  els.biRowsBody.innerHTML = visibleRows
+  els.legacyStudioRowsBody.innerHTML = visibleRows
     .map((row, index) => {
       const invalidClass = row.invalidDates ? " overdue" : "";
       const programmedText = row.programmedPercent === null ? "" : formatPercent(row.programmedPercent, 2);
@@ -17468,21 +19962,21 @@ function downloadDataUrl(filename, dataUrl) {
   anchor.click();
 }
 
-function buildBiExportFileName(prefix, project, extension = "csv") {
+function buildAnalyticsExportFileName(prefix, project, extension = "csv") {
   const projectToken = toCodeToken(project?.name || project?.title || "proyecto").toLowerCase() || "proyecto";
   const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-");
   const ext = trimOrFallback(extension, "csv").replace(/^\.+/, "");
   return `${prefix}_${projectToken}_${stamp}.${ext}`;
 }
 
-function exportBiRowsCsv(project) {
+function exportAnalyticsRowsCsv(project) {
   if (!project) {
     return;
   }
 
-  ensureBiState(project);
-  const rows = queryBiProjectRows(project, project.biConfig);
-  const customFields = getBiCustomFieldDefs(project);
+  ensureAnalyticsState(project);
+  const rows = queryAnalyticsProjectRows(project, project.biConfig);
+  const customFields = getAnalyticsCustomFieldDefs(project);
   if (rows.length === 0) {
     setStatus("No hay filas BI para exportar.");
     return;
@@ -17537,41 +20031,41 @@ function exportBiRowsCsv(project) {
     formatDate(row.createdAt) || ""
   ]);
 
-  downloadCsv(buildBiExportFileName("dechini_bi_detalle", project), headers, csvRows);
-  setStatus(`Detalle BI exportado (${rows.length} filas).`);
+  downloadCsv(buildAnalyticsExportFileName("dashboard_detalle", project), headers, csvRows);
+  setStatus(`Detalle dashboard exportado (${rows.length} filas).`);
 }
 
-function exportBiWidgetCsv(project, widgetId) {
+function exportAnalyticsWidgetCsv(project, widgetId) {
   if (!project || !widgetId) {
     return;
   }
 
-  ensureBiState(project);
+  ensureAnalyticsState(project);
   const widget = project.biWidgets.find((item) => item.id === widgetId);
   if (!widget) {
     setStatus("No se encontro el widget solicitado.");
     return;
   }
-  const kind = normalizeBiWidgetKind(widget.kind || "chart");
+  const kind = normalizeAnalyticsWidgetKind(widget.kind || "chart");
   if (kind === "text") {
     const headers = ["Tipo", "Nombre", "Texto"];
     const rows = [["Texto", widget.name || "Caja de texto", trimOrFallback(widget.textContent, "")]];
-    downloadCsv(buildBiExportFileName("dechini_bi_widget_texto", project), headers, rows);
+    downloadCsv(buildAnalyticsExportFileName("dashboard_widget_texto", project), headers, rows);
     setStatus(`Widget de texto exportado: ${widget.name}.`);
     return;
   }
   if (kind === "image") {
     const headers = ["Tipo", "Nombre", "Imagen URL/Data"];
     const rows = [["Imagen", widget.name || "Imagen", trimOrFallback(widget.imageSrc, "")]];
-    downloadCsv(buildBiExportFileName("dechini_bi_widget_imagen", project), headers, rows);
+    downloadCsv(buildAnalyticsExportFileName("dashboard_widget_imagen", project), headers, rows);
     setStatus(`Widget de imagen exportado: ${widget.name}.`);
     return;
   }
 
-  let snapshot = biWidgetSnapshotsByProject[project.id]?.[widget.id];
+  let snapshot = legacyStudioWidgetSnapshotsByProject[project.id]?.[widget.id];
   if (!snapshot) {
-    const rows = queryBiProjectRows(project, project.biConfig);
-    snapshot = buildBiWidgetSnapshot(rows, widget);
+    const rows = queryAnalyticsProjectRows(project, project.biConfig);
+    snapshot = buildAnalyticsWidgetSnapshot(rows, widget);
   }
 
   if (!snapshot || snapshot.rows.length === 0) {
@@ -17579,8 +20073,8 @@ function exportBiWidgetCsv(project, widgetId) {
     return;
   }
 
-  const groupLabel = getBiGroupLabel(snapshot.groupBy, project);
-  const metricLabel = getBiMetricLabel(snapshot.metric);
+  const groupLabel = getAnalyticsGroupLabel(snapshot.groupBy, project);
+  const metricLabel = getAnalyticsMetricLabel(snapshot.metric);
   const headers = [
     "#",
     groupLabel,
@@ -17606,7 +20100,7 @@ function exportBiWidgetCsv(project, widgetId) {
     row.invalidDates
   ]);
 
-  downloadCsv(buildBiExportFileName("dechini_bi_widget", project), headers, csvRows);
+  downloadCsv(buildAnalyticsExportFileName("dashboard_widget", project), headers, csvRows);
   setStatus(`Widget exportado: ${widget.name}.`);
 }
 
@@ -17643,14 +20137,14 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   if (!ctx) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const safeType = normalizeBiChartType(chartType || "table");
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, safeType === "pivot" ? "pivot" : "table");
-  const compact = normalizeBiToggle(specific.compact, false);
-  const rowLimit = sanitizeBiInteger(specific.rowLimit, BI_WIDGET_TABLE_LIMIT, 1, 200);
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const safeType = normalizeAnalyticsChartType(chartType || "table");
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, safeType === "pivot" ? "pivot" : "table");
+  const compact = normalizeAnalyticsToggle(specific.compact, false);
+  const rowLimit = sanitizeAnalyticsInteger(specific.rowLimit, ANALYTICS_WIDGET_TABLE_LIMIT, 1, 200);
   const showIndex = safeType === "pivot"
     ? true
-    : normalizeBiToggle(specific.showIndex, true);
+    : normalizeAnalyticsToggle(specific.showIndex, true);
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
@@ -17668,14 +20162,14 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   const labelWidth = Math.max(70, tableWidth - indexWidth - valueWidth);
   const maxRowsByHeight = Math.max(0, Math.floor((tableHeight - headerHeight) / rowHeight));
   const maxRows = Math.max(0, Math.min(rowLimit, maxRowsByHeight));
-  const metricLabel = getBiMetricLabel(snapshot?.metric || "baseunits");
+  const metricLabel = getAnalyticsMetricLabel(snapshot?.metric || "baseunits");
   let rows = Array.isArray(snapshot?.rows) ? snapshot.rows.slice(0, maxRows) : [];
-  let groupLabel = getBiGroupLabel(snapshot?.groupBy || "disciplina");
+  let groupLabel = getAnalyticsGroupLabel(snapshot?.groupBy || "disciplina");
   let valueHeader = metricLabel;
   if (safeType === "pivot") {
-    const rowLabel = getBiGroupLabel(snapshot?.pivot?.rowDimension || snapshot?.groupBy || "disciplina");
+    const rowLabel = getAnalyticsGroupLabel(snapshot?.pivot?.rowDimension || snapshot?.groupBy || "disciplina");
     const colLabels = Array.isArray(snapshot?.pivot?.columns) ? snapshot.pivot.columns : [];
-    const showTotals = normalizeBiToggle(specific.showTotals, true);
+    const showTotals = normalizeAnalyticsToggle(specific.showTotals, true);
     groupLabel = rowLabel;
     valueHeader = showTotals ? "Total" : trimOrFallback(colLabels[0], metricLabel);
     const pivotRows = Array.isArray(snapshot?.pivot?.rows) ? snapshot.pivot.rows : [];
@@ -17706,7 +20200,7 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   ctx.lineTo(left + tableWidth, top + headerHeight + 0.5);
   ctx.stroke();
 
-  applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(10, visual.fontSizeLabels) });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: Math.max(10, visual.fontSizeLabels) });
   ctx.fillStyle = "#21374f";
   ctx.textAlign = "left";
   const headerY = compact ? top + 14 : top + 16;
@@ -17717,13 +20211,13 @@ function drawBiTableWidgetPreview(ctx, snapshot, width, height, settings, drawBa
   ctx.fillText(truncateBiLabel(valueHeader, visual, 14), left + indexWidth + labelWidth + 6, headerY);
 
   if (rows.length === 0) {
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(10, visual.fontSizeLabels) });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(10, visual.fontSizeLabels) });
     ctx.fillStyle = "#5b6f84";
     ctx.fillText("Sin datos", left + 8, top + headerHeight + 16);
     return;
   }
 
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(10, visual.fontSizeLabels) });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: Math.max(10, visual.fontSizeLabels) });
   rows.forEach((row, index) => {
     const y = top + headerHeight + (index * rowHeight);
     ctx.strokeStyle = "#edf2f8";
@@ -17746,8 +20240,8 @@ function drawBiScorecardWidgetPreview(ctx, snapshot, width, height, settings, dr
   if (!ctx) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "scorecard");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "scorecard");
   if (drawBackground) {
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, "#f6fbff");
@@ -17763,25 +20257,25 @@ function drawBiScorecardWidgetPreview(ctx, snapshot, width, height, settings, dr
     ? snapshot.rows.reduce((sum, row) => sum + (Number.isFinite(row?.value) ? row.value : 0), 0)
     : 0;
   const valueText = `${trimOrFallback(specific.prefix, "")}${formatBiMetricValue(snapshot?.metric || "count", total)}${trimOrFallback(specific.suffix, "")}`;
-  const metricLabel = getBiMetricLabel(snapshot?.metric || "count");
+  const metricLabel = getAnalyticsMetricLabel(snapshot?.metric || "count");
   const subTokens = [];
-  if (normalizeBiToggle(specific.showSource, true)) {
-    subTokens.push(`Fuente: ${getBiSourceLabel(snapshot?.source || "all")}`);
+  if (normalizeAnalyticsToggle(specific.showSource, true)) {
+    subTokens.push(`Fuente: ${getAnalyticsSourceLabel(snapshot?.source || "all")}`);
   }
-  if (normalizeBiToggle(specific.showGroups, true)) {
+  if (normalizeAnalyticsToggle(specific.showGroups, true)) {
     subTokens.push(`grupos: ${snapshot?.groupCount || 0}`);
   }
   const subLabel = subTokens.join(" | ");
   ctx.textAlign = "center";
   ctx.fillStyle = "#20466e";
-  applyBiCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 30 });
+  applyAnalyticsCanvasFont(ctx, visual, "title", { bold: true, fallbackSize: 30 });
   ctx.fillText(valueText, Math.floor(width / 2), Math.floor(height * 0.48));
   ctx.fillStyle = "#2f4861";
-  applyBiCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: 13 });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { bold: true, fallbackSize: 13 });
   ctx.fillText(metricLabel, Math.floor(width / 2), Math.floor(height * 0.64));
   if (subLabel) {
     ctx.fillStyle = "#5f7389";
-    applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
+    applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
     ctx.fillText(truncateBiLabel(subLabel, visual, 44), Math.floor(width / 2), Math.floor(height * 0.75));
   }
 }
@@ -17790,17 +20284,17 @@ function drawBiSankeyWidgetPreview(ctx, snapshot, width, height, settings, drawB
   if (!ctx) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "sankey");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "sankey");
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
   } else {
     ctx.clearRect(0, 0, width, height);
   }
-  const maxLinks = sanitizeBiInteger(specific.maxLinks, 12, 1, 200);
-  const minPercent = sanitizeBiDecimal(specific.minLinkPercent, 2, 0, 50);
-  const showValues = normalizeBiToggle(specific.showValues, true);
+  const maxLinks = sanitizeAnalyticsInteger(specific.maxLinks, 12, 1, 200);
+  const minPercent = sanitizeAnalyticsDecimal(specific.minLinkPercent, 2, 0, 50);
+  const showValues = normalizeAnalyticsToggle(specific.showValues, true);
   const links = Array.isArray(snapshot?.sankey?.links) ? snapshot.sankey.links.slice(0, maxLinks) : [];
   if (links.length === 0) {
     drawBiWidgetFallbackPreview(ctx, snapshot, width, height, false);
@@ -17812,7 +20306,7 @@ function drawBiSankeyWidgetPreview(ctx, snapshot, width, height, settings, drawB
   const maxRowsByHeight = Math.max(1, Math.floor((height - 16) / rowGap));
   const rows = links.slice(0, maxRowsByHeight);
   const maxValue = Math.max(...rows.map((item) => Number(item.value) || 0), 1);
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
   rows.forEach((link, index) => {
     const y = top + (index * rowGap);
     const ratio = Math.max(minPercent / 100, Math.min(1, (Number(link.value) || 0) / maxValue));
@@ -17836,17 +20330,17 @@ function drawBiTimelineWidgetPreview(ctx, snapshot, width, height, settings, dra
   if (!ctx) {
     return;
   }
-  const visual = normalizeBiVisualSettings(settings);
-  const specific = normalizeBiChartTypeSpecificConfig(typeConfig, "timeline");
+  const visual = normalizeAnalyticsVisualSettings(settings);
+  const specific = normalizeAnalyticsChartTypeSpecificConfig(typeConfig, "timeline");
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
   } else {
     ctx.clearRect(0, 0, width, height);
   }
-  const rowLimit = sanitizeBiInteger(specific.rowLimit, 20, 1, 200);
-  const showDates = normalizeBiToggle(specific.showDates, true);
-  const minBarPercent = sanitizeBiDecimal(specific.minBarPercent, 1, 0.2, 50);
+  const rowLimit = sanitizeAnalyticsInteger(specific.rowLimit, 20, 1, 200);
+  const showDates = normalizeAnalyticsToggle(specific.showDates, true);
+  const minBarPercent = sanitizeAnalyticsDecimal(specific.minBarPercent, 1, 0.2, 50);
   const items = Array.isArray(snapshot?.timeline?.items) ? snapshot.timeline.items.slice(0, rowLimit) : [];
   if (items.length === 0) {
     drawBiWidgetFallbackPreview(ctx, snapshot, width, height, false);
@@ -17862,7 +20356,7 @@ function drawBiTimelineWidgetPreview(ctx, snapshot, width, height, settings, dra
   const rowHeight = 22;
   const maxRowsByHeight = Math.max(1, Math.floor((height - 10) / rowHeight));
   const rows = items.slice(0, maxRowsByHeight);
-  applyBiCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
+  applyAnalyticsCanvasFont(ctx, visual, "label", { fallbackSize: 10 });
   rows.forEach((item, index) => {
     const y = 10 + (index * rowHeight);
     const leftPct = Math.max(0, Math.min(100, ((item.startDay - minDay) / span) * 100));
@@ -17926,7 +20420,7 @@ function drawBiTextWidgetPreview(ctx, widget, width, height, drawBackground = tr
   if (!ctx) {
     return;
   }
-  const textConfig = normalizeBiTextConfig(widget?.textConfig);
+  const textConfig = normalizeAnalyticsTextConfig(widget?.textConfig);
   if (drawBackground) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
@@ -17960,7 +20454,7 @@ function drawBiTextWidgetPreview(ctx, widget, width, height, drawBackground = tr
   ctx.textAlign = "left";
 }
 
-function loadBiImage(src) {
+function loadAnalyticsImage(src) {
   return new Promise((resolve) => {
     const safeSrc = trimOrFallback(src, "");
     if (!safeSrc) {
@@ -17978,7 +20472,7 @@ async function drawBiImageWidgetPreview(ctx, widget, width, height, drawBackgrou
   if (!ctx) {
     return false;
   }
-  const imageConfig = normalizeBiImageConfig(widget?.imageConfig);
+  const imageConfig = normalizeAnalyticsImageConfig(widget?.imageConfig);
   if (drawBackground) {
     ctx.fillStyle = imageConfig.background;
     ctx.fillRect(0, 0, width, height);
@@ -17987,7 +20481,7 @@ async function drawBiImageWidgetPreview(ctx, widget, width, height, drawBackgrou
   } else {
     ctx.clearRect(0, 0, width, height);
   }
-  const image = await loadBiImage(widget?.imageSrc);
+  const image = await loadAnalyticsImage(widget?.imageSrc);
   if (!image) {
     ctx.fillStyle = "#63768a";
     ctx.font = "600 13px Segoe UI";
@@ -18009,21 +20503,21 @@ async function drawBiImageWidgetPreview(ctx, widget, width, height, drawBackgrou
   return true;
 }
 
-async function exportBiWidgetPng(project, widgetId) {
+async function exportAnalyticsWidgetPng(project, widgetId) {
   if (!project || !widgetId) {
     return;
   }
-  ensureBiState(project);
+  ensureAnalyticsState(project);
   const widget = project.biWidgets.find((item) => item.id === widgetId);
   if (!widget) {
     setStatus("No se encontro el widget para PNG.");
     return;
   }
-  let snapshot = biWidgetSnapshotsByProject[project.id]?.[widget.id];
-  const widgetKind = normalizeBiWidgetKind(widget.kind || "chart");
+  let snapshot = legacyStudioWidgetSnapshotsByProject[project.id]?.[widget.id];
+  const widgetKind = normalizeAnalyticsWidgetKind(widget.kind || "chart");
   if (widgetKind === "chart" && !snapshot) {
-    const rows = queryBiProjectRows(project, project.biConfig);
-    snapshot = buildBiWidgetSnapshot(rows, widget);
+    const rows = queryAnalyticsProjectRows(project, project.biConfig);
+    snapshot = buildAnalyticsWidgetSnapshot(rows, widget);
   }
   const width = Math.max(320, Math.round(widget.layout?.w || 360));
   const height = Math.max(220, Math.round(widget.layout?.h || 280));
@@ -18058,10 +20552,10 @@ async function exportBiWidgetPng(project, widgetId) {
     ctx.fillText(trimOrFallback(widget.name, "Widget"), 12, 22);
     ctx.fillStyle = "#5c6f84";
     ctx.font = "11px Segoe UI";
-    ctx.fillText(buildBiWidgetMetaLabel(widget, snapshot, project), 12, 38);
+    ctx.fillText(buildAnalyticsWidgetMetaLabel(widget, snapshot, project), 12, 38);
   }
 
-  const chartType = normalizeBiChartType(widget.chartType || "bar");
+  const chartType = normalizeAnalyticsChartType(widget.chartType || "bar");
   const chartTop = showTitle ? 46 : 10;
   const chartWidth = width - 24;
   const chartHeight = Math.max(40, height - chartTop - 10);
@@ -18081,7 +20575,7 @@ async function exportBiWidgetPng(project, widgetId) {
   chartCtx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
   chartCtx.imageSmoothingEnabled = true;
   chartCtx.imageSmoothingQuality = "high";
-  const visual = getBiEffectiveVisualSettings(project, widget);
+  const visual = getAnalyticsEffectiveVisualSettings(project, widget);
   if (widgetKind === "text") {
     drawBiTextWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
   } else if (widgetKind === "image") {
@@ -18094,7 +20588,7 @@ async function exportBiWidgetPng(project, widgetId) {
       renderHeight,
       visual,
       showBackground,
-      getBiSpecificChartConfigForWidget(widget, chartType),
+      getAnalyticsSpecificChartConfigForWidget(widget, chartType),
       chartType
     );
   } else if (chartType === "scorecard") {
@@ -18105,7 +20599,7 @@ async function exportBiWidgetPng(project, widgetId) {
       renderHeight,
       visual,
       showBackground,
-      getBiSpecificChartConfigForWidget(widget, chartType)
+      getAnalyticsSpecificChartConfigForWidget(widget, chartType)
     );
   } else if (chartType === "sankey") {
     drawBiSankeyWidgetPreview(
@@ -18115,7 +20609,7 @@ async function exportBiWidgetPng(project, widgetId) {
       renderHeight,
       visual,
       showBackground,
-      getBiSpecificChartConfigForWidget(widget, chartType)
+      getAnalyticsSpecificChartConfigForWidget(widget, chartType)
     );
   } else if (chartType === "timeline") {
     drawBiTimelineWidgetPreview(
@@ -18125,11 +20619,11 @@ async function exportBiWidgetPng(project, widgetId) {
       renderHeight,
       visual,
       showBackground,
-      getBiSpecificChartConfigForWidget(widget, chartType)
+      getAnalyticsSpecificChartConfigForWidget(widget, chartType)
     );
   } else {
     if (snapshot && snapshot.rows.length > 0) {
-      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
+      const seriesColors = getAnalyticsSnapshotSeriesColors(project, snapshot);
       drawBiWidgetChart(
         chartCanvas,
         chartType,
@@ -18152,21 +20646,21 @@ async function exportBiWidgetPng(project, widgetId) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(chartCanvas, 12, chartTop, chartWidth, chartHeight);
-  downloadDataUrl(buildBiExportFileName("dechini_bi_widget", project, "png"), canvas.toDataURL("image/png"));
+  downloadDataUrl(buildAnalyticsExportFileName("dashboard_widget", project, "png"), canvas.toDataURL("image/png"));
   setStatus(`Widget PNG exportado: ${widget.name}.`);
 }
 
-async function exportBiBoardPng(project) {
+async function exportAnalyticsBoardPng(project) {
   if (!project) {
     return;
   }
-  ensureBiState(project);
+  ensureAnalyticsState(project);
   const widgets = Array.isArray(project.biWidgets) ? project.biWidgets : [];
   if (widgets.length === 0) {
     setStatus("No hay widgets para exportar en la pizarra.");
     return;
   }
-  const canvasSize = getBiCanvasSizeFromConfig(project.biConfig);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(project.biConfig);
   const boardCanvas = document.createElement("canvas");
   const exportScale = 3;
   boardCanvas.width = canvasSize.width * exportScale;
@@ -18182,11 +20676,11 @@ async function exportBiBoardPng(project) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
-  const rows = queryBiProjectRows(project, project.biConfig);
+  const rows = queryAnalyticsProjectRows(project, project.biConfig);
   for (let index = 0; index < widgets.length; index += 1) {
     const rawWidget = widgets[index];
-    const widget = normalizeBiWidget(rawWidget, index);
-    const layout = normalizeBiWidgetLayout(widget.layout, index, widget);
+    const widget = normalizeAnalyticsWidget(rawWidget, index);
+    const layout = normalizeAnalyticsWidgetLayout(widget.layout, index, widget);
     const x = Math.max(0, Math.round(layout.x));
     const y = Math.max(0, Math.round(layout.y));
     const w = Math.max(220, Math.round(layout.w));
@@ -18194,8 +20688,8 @@ async function exportBiBoardPng(project) {
     if (x >= canvasSize.width || y >= canvasSize.height) {
       continue;
     }
-    const widgetKind = normalizeBiWidgetKind(widget.kind || "chart");
-    const snapshot = widgetKind === "chart" ? buildBiWidgetSnapshot(rows, widget) : null;
+    const widgetKind = normalizeAnalyticsWidgetKind(widget.kind || "chart");
+    const snapshot = widgetKind === "chart" ? buildAnalyticsWidgetSnapshot(rows, widget) : null;
     const showBackground = widget.showBackground !== false;
     const showBorder = widget.showBorder !== false;
     const showTitle = widget.showTitle !== false;
@@ -18214,10 +20708,10 @@ async function exportBiBoardPng(project) {
       ctx.fillText(trimOrFallback(widget.name, "Widget"), x + 8, y + 18);
       ctx.fillStyle = "#5c6f84";
       ctx.font = "11px Segoe UI";
-      ctx.fillText(buildBiWidgetMetaLabel(widget, snapshot, project), x + 8, y + 33);
+      ctx.fillText(buildAnalyticsWidgetMetaLabel(widget, snapshot, project), x + 8, y + 33);
     }
 
-    const chartType = normalizeBiChartType(widget.chartType || "bar");
+    const chartType = normalizeAnalyticsChartType(widget.chartType || "bar");
     const chartTop = showTitle ? 38 : 8;
     const chartW = Math.max(120, w - 16);
     const chartH = Math.max(90, h - chartTop - 8);
@@ -18236,7 +20730,7 @@ async function exportBiBoardPng(project) {
     chartCtx.setTransform(exportScale, 0, 0, exportScale, 0, 0);
     chartCtx.imageSmoothingEnabled = true;
     chartCtx.imageSmoothingQuality = "high";
-    const visual = getBiEffectiveVisualSettings(project, widget);
+    const visual = getAnalyticsEffectiveVisualSettings(project, widget);
     if (widgetKind === "text") {
       drawBiTextWidgetPreview(chartCtx, widget, renderWidth, renderHeight, showBackground);
     } else if (widgetKind === "image") {
@@ -18249,7 +20743,7 @@ async function exportBiBoardPng(project) {
         renderHeight,
         visual,
         showBackground,
-        getBiSpecificChartConfigForWidget(widget, chartType),
+        getAnalyticsSpecificChartConfigForWidget(widget, chartType),
         chartType
       );
     } else if (chartType === "scorecard") {
@@ -18260,7 +20754,7 @@ async function exportBiBoardPng(project) {
         renderHeight,
         visual,
         showBackground,
-        getBiSpecificChartConfigForWidget(widget, chartType)
+        getAnalyticsSpecificChartConfigForWidget(widget, chartType)
       );
     } else if (chartType === "sankey") {
       drawBiSankeyWidgetPreview(
@@ -18270,7 +20764,7 @@ async function exportBiBoardPng(project) {
         renderHeight,
         visual,
         showBackground,
-        getBiSpecificChartConfigForWidget(widget, chartType)
+        getAnalyticsSpecificChartConfigForWidget(widget, chartType)
       );
     } else if (chartType === "timeline") {
       drawBiTimelineWidgetPreview(
@@ -18280,10 +20774,10 @@ async function exportBiBoardPng(project) {
         renderHeight,
         visual,
         showBackground,
-        getBiSpecificChartConfigForWidget(widget, chartType)
+        getAnalyticsSpecificChartConfigForWidget(widget, chartType)
       );
     } else if (snapshot && snapshot.rows.length > 0) {
-      const seriesColors = getBiSnapshotSeriesColors(project, snapshot);
+      const seriesColors = getAnalyticsSnapshotSeriesColors(project, snapshot);
       drawBiWidgetChart(
         chartCanvas,
         chartType,
@@ -18306,7 +20800,7 @@ async function exportBiBoardPng(project) {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(chartCanvas, x + 8, y + chartTop, chartW, chartH);
   }
-  downloadDataUrl(buildBiExportFileName("dechini_bi_pizarra", project, "png"), boardCanvas.toDataURL("image/png"));
+  downloadDataUrl(buildAnalyticsExportFileName("dashboard_pizarra", project, "png"), boardCanvas.toDataURL("image/png"));
   setStatus("Pizarra PNG exportada.");
 }
 
@@ -18746,27 +21240,27 @@ function renderProjectChooser(project) {
   els.closeChooserButton.style.visibility = chooserLocked ? "hidden" : "visible";
 }
 
-function getBiCommandDefinitions(project) {
+function getLegacyStudioCommandDefinitions(project) {
   const definitions = [
-    { id: "add_chart", label: "Agregar widget grafico", keywords: "agregar widget grafico chart", run: () => els.biAddWidgetButton?.click() },
-    { id: "add_text", label: "Agregar cuadro de texto", keywords: "agregar texto cuadro", run: () => els.biAddTextWidgetButton?.click() },
-    { id: "add_image", label: "Agregar imagen", keywords: "agregar imagen logo", run: () => els.biAddImageWidgetButton?.click() },
-    { id: "update_widget", label: "Actualizar widget seleccionado", keywords: "actualizar widget seleccionado", run: () => els.biUpdateWidgetButton?.click() },
-    { id: "auto_layout", label: "Auto organizar widgets", keywords: "auto organizar layout", run: () => els.biAutoLayoutButton?.click() },
-    { id: "starter_dashboard", label: "Generar dashboard base", keywords: "dashboard base plantilla", run: () => els.biGenerateDashboardButton?.click() },
-    { id: "refresh_dashboard", label: "Actualizar dashboard", keywords: "actualizar refresh", run: () => els.biRefreshButton?.click() },
-    { id: "export_board_png", label: "Exportar pizarra PNG", keywords: "exportar pizarra png", run: () => els.biExportBoardPngButton?.click() },
-    { id: "export_detail_csv", label: "Exportar detalle CSV", keywords: "exportar csv detalle", run: () => els.biExportRowsButton?.click() },
-    { id: "clear_cross_filter", label: "Limpiar filtro cruzado", keywords: "limpiar filtro cruzado", run: () => els.biClearCrossFilterButton?.click() },
-    { id: "open_data", label: "Panel Data", keywords: "panel data", run: () => applyBiRailMode("data", { forceOpen: true }) },
-    { id: "open_properties", label: "Panel Propiedades", keywords: "panel propiedades", run: () => applyBiRailMode("properties", { forceOpen: true }) },
-    { id: "open_settings", label: "Panel Configuracion", keywords: "panel configuracion", run: () => applyBiRailMode("settings", { forceOpen: true }) },
-    { id: "open_board", label: "Panel Pizarra", keywords: "panel pizarra", run: () => applyBiRailMode("board", { forceOpen: true }) },
-    { id: "open_color", label: "Panel Colorimetria", keywords: "panel colorimetria", run: () => applyBiRailMode("colorimetry", { forceOpen: true }) },
-    { id: "open_filter", label: "Panel Filtro", keywords: "panel filtro", run: () => applyBiRailMode("filter", { forceOpen: true }) },
-    { id: "open_performance", label: "Panel Rendimiento", keywords: "panel rendimiento performance", run: () => applyBiRailMode("performance", { forceOpen: true }) },
-    { id: "open_others", label: "Panel Otros", keywords: "panel otros resumen kpi", run: () => applyBiRailMode("others", { forceOpen: true }) },
-    { id: "optimize_now", label: "Optimizar rendimiento ahora", keywords: "optimizar rendimiento turbo", run: () => els.biOptimizeNowButton?.click() }
+    { id: "add_chart", label: "Agregar widget grafico", keywords: "agregar widget grafico chart", run: () => els.legacyStudioAddWidgetButton?.click() },
+    { id: "add_text", label: "Agregar cuadro de texto", keywords: "agregar texto cuadro", run: () => els.legacyStudioAddTextWidgetButton?.click() },
+    { id: "add_image", label: "Agregar imagen", keywords: "agregar imagen logo", run: () => els.legacyStudioAddImageWidgetButton?.click() },
+    { id: "update_widget", label: "Actualizar widget seleccionado", keywords: "actualizar widget seleccionado", run: () => els.legacyStudioUpdateWidgetButton?.click() },
+    { id: "auto_layout", label: "Auto organizar widgets", keywords: "auto organizar layout", run: () => els.legacyStudioAutoLayoutButton?.click() },
+    { id: "starter_dashboard", label: "Generar dashboard base", keywords: "dashboard base plantilla", run: () => els.legacyStudioGenerateDashboardButton?.click() },
+    { id: "refresh_dashboard", label: "Actualizar dashboard", keywords: "actualizar refresh", run: () => els.legacyStudioRefreshButton?.click() },
+    { id: "export_board_png", label: "Exportar pizarra PNG", keywords: "exportar pizarra png", run: () => els.legacyStudioExportBoardPngButton?.click() },
+    { id: "export_detail_csv", label: "Exportar detalle CSV", keywords: "exportar csv detalle", run: () => els.legacyStudioExportRowsButton?.click() },
+    { id: "clear_cross_filter", label: "Limpiar filtro cruzado", keywords: "limpiar filtro cruzado", run: () => els.legacyStudioClearCrossFilterButton?.click() },
+    { id: "open_data", label: "Panel Data", keywords: "panel data", run: () => applyLegacyStudioRailMode("data", { forceOpen: true }) },
+    { id: "open_properties", label: "Panel Propiedades", keywords: "panel propiedades", run: () => applyLegacyStudioRailMode("properties", { forceOpen: true }) },
+    { id: "open_settings", label: "Panel Configuracion", keywords: "panel configuracion", run: () => applyLegacyStudioRailMode("settings", { forceOpen: true }) },
+    { id: "open_board", label: "Panel Pizarra", keywords: "panel pizarra", run: () => applyLegacyStudioRailMode("board", { forceOpen: true }) },
+    { id: "open_color", label: "Panel Colorimetria", keywords: "panel colorimetria", run: () => applyLegacyStudioRailMode("colorimetry", { forceOpen: true }) },
+    { id: "open_filter", label: "Panel Filtro", keywords: "panel filtro", run: () => applyLegacyStudioRailMode("filter", { forceOpen: true }) },
+    { id: "open_performance", label: "Panel Rendimiento", keywords: "panel rendimiento performance", run: () => applyLegacyStudioRailMode("performance", { forceOpen: true }) },
+    { id: "open_others", label: "Panel Otros", keywords: "panel otros resumen kpi", run: () => applyLegacyStudioRailMode("others", { forceOpen: true }) },
+    { id: "optimize_now", label: "Optimizar rendimiento ahora", keywords: "optimizar rendimiento turbo", run: () => els.legacyStudioOptimizeNowButton?.click() }
   ];
   if (project) {
     definitions.push({
@@ -18774,10 +21268,10 @@ function getBiCommandDefinitions(project) {
       label: "Modo Basico (guiado)",
       keywords: "modo basico guiado simple",
       run: () => {
-        ensureBiState(project);
+        ensureAnalyticsState(project);
         project.biConfig.uiMode = "basic";
         saveState();
-        renderBiPanel(project);
+        renderLegacyStudioPanel(project);
         setStatus("Modo BI basico activado.");
       }
     });
@@ -18786,10 +21280,10 @@ function getBiCommandDefinitions(project) {
       label: "Modo Avanzado (pro)",
       keywords: "modo avanzado experto pro",
       run: () => {
-        ensureBiState(project);
+        ensureAnalyticsState(project);
         project.biConfig.uiMode = "advanced";
         saveState();
-        renderBiPanel(project);
+        renderLegacyStudioPanel(project);
         setStatus("Modo BI avanzado activado.");
       }
     });
@@ -18797,12 +21291,12 @@ function getBiCommandDefinitions(project) {
   return definitions;
 }
 
-function renderBiCommandPalette(project) {
-  if (!(els.biCommandPaletteList instanceof HTMLElement)) {
+function renderLegacyStudioCommandPalette(project) {
+  if (!(els.legacyStudioCommandPaletteList instanceof HTMLElement)) {
     return;
   }
-  const query = normalizeLookup(els.biCommandPaletteInput?.value || "");
-  const defs = getBiCommandDefinitions(project);
+  const query = normalizeLookup(els.legacyStudioCommandPaletteInput?.value || "");
+  const defs = getLegacyStudioCommandDefinitions(project);
   const filtered = defs.filter((item) => {
     if (!query) {
       return true;
@@ -18810,16 +21304,16 @@ function renderBiCommandPalette(project) {
     const blob = normalizeLookup(`${item.label} ${item.keywords || ""}`);
     return blob.includes(query);
   });
-  biCommandVisibleIds = filtered.map((item) => item.id);
-  if (biCommandVisibleIds.length === 0) {
-    biCommandPaletteSelection = 0;
-    els.biCommandPaletteList.innerHTML = "<div class=\"bi-empty\">No hay comandos para esa busqueda.</div>";
+  legacyStudioCommandVisibleIds = filtered.map((item) => item.id);
+  if (legacyStudioCommandVisibleIds.length === 0) {
+    legacyStudioCommandPaletteSelection = 0;
+    els.legacyStudioCommandPaletteList.innerHTML = "<div class=\"bi-empty\">No hay comandos para esa busqueda.</div>";
     return;
   }
-  biCommandPaletteSelection = Math.max(0, Math.min(biCommandPaletteSelection, biCommandVisibleIds.length - 1));
-  els.biCommandPaletteList.innerHTML = filtered
+  legacyStudioCommandPaletteSelection = Math.max(0, Math.min(legacyStudioCommandPaletteSelection, legacyStudioCommandVisibleIds.length - 1));
+  els.legacyStudioCommandPaletteList.innerHTML = filtered
     .map((item, index) => {
-      const active = index === biCommandPaletteSelection ? " active" : "";
+      const active = index === legacyStudioCommandPaletteSelection ? " active" : "";
       return `<button type="button" class="bi-command-item${active}" data-bi-command-action="${escapeAttribute(item.id)}">
         <strong>${escapeHtml(item.label)}</strong>
         <span>${escapeHtml(item.keywords || "")}</span>
@@ -18828,119 +21322,128 @@ function renderBiCommandPalette(project) {
     .join("");
 }
 
-function openBiCommandPalette() {
-  if (activeTab !== "bi") {
+function openLegacyStudioCommandPalette() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  if (activeTab !== "legacy-studio") {
     return;
   }
   const project = getActiveProject();
-  biCommandPaletteOpen = true;
-  biCommandPaletteSelection = 0;
-  if (els.biCommandPaletteOverlay instanceof HTMLElement) {
-    els.biCommandPaletteOverlay.classList.remove("hidden");
+  legacyStudioCommandPaletteOpen = true;
+  legacyStudioCommandPaletteSelection = 0;
+  if (els.legacyStudioCommandPaletteOverlay instanceof HTMLElement) {
+    els.legacyStudioCommandPaletteOverlay.classList.remove("hidden");
   }
-  if (els.biCommandPaletteInput instanceof HTMLInputElement) {
-    els.biCommandPaletteInput.value = "";
+  if (els.legacyStudioCommandPaletteInput instanceof HTMLInputElement) {
+    els.legacyStudioCommandPaletteInput.value = "";
   }
-  renderBiCommandPalette(project);
+  renderLegacyStudioCommandPalette(project);
   window.setTimeout(() => {
-    els.biCommandPaletteInput?.focus();
-    els.biCommandPaletteInput?.select();
+    els.legacyStudioCommandPaletteInput?.focus();
+    els.legacyStudioCommandPaletteInput?.select();
   }, 0);
-  setStatus("Comandos BI abierto.");
+  setStatus("Comandos legacy abiertos.");
 }
 
-function closeBiCommandPalette() {
-  biCommandPaletteOpen = false;
-  biCommandPaletteSelection = 0;
-  biCommandVisibleIds = [];
-  if (els.biCommandPaletteOverlay instanceof HTMLElement) {
-    els.biCommandPaletteOverlay.classList.add("hidden");
+function closeLegacyStudioCommandPalette() {
+  legacyStudioCommandPaletteOpen = false;
+  legacyStudioCommandPaletteSelection = 0;
+  legacyStudioCommandVisibleIds = [];
+  if (els.legacyStudioCommandPaletteOverlay instanceof HTMLElement) {
+    els.legacyStudioCommandPaletteOverlay.classList.add("hidden");
   }
 }
 
-function toggleBiCommandPalette() {
-  if (biCommandPaletteOpen) {
-    closeBiCommandPalette();
+function toggleLegacyStudioCommandPalette() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
     return;
   }
-  openBiCommandPalette();
+  if (legacyStudioCommandPaletteOpen) {
+    closeLegacyStudioCommandPalette();
+    return;
+  }
+  openLegacyStudioCommandPalette();
 }
 
-function runBiCommandById(commandId) {
+function runLegacyStudioCommandById(commandId) {
   const project = getActiveProject();
-  const defs = getBiCommandDefinitions(project);
+  const defs = getLegacyStudioCommandDefinitions(project);
   const command = defs.find((item) => item.id === commandId);
   if (!command || typeof command.run !== "function") {
     return false;
   }
-  closeBiCommandPalette();
+  closeLegacyStudioCommandPalette();
   command.run();
   return true;
 }
 
-function handleBiCommandPaletteKeydown(event) {
-  if (!biCommandPaletteOpen) {
+function handleLegacyStudioCommandPaletteKeydown(event) {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return false;
+  }
+  if (!legacyStudioCommandPaletteOpen) {
     return false;
   }
   const key = trimOrFallback(event.key, "");
   if (key === "Escape") {
     event.preventDefault();
-    closeBiCommandPalette();
+    closeLegacyStudioCommandPalette();
     return true;
   }
   if (key === "ArrowDown") {
     event.preventDefault();
-    if (biCommandVisibleIds.length > 0) {
-      biCommandPaletteSelection = (biCommandPaletteSelection + 1) % biCommandVisibleIds.length;
-      renderBiCommandPalette(getActiveProject());
+    if (legacyStudioCommandVisibleIds.length > 0) {
+      legacyStudioCommandPaletteSelection = (legacyStudioCommandPaletteSelection + 1) % legacyStudioCommandVisibleIds.length;
+      renderLegacyStudioCommandPalette(getActiveProject());
     }
     return true;
   }
   if (key === "ArrowUp") {
     event.preventDefault();
-    if (biCommandVisibleIds.length > 0) {
-      biCommandPaletteSelection = (biCommandPaletteSelection - 1 + biCommandVisibleIds.length) % biCommandVisibleIds.length;
-      renderBiCommandPalette(getActiveProject());
+    if (legacyStudioCommandVisibleIds.length > 0) {
+      legacyStudioCommandPaletteSelection = (legacyStudioCommandPaletteSelection - 1 + legacyStudioCommandVisibleIds.length) % legacyStudioCommandVisibleIds.length;
+      renderLegacyStudioCommandPalette(getActiveProject());
     }
     return true;
   }
   if (key === "Enter") {
     event.preventDefault();
-    const commandId = biCommandVisibleIds[biCommandPaletteSelection] || "";
+    const commandId = legacyStudioCommandVisibleIds[legacyStudioCommandPaletteSelection] || "";
     if (commandId) {
-      runBiCommandById(commandId);
+      runLegacyStudioCommandById(commandId);
     }
     return true;
   }
   return false;
 }
 
-function normalizeBiRailMode(mode) {
+function normalizeLegacyStudioRailMode(mode) {
   if (mode === "properties" || mode === "filter" || mode === "board" || mode === "colorimetry" || mode === "settings" || mode === "performance" || mode === "others") {
     return mode;
   }
   return "data";
 }
 
-function focusBiInspectorSection(mode) {
-  const normalizedMode = normalizeBiRailMode(mode);
+function focusLegacyStudioInspectorSection(mode) {
+  const normalizedMode = normalizeLegacyStudioRailMode(mode);
   let section = null;
   if (normalizedMode === "properties") {
-    if (els.biSourceSection instanceof HTMLElement && !els.biSourceSection.classList.contains("hidden")) {
-      section = els.biSourceSection;
+    if (els.legacyStudioSourceSection instanceof HTMLElement && !els.legacyStudioSourceSection.classList.contains("hidden")) {
+      section = els.legacyStudioSourceSection;
     } else {
-      section = els.biBuilderSection;
+      section = els.legacyStudioBuilderSection;
     }
   } else if (normalizedMode === "filter") {
-    section = els.biFilterSection;
+    section = els.legacyStudioFilterSection;
   } else if (normalizedMode === "board") {
-    section = els.biBoardSection;
+    section = els.legacyStudioBoardSection;
   } else if (normalizedMode === "colorimetry") {
-    section = els.biColorSection;
+    section = els.legacyStudioColorSection;
   } else if (normalizedMode === "settings") {
-    section = els.biSettingsSection;
+    section = els.legacyStudioSettingsSection;
   } else if (normalizedMode === "performance") {
-    section = els.biPerformanceSection;
+    section = els.legacyStudioPerformanceSection;
   }
   if (!(section instanceof HTMLElement)) {
     return;
@@ -18949,53 +21452,59 @@ function focusBiInspectorSection(mode) {
     return;
   }
   section.classList.add("bi-focus");
-  if (biFilterFocusTimer !== null) {
-    clearTimeout(biFilterFocusTimer);
+  if (legacyStudioFilterFocusTimer !== null) {
+    clearTimeout(legacyStudioFilterFocusTimer);
   }
-  biFilterFocusTimer = window.setTimeout(() => {
+  legacyStudioFilterFocusTimer = window.setTimeout(() => {
     section.classList.remove("bi-focus");
-    biFilterFocusTimer = null;
+    legacyStudioFilterFocusTimer = null;
   }, 950);
 }
 
-function refreshBiStudioPanelsUi() {
-  if (els.biStudioShell) {
-    els.biStudioShell.classList.toggle("bi-panel-data-open", !!biDataPanelOpen);
-    els.biStudioShell.classList.toggle("bi-panel-props-open", !!biInspectorPanelOpen);
-    els.biStudioShell.classList.toggle("bi-panel-other-open", !!biOtherPanelOpen);
+function refreshLegacyStudioPanelsUi() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  if (els.legacyStudioStudioShell) {
+    els.legacyStudioStudioShell.classList.toggle("bi-panel-data-open", !!legacyStudioDataPanelOpen);
+    els.legacyStudioStudioShell.classList.toggle("bi-panel-props-open", !!legacyStudioInspectorPanelOpen);
+    els.legacyStudioStudioShell.classList.toggle("bi-panel-other-open", !!legacyStudioOtherPanelOpen);
   }
 
-  if (els.biStudioOtherPanel instanceof HTMLElement) {
-    els.biStudioOtherPanel.classList.toggle("hidden", !biOtherPanelOpen);
+  if (els.legacyStudioStudioOtherPanel instanceof HTMLElement) {
+    els.legacyStudioStudioOtherPanel.classList.toggle("hidden", !legacyStudioOtherPanelOpen);
   }
 
-  if (els.biRailButtons && els.biRailButtons.length) {
-    els.biRailButtons.forEach((button) => {
+  if (els.legacyStudioRailButtons && els.legacyStudioRailButtons.length) {
+    els.legacyStudioRailButtons.forEach((button) => {
       if (!(button instanceof HTMLElement)) {
         return;
       }
-      const buttonMode = normalizeBiRailMode(button.dataset.biRailMode || "data");
+      const buttonMode = normalizeLegacyStudioRailMode(button.dataset.legacyStudioRailMode || "data");
       let active = false;
       if (buttonMode === "data") {
-        active = !!biDataPanelOpen;
+        active = !!legacyStudioDataPanelOpen;
       } else if (buttonMode === "others") {
-        active = !!biOtherPanelOpen;
+        active = !!legacyStudioOtherPanelOpen;
       } else {
-        active = !!biInspectorPanelOpen && biRailMode === buttonMode;
+        active = !!legacyStudioInspectorPanelOpen && legacyStudioRailMode === buttonMode;
       }
       button.classList.toggle("active", active);
     });
   }
-  updateBiWorkspaceInsets();
+  updateLegacyStudioWorkspaceInsets();
 }
 
-function updateBiWorkspaceInsets() {
-  const tabPanel = document.getElementById("tab-bi");
+function updateLegacyStudioWorkspaceInsets() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  const tabPanel = els.legacyStudioStudioShell instanceof HTMLElement ? els.legacyStudioStudioShell.closest(".tab-panel") : null;
   if (!(tabPanel instanceof HTMLElement)) {
     return;
   }
-  applyBiStudioPanelWidths();
-  if (!(els.biStudioShell instanceof HTMLElement) || activeTab !== "bi") {
+  applyLegacyStudioPanelWidths();
+  if (!(els.legacyStudioStudioShell instanceof HTMLElement) || activeTab !== "legacy-studio") {
     tabPanel.style.setProperty("--bi-shell-reserve-right", "0px");
     return;
   }
@@ -19004,17 +21513,20 @@ function updateBiWorkspaceInsets() {
     tabPanel.style.setProperty("--bi-shell-reserve-right", "0px");
     return;
   }
-  const shellRect = els.biStudioShell.getBoundingClientRect();
+  const shellRect = els.legacyStudioStudioShell.getBoundingClientRect();
   const reserve = Math.max(72, Math.round(shellRect.width + 12));
   tabPanel.style.setProperty("--bi-shell-reserve-right", `${reserve}px`);
 }
 
-function updateBiStudioOverlayOffset() {
-  if (!(els.biStudioShell instanceof HTMLElement)) {
+function updateLegacyStudioOverlayOffset() {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
     return;
   }
-  applyBiStudioPanelWidths();
-  const tabPanel = document.getElementById("tab-bi");
+  if (!(els.legacyStudioStudioShell instanceof HTMLElement)) {
+    return;
+  }
+  applyLegacyStudioPanelWidths();
+  const tabPanel = els.legacyStudioStudioShell.closest(".tab-panel");
   if (!(tabPanel instanceof HTMLElement)) {
     return;
   }
@@ -19029,98 +21541,101 @@ function updateBiStudioOverlayOffset() {
     : 0;
   const topOffset = Math.max(56, Math.round(Math.max(headerBottom, contextBottom) + 8));
   const rightOffset = Math.max(10, Math.round(window.innerWidth - panelRect.right + 10));
-  els.biStudioShell.style.top = `${topOffset}px`;
-  els.biStudioShell.style.right = `${rightOffset}px`;
+  els.legacyStudioStudioShell.style.top = `${topOffset}px`;
+  els.legacyStudioStudioShell.style.right = `${rightOffset}px`;
 
-  if (els.biStudioOtherPanel instanceof HTMLElement) {
-    const shellRect = els.biStudioShell.getBoundingClientRect();
+  if (els.legacyStudioStudioOtherPanel instanceof HTMLElement) {
+    const shellRect = els.legacyStudioStudioShell.getBoundingClientRect();
     const otherTop = Math.max(topOffset + 8, Math.round(shellRect.bottom + 10));
-    els.biStudioOtherPanel.style.top = `${otherTop}px`;
-    els.biStudioOtherPanel.style.right = `${rightOffset}px`;
+    els.legacyStudioStudioOtherPanel.style.top = `${otherTop}px`;
+    els.legacyStudioStudioOtherPanel.style.right = `${rightOffset}px`;
   }
-  updateBiWorkspaceInsets();
+  updateLegacyStudioWorkspaceInsets();
 }
 
-function applyBiRailMode(mode, options = {}) {
-  const normalizedMode = normalizeBiRailMode(mode);
+function applyLegacyStudioRailMode(mode, options = {}) {
+  if (!LEGACY_ANALYTICS_STUDIO_ENABLED) {
+    return;
+  }
+  const normalizedMode = normalizeLegacyStudioRailMode(mode);
   const forceOpen = options.forceOpen === true;
   const forceClose = options.forceClose === true;
 
   if (normalizedMode === "data") {
-    const wasDataMode = biRailMode === "data";
-    biRailMode = "data";
-    biOtherPanelOpen = false;
+    const wasDataMode = legacyStudioRailMode === "data";
+    legacyStudioRailMode = "data";
+    legacyStudioOtherPanelOpen = false;
     if (forceClose) {
-      biDataPanelOpen = false;
+      legacyStudioDataPanelOpen = false;
     } else if (forceOpen) {
-      biDataPanelOpen = true;
-    } else if (wasDataMode && biDataPanelOpen) {
-      biDataPanelOpen = false;
+      legacyStudioDataPanelOpen = true;
+    } else if (wasDataMode && legacyStudioDataPanelOpen) {
+      legacyStudioDataPanelOpen = false;
     } else {
-      biDataPanelOpen = true;
+      legacyStudioDataPanelOpen = true;
     }
-    if (biDataPanelOpen) {
-      biInspectorPanelOpen = false;
+    if (legacyStudioDataPanelOpen) {
+      legacyStudioInspectorPanelOpen = false;
     }
   } else if (normalizedMode === "others") {
-    const wasOthersMode = biRailMode === "others";
-    biRailMode = "others";
-    biDataPanelOpen = false;
-    biInspectorPanelOpen = false;
+    const wasOthersMode = legacyStudioRailMode === "others";
+    legacyStudioRailMode = "others";
+    legacyStudioDataPanelOpen = false;
+    legacyStudioInspectorPanelOpen = false;
     if (forceClose) {
-      biOtherPanelOpen = false;
+      legacyStudioOtherPanelOpen = false;
     } else if (forceOpen) {
-      biOtherPanelOpen = true;
-    } else if (wasOthersMode && biOtherPanelOpen) {
-      biOtherPanelOpen = false;
+      legacyStudioOtherPanelOpen = true;
+    } else if (wasOthersMode && legacyStudioOtherPanelOpen) {
+      legacyStudioOtherPanelOpen = false;
     } else {
-      biOtherPanelOpen = true;
+      legacyStudioOtherPanelOpen = true;
     }
   } else {
-    const wasSameInspectorMode = biRailMode === normalizedMode;
-    biRailMode = normalizedMode;
-    biDataPanelOpen = false;
-    biOtherPanelOpen = false;
+    const wasSameInspectorMode = legacyStudioRailMode === normalizedMode;
+    legacyStudioRailMode = normalizedMode;
+    legacyStudioDataPanelOpen = false;
+    legacyStudioOtherPanelOpen = false;
     if (forceClose) {
-      biInspectorPanelOpen = false;
+      legacyStudioInspectorPanelOpen = false;
     } else if (forceOpen) {
-      biInspectorPanelOpen = true;
-    } else if (wasSameInspectorMode && biInspectorPanelOpen) {
-      biInspectorPanelOpen = false;
+      legacyStudioInspectorPanelOpen = true;
+    } else if (wasSameInspectorMode && legacyStudioInspectorPanelOpen) {
+      legacyStudioInspectorPanelOpen = false;
     } else {
-      biInspectorPanelOpen = true;
+      legacyStudioInspectorPanelOpen = true;
     }
   }
 
   const activeProject = getActiveProject();
-  syncBiInspectorByWidgetType(activeProject, activeProject ? getBiSelectedWidget(activeProject) : null);
-  refreshBiStudioPanelsUi();
-  updateBiStudioOverlayOffset();
-  saveBiStudioUiPreferences();
+  syncAnalyticsInspectorByWidgetType(activeProject, activeProject ? getAnalyticsSelectedWidget(activeProject) : null);
+  refreshLegacyStudioPanelsUi();
+  updateLegacyStudioOverlayOffset();
+  saveLegacyStudioUiPreferences();
 
-  if (biInspectorPanelOpen && normalizedMode !== "data") {
-    focusBiInspectorSection(normalizedMode);
+  if (legacyStudioInspectorPanelOpen && normalizedMode !== "data") {
+    focusLegacyStudioInspectorSection(normalizedMode);
   }
 
   if (options.announce === false) {
     return;
   }
   if (normalizedMode === "properties") {
-    setStatus(biInspectorPanelOpen ? "Panel de propiedades mostrado." : "Panel de propiedades oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de propiedades mostrado." : "Panel de propiedades oculto.");
   } else if (normalizedMode === "board") {
-    setStatus(biInspectorPanelOpen ? "Panel de pizarra mostrado." : "Panel de pizarra oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de pizarra mostrado." : "Panel de pizarra oculto.");
   } else if (normalizedMode === "colorimetry") {
-    setStatus(biInspectorPanelOpen ? "Panel de colorimetria mostrado." : "Panel de colorimetria oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de colorimetria mostrado." : "Panel de colorimetria oculto.");
   } else if (normalizedMode === "settings") {
-    setStatus(biInspectorPanelOpen ? "Panel de configuracion mostrado." : "Panel de configuracion oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de configuracion mostrado." : "Panel de configuracion oculto.");
   } else if (normalizedMode === "performance") {
-    setStatus(biInspectorPanelOpen ? "Panel de rendimiento mostrado." : "Panel de rendimiento oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de rendimiento mostrado." : "Panel de rendimiento oculto.");
   } else if (normalizedMode === "filter") {
-    setStatus(biInspectorPanelOpen ? "Panel de filtros mostrado." : "Panel de filtros oculto.");
+    setStatus(legacyStudioInspectorPanelOpen ? "Panel de filtros mostrado." : "Panel de filtros oculto.");
   } else if (normalizedMode === "others") {
-    setStatus(biOtherPanelOpen ? "Panel Otros mostrado." : "Panel Otros oculto.");
+    setStatus(legacyStudioOtherPanelOpen ? "Panel Otros mostrado." : "Panel Otros oculto.");
   } else {
-    setStatus(biDataPanelOpen ? "Panel de datos mostrado." : "Panel de datos oculto.");
+    setStatus(legacyStudioDataPanelOpen ? "Panel de datos mostrado." : "Panel de datos oculto.");
   }
 }
 
@@ -19136,7 +21651,6 @@ function renderTabState() {
   const packagesPanel = document.getElementById("tab-packages");
   const reviewFlowPanel = document.getElementById("tab-review-flow");
   const reviewControlsPanel = document.getElementById("tab-review-controls");
-  const biPanel = document.getElementById("tab-bi");
   const quickSightPanel = document.getElementById("tab-quicksight");
   const tabButtons = document.querySelectorAll(".tab-button");
   const packagesTabButton = document.querySelector(".tab-button[data-tab=\"packages\"]");
@@ -19150,7 +21664,6 @@ function renderTabState() {
   packagesPanel.classList.toggle("hidden", activeTab !== "packages" || !packageTabEnabled);
   reviewFlowPanel.classList.toggle("hidden", activeTab !== "review-flow");
   reviewControlsPanel.classList.toggle("hidden", activeTab !== "review-controls");
-  biPanel.classList.toggle("hidden", activeTab !== "bi");
   quickSightPanel.classList.toggle("hidden", activeTab !== "quicksight");
   if (activeTab !== "quicksight" && quickSightEditMenuOpen) {
     setQuickSightEditMenuOpen(false);
@@ -19179,8 +21692,6 @@ function renderTabState() {
       els.currentViewLabel.textContent = "HITOS FLUJO REVISION";
     } else if (activeTab === "review-controls") {
       els.currentViewLabel.textContent = "CONTROL FLUJOS REVISION";
-    } else if (activeTab === "bi") {
-      els.currentViewLabel.textContent = "DECHINI BI";
     } else if (activeTab === "quicksight") {
       els.currentViewLabel.textContent = "DECHINI QUICKSIGTH";
     } else {
@@ -19197,8 +21708,6 @@ function renderTabState() {
       els.globalSearchInput.placeholder = "Buscar en hitos de revision";
     } else if (activeTab === "review-controls") {
       els.globalSearchInput.placeholder = "Buscar en control de flujos de revision";
-    } else if (activeTab === "bi") {
-      els.globalSearchInput.placeholder = "Buscar en Dechini BI";
     } else if (activeTab === "quicksight") {
       els.globalSearchInput.placeholder = "Buscar en Dechini Quicksigth";
     } else {
@@ -19218,14 +21727,12 @@ function switchTab(tab) {
   const packageTabEnabled = getProjectProgressControlMode(project) === "package";
   if (tab === "packages") {
     activeTab = packageTabEnabled ? "packages" : "deliverables";
-  } else if (tab === "deliverables" || tab === "fields" || tab === "review-flow" || tab === "review-controls" || tab === "bi" || tab === "quicksight") {
+  } else if (tab === "deliverables" || tab === "fields" || tab === "review-flow" || tab === "review-controls" || tab === "quicksight") {
     activeTab = tab;
   } else {
     activeTab = "fields";
   }
-  if (activeTab !== "bi") {
-    closeBiCommandPalette();
-  }
+  closeLegacyStudioCommandPalette();
   const tabMatchesTracking = (activeTab === "deliverables" && trackingPanelTargetType === "deliverable")
     || (activeTab === "packages" && trackingPanelTargetType === "package")
     || (activeTab === "review-controls" && trackingPanelTargetType === "review-control");
@@ -19242,15 +21749,6 @@ function switchTab(tab) {
     renderReviewFlowPanel(getActiveProject());
   } else if (activeTab === "review-controls") {
     renderReviewControlsPanel(getActiveProject());
-  } else if (activeTab === "bi") {
-    if (biPendingRenderRafId) {
-      window.cancelAnimationFrame(biPendingRenderRafId);
-      biPendingRenderRafId = 0;
-    }
-    biPendingRenderRafId = window.requestAnimationFrame(() => {
-      biPendingRenderRafId = 0;
-      renderBiPanel(getActiveProject());
-    });
   } else if (activeTab === "quicksight") {
     renderQuickSightPanel(getActiveProject());
   }
@@ -20668,6 +23166,285 @@ function normalizeState(raw) {
   return normalized;
 }
 
+function normalizeAnalyticsModelFieldId(value, index = 0) {
+  const raw = removeDiacritics(trimOrFallback(value, ""))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return raw ? `mdl_${raw}` : `mdl_field_${index + 1}`;
+}
+
+function inferAnalyticsModelFieldType(values, label = "") {
+  const safeValues = Array.isArray(values) ? values.filter((value) => value !== null && value !== undefined && value !== "") : [];
+  if (safeValues.length === 0) {
+    return /fecha/i.test(label) ? "date" : "text";
+  }
+  const stringValues = safeValues.map((value) => String(value).trim()).filter((value) => !!value);
+  const numberCount = stringValues.filter((value) => /^-?\d+([.,]\d+)?$/.test(value)).length;
+  const dateCount = stringValues.filter((value) => /^\d{4}-\d{2}-\d{2}/.test(value) || /^\d{2}\/\d{2}\/\d{4}$/.test(value)).length;
+  if (numberCount === stringValues.length) {
+    return "number";
+  }
+  if (dateCount === stringValues.length) {
+    return "date";
+  }
+  return "text";
+}
+
+function flattenAnalyticsModelRecord(rawValue, prefix = "", depth = 0, target = {}) {
+  if (rawValue === null || rawValue === undefined) {
+    return target;
+  }
+  if (depth > 3) {
+    if (prefix) {
+      target[prefix] = JSON.stringify(rawValue);
+    }
+    return target;
+  }
+  if (Array.isArray(rawValue)) {
+    if (prefix) {
+      const flat = rawValue
+        .map((item) => {
+          if (item === null || item === undefined) {
+            return "";
+          }
+          if (typeof item === "object") {
+            return JSON.stringify(item);
+          }
+          return String(item);
+        })
+        .filter((item) => !!item)
+        .join(" | ");
+      target[prefix] = flat;
+    }
+    return target;
+  }
+  if (typeof rawValue === "object") {
+    Object.entries(rawValue).forEach(([key, value]) => {
+      const cleanKey = trimOrFallback(key, "");
+      if (!cleanKey) {
+        return;
+      }
+      const nextPrefix = prefix ? `${prefix} ${cleanKey}` : cleanKey;
+      flattenAnalyticsModelRecord(value, nextPrefix, depth + 1, target);
+    });
+    return target;
+  }
+  if (prefix) {
+    target[prefix] = rawValue;
+  }
+  return target;
+}
+
+function extractAnalyticsModelPayloadRows(rawPayload) {
+  if (Array.isArray(rawPayload)) {
+    return rawPayload;
+  }
+  if (!rawPayload || typeof rawPayload !== "object") {
+    return [];
+  }
+  const directArrays = [
+    rawPayload.rows,
+    rawPayload.results,
+    rawPayload.items,
+    rawPayload.data,
+    rawPayload.collection
+  ];
+  for (const candidate of directArrays) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+  if (rawPayload.data && typeof rawPayload.data === "object") {
+    const nestedArrays = [
+      rawPayload.data.results,
+      rawPayload.data.items,
+      rawPayload.data.rows,
+      rawPayload.data.collection
+    ];
+    for (const candidate of nestedArrays) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return [];
+}
+
+function deriveAnalyticsModelSchemaFieldsFromRawRows(rawRows) {
+  const safeRows = Array.isArray(rawRows) ? rawRows : [];
+  const valueMap = new Map();
+  safeRows.forEach((row) => {
+    const flattened = flattenAnalyticsModelRecord(row);
+    Object.entries(flattened).forEach(([label, value]) => {
+      const safeLabel = trimOrFallback(label, "");
+      if (!safeLabel) {
+        return;
+      }
+      const bucket = valueMap.get(safeLabel) || [];
+      bucket.push(value);
+      valueMap.set(safeLabel, bucket);
+    });
+  });
+  return Array.from(valueMap.entries()).map(([label, values], index) => ({
+    id: normalizeAnalyticsModelFieldId(label, index),
+    label,
+    type: inferAnalyticsModelFieldType(values, label)
+  }));
+}
+
+function normalizeAnalyticsModelSchemaFields(rawFields, propertyRows = []) {
+  const explicit = Array.isArray(rawFields) ? rawFields : [];
+  if (explicit.length > 0) {
+    return explicit.map((field, index) => {
+      const label = trimOrFallback(field?.label || field?.name, `Campo ${index + 1}`);
+      return {
+        id: normalizeAnalyticsModelFieldId(field?.id || label, index),
+        label,
+        type: trimOrFallback(field?.type, "text")
+      };
+    });
+  }
+  const valueMap = new Map();
+  propertyRows.forEach((row) => {
+    Object.entries(row?.customValues || {}).forEach(([fieldId, value]) => {
+      const bucket = valueMap.get(fieldId) || [];
+      bucket.push(value);
+      valueMap.set(fieldId, bucket);
+    });
+  });
+  return Array.from(valueMap.entries()).map(([fieldId, values], index) => ({
+    id: normalizeAnalyticsModelFieldId(fieldId, index),
+    label: trimOrFallback(fieldId, `Campo ${index + 1}`),
+    type: inferAnalyticsModelFieldType(values, fieldId)
+  }));
+}
+
+function normalizeAnalyticsModelPropertyRows(rawRows, schemaFields = []) {
+  const safeRows = Array.isArray(rawRows) ? rawRows : [];
+  const explicitFields = Array.isArray(schemaFields) ? schemaFields : [];
+  return safeRows.map((rawRow, index) => {
+    if (rawRow && typeof rawRow === "object" && !Array.isArray(rawRow) && rawRow.customValues && typeof rawRow.customValues === "object") {
+      const customValues = {};
+      const orderedFields = explicitFields.length > 0
+        ? explicitFields
+        : Object.keys(rawRow.customValues).map((key, keyIndex) => ({
+          id: key,
+          label: key,
+          type: "text",
+          index: keyIndex
+        }));
+      orderedFields.forEach((field, fieldIndex) => {
+        const fieldId = normalizeAnalyticsModelFieldId(field?.id || field?.label, fieldIndex);
+        const rawValue = rawRow.customValues[fieldId]
+          ?? rawRow.customValues[field?.id]
+          ?? rawRow.customValues[field?.label]
+          ?? "";
+        customValues[fieldId] = rawValue === null || rawValue === undefined ? "" : String(rawValue);
+      });
+      return {
+        id: typeof rawRow.id === "string" && rawRow.id.trim() ? rawRow.id.trim() : uid(),
+        itemLabel: trimOrFallback(rawRow.itemLabel || rawRow.name || rawRow.label, `Elemento ${index + 1}`),
+        customValues
+      };
+    }
+    const flattened = flattenAnalyticsModelRecord(rawRow);
+    const customValues = {};
+    const orderedKeys = explicitFields.length > 0
+      ? explicitFields.map((field) => ({ id: field.id, label: field.label }))
+      : Object.keys(flattened).map((key, keyIndex) => ({
+        id: normalizeAnalyticsModelFieldId(key, keyIndex),
+        label: key
+      }));
+    orderedKeys.forEach((field, fieldIndex) => {
+      const fieldLabel = trimOrFallback(field.label, "");
+      const fieldId = normalizeAnalyticsModelFieldId(field.id || fieldLabel, fieldIndex);
+      const rawValue = flattened[fieldLabel];
+      customValues[fieldId] = rawValue === null || rawValue === undefined ? "" : String(rawValue);
+    });
+    const itemLabel = trimOrFallback(
+      flattened.Name
+      || flattened.name
+      || flattened.DisplayName
+      || flattened.displayName
+      || flattened.Category
+      || flattened.category
+      || flattened.ObjectId
+      || flattened.objectid
+      || rawRow?.name,
+      `Elemento ${index + 1}`
+    );
+    return {
+      id: typeof rawRow?.id === "string" && rawRow.id.trim() ? rawRow.id.trim() : uid(),
+      itemLabel,
+      customValues
+    };
+  });
+}
+
+function normalizeAccModelEntry(rawModel, index = 0) {
+  const source = rawModel && typeof rawModel === "object" && !Array.isArray(rawModel)
+    ? rawModel
+    : {};
+  const name = trimOrFallback(
+    source.name || source.modelName || source.label || source.displayName || source.fileName,
+    `Modelo ${index + 1}`
+  ).slice(0, 120);
+  const fallbackSource = `model:${slugify(name) || `modelo_${index + 1}`}`;
+  const normalizedSource = normalizeAnalyticsSource(
+    source.source
+    || source.datasetSource
+    || source.analyticsSource
+    || source.id
+    || fallbackSource
+  );
+  const safeSource = normalizedSource === "all" ? fallbackSource : normalizedSource;
+  const propertyRows = normalizeAnalyticsModelPropertyRows(
+    source.propertyRows
+    || source.rows
+    || source.propertiesRows
+    || [],
+    source.schemaFields || source.fields
+  );
+  const schemaFields = normalizeAnalyticsModelSchemaFields(
+    source.schemaFields || source.fields,
+    propertyRows
+  );
+  return {
+    id: trimOrFallback(source.id, uid()),
+    name,
+    type: trimOrFallback(source.type, "acc-rvt"),
+    source: safeSource,
+    datasetLabel: trimOrFallback(source.datasetLabel || source.label || name, name),
+    fileName: trimOrFallback(source.fileName, ""),
+    accProjectId: trimOrFallback(source.accProjectId || source.projectId, ""),
+    versionUrn: trimOrFallback(source.versionUrn, ""),
+    viewerUrn: trimOrFallback(source.viewerUrn || source.urn, ""),
+    modelGuid: trimOrFallback(source.modelGuid || source.guid, ""),
+    accScopes: trimOrFallback(source.accScopes || source.scopes, ""),
+    accNamespace: trimOrFallback(source.accNamespace || source.namespace, "WIPDM"),
+    schemaFields,
+    propertyRows,
+    importedAt: trimOrFallback(source.importedAt, propertyRows.length > 0 ? new Date().toISOString() : "")
+  };
+}
+
+function normalizeAccModels(rawModels) {
+  if (!Array.isArray(rawModels)) {
+    return [];
+  }
+  const seen = new Set();
+  return rawModels
+    .map((item, index) => normalizeAccModelEntry(item, index))
+    .filter((item) => {
+      if (!item || seen.has(item.id)) {
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    });
+}
+
 function normalizeProject(rawProject, index) {
   const fallbackName = `Proyecto ${index + 1}`;
   const id = typeof rawProject?.id === "string" && rawProject.id.trim()
@@ -20692,8 +23469,14 @@ function normalizeProject(rawProject, index) {
   const reviewControls = normalizeReviewControls(
     rawProject?.reviewControls ?? rawProject?.controlFlujosRevision ?? rawProject?.flujosRevisionControl);
   const packageControls = normalizePackageControls(rawProject?.packageControls ?? rawProject?.controlPaquetes);
-  const biConfig = normalizeBiConfig(rawProject?.biConfig ?? rawProject?.dechiniBIConfig);
-  const biWidgets = normalizeBiWidgets(rawProject?.biWidgets ?? rawProject?.dechiniBIWidgets);
+  const accModels = normalizeAccModels(
+    rawProject?.accModels
+    ?? rawProject?.apsModels
+    ?? rawProject?.rvtModels
+    ?? rawProject?.modelDatasets
+  );
+  const biConfig = normalizeAnalyticsConfig(rawProject?.biConfig);
+  const biWidgets = normalizeAnalyticsWidgets(rawProject?.biWidgets);
   const quickSightConfig = normalizeQuickSightConfig(
     rawProject?.quickSightConfig
     ?? rawProject?.dechiniQuickSightConfig
@@ -20718,6 +23501,7 @@ function normalizeProject(rawProject, index) {
     reviewMilestones,
     reviewControls,
     packageControls,
+    accModels,
     biConfig,
     biWidgets,
     quickSightConfig,
@@ -20874,7 +23658,7 @@ function normalizeFieldRow(rawRow) {
   return { id, name, code, parentDisciplineRowId };
 }
 
-function normalizeBiSource(value) {
+function normalizeAnalyticsSource(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   if (token === "deliverable" || token === "entregable") {
     return "deliverable";
@@ -20885,14 +23669,17 @@ function normalizeBiSource(value) {
   if (token === "review-control" || token === "reviewcontrol" || token === "flujo" || token === "revision") {
     return "review-control";
   }
-  return "all";
+  if (token === "all" || token === "todas" || token === "todas_las_vistas") {
+    return "all";
+  }
+  return token || "all";
 }
 
-function normalizeBiUiMode(value) {
+function normalizeAnalyticsUiMode(value) {
   return trimOrFallback(value, "").toLowerCase() === "advanced" ? "advanced" : "basic";
 }
 
-function normalizeBiPerformanceMode(value) {
+function normalizeAnalyticsPerformanceMode(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   if (token === "quality" || token === "balanced" || token === "turbo") {
     return token;
@@ -20900,7 +23687,7 @@ function normalizeBiPerformanceMode(value) {
   return "balanced";
 }
 
-function normalizeBiGroupBy(value) {
+function normalizeAnalyticsGroupBy(value) {
   const raw = trimOrFallback(value, "");
   if (/^field:/i.test(raw)) {
     const fieldId = trimOrFallback(raw.slice(6), "");
@@ -20927,7 +23714,7 @@ function normalizeBiGroupBy(value) {
   return allowed.has(token) ? token : "disciplina";
 }
 
-function normalizeBiMetric(value) {
+function normalizeAnalyticsMetric(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   const allowed = new Set([
     "count",
@@ -20949,7 +23736,7 @@ function normalizeBiMetric(value) {
   return allowed.has(token) ? token : "baseunits";
 }
 
-function normalizeBiSortMode(value) {
+function normalizeAnalyticsSortMode(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   const allowed = new Set([
     "value_desc",
@@ -20962,31 +23749,149 @@ function normalizeBiSortMode(value) {
 
 function getQuickSightVisualOptionalMetric(visual, fallbackConfig = null) {
   const fallback = normalizeQuickSightConfig(fallbackConfig || {});
-  const chartType = normalizeBiChartType(
+  const chartType = normalizeAnalyticsChartType(
     visual?.chartType
     || fallback.chartType
     || "bar"
   );
-  const capabilities = getBiChartCapabilities(chartType);
+  const capabilities = getAnalyticsChartCapabilities(chartType);
   if (!capabilities.supportsOptionalMetric) {
     return "";
   }
   if (!visual || typeof visual !== "object") {
-    return normalizeBiOptionalMetric(fallback.optionalMetric || "");
+    return normalizeAnalyticsOptionalMetric(fallback.optionalMetric || "");
   }
   const visualOptionalMetric = getOwnObjectValue(
     visual,
     "optionalMetric",
     visual.dataRoles?.optionalMetrics?.[0] ?? fallback.optionalMetric ?? ""
   );
-  return normalizeBiOptionalMetric(
+  return normalizeAnalyticsOptionalMetric(
     visualOptionalMetric || ""
   );
 }
 
+function isQuickSightTableChartType(value) {
+  return normalizeAnalyticsChartType(value || "bar") === "table";
+}
+
+function getQuickSightTableDimensionRoles(visual, fallbackConfig = null) {
+  const fallback = normalizeQuickSightConfig(fallbackConfig || {});
+  const rawDimensions = Array.isArray(visual?.dataRoles?.dimensions) && visual.dataRoles.dimensions.length > 0
+    ? visual.dataRoles.dimensions
+    : [visual?.groupBy || fallback.groupBy || "disciplina"];
+  return normalizeAnalyticsDataRoles({
+    ...(visual?.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+    dimensions: rawDimensions,
+    metrics: Array.isArray(visual?.dataRoles?.metrics) && visual.dataRoles.metrics.length > 0
+      ? visual.dataRoles.metrics
+      : [visual?.metric || fallback.metric || "count"],
+    breakdownDimension: null,
+    optionalMetrics: [],
+    dateDimension: null
+  }, {
+    groupBy: rawDimensions[0] || fallback.groupBy || "disciplina",
+    metric: visual?.metric || fallback.metric || "count",
+    chartType: "table"
+  }).dimensions.slice();
+}
+
+function getQuickSightTableMetricRoles(visual, fallbackConfig = null) {
+  const fallback = normalizeQuickSightConfig(fallbackConfig || {});
+  const rawMetrics = Array.isArray(visual?.dataRoles?.metrics) && visual.dataRoles.metrics.length > 0
+    ? visual.dataRoles.metrics
+    : [visual?.metric || fallback.metric || "count"];
+  return normalizeAnalyticsDataRoles({
+    ...(visual?.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+    dimensions: Array.isArray(visual?.dataRoles?.dimensions) && visual.dataRoles.dimensions.length > 0
+      ? visual.dataRoles.dimensions
+      : [visual?.groupBy || fallback.groupBy || "disciplina"],
+    metrics: rawMetrics,
+    breakdownDimension: null,
+    optionalMetrics: [],
+    dateDimension: null
+  }, {
+    groupBy: visual?.groupBy || fallback.groupBy || "disciplina",
+    metric: rawMetrics[0] || fallback.metric || "count",
+    chartType: "table"
+  }).metrics.slice();
+}
+
+function updateQuickSightTableRoleSelections(visual, updates = {}, fallbackConfig = null) {
+  if (!visual || typeof visual !== "object") {
+    return null;
+  }
+  const fallback = normalizeQuickSightConfig(fallbackConfig || {});
+  let nextDimensions = getQuickSightTableDimensionRoles(visual, fallback);
+  let nextMetrics = getQuickSightTableMetricRoles(visual, fallback);
+  const appendDimension = normalizeAnalyticsOptionalGroupBy(updates.appendDimension || "");
+  const appendMetric = normalizeAnalyticsOptionalMetric(updates.appendMetric || "");
+  const removeDimension = normalizeAnalyticsOptionalGroupBy(updates.removeDimension || "");
+  const removeMetric = normalizeAnalyticsOptionalMetric(updates.removeMetric || "");
+
+  if (appendDimension && !nextDimensions.includes(appendDimension)) {
+    nextDimensions = nextDimensions.concat(appendDimension);
+  }
+  if (appendMetric && !nextMetrics.includes(appendMetric)) {
+    nextMetrics = nextMetrics.concat(appendMetric);
+  }
+  if (removeDimension && nextDimensions.length > 1) {
+    nextDimensions = nextDimensions.filter((item) => item !== removeDimension);
+  }
+  if (removeMetric && nextMetrics.length > 1) {
+    nextMetrics = nextMetrics.filter((item) => item !== removeMetric);
+  }
+
+  const normalizedRoles = normalizeAnalyticsDataRoles({
+    ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+    dimensions: nextDimensions,
+    metrics: nextMetrics,
+    optionalMetrics: [],
+    breakdownDimension: null,
+    dateDimension: null
+  }, {
+    groupBy: nextDimensions[0] || fallback.groupBy || "disciplina",
+    metric: nextMetrics[0] || fallback.metric || "count",
+    chartType: "table"
+  });
+
+  visual.chartType = "table";
+  visual.groupBy = normalizedRoles.dimensions[0] || fallback.groupBy || "disciplina";
+  visual.metric = normalizedRoles.metrics[0] || fallback.metric || "count";
+  visual.breakdownDimension = "";
+  visual.optionalMetric = "";
+  visual.dateDimension = "";
+  visual.dataRoles = {
+    ...normalizedRoles,
+    optionalMetrics: [],
+    breakdownDimension: null,
+    dateDimension: null
+  };
+  return {
+    dimensions: visual.dataRoles.dimensions.slice(),
+    metrics: visual.dataRoles.metrics.slice()
+  };
+}
+
 function getQuickSightRoleUiLabels(chartType) {
-  const type = normalizeBiChartType(chartType || "bar");
-  if (BI_HORIZONTAL_BAR_TYPES.has(type)) {
+  const type = normalizeAnalyticsChartType(chartType || "bar");
+  if (type === "viewer") {
+    return {
+      dimension: "MODELO",
+      metric: "DETALLE",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  }
+  if (type === "table") {
+    return {
+      dimension: "COLUMNAS DIMENSION",
+      metric: "COLUMNAS METRICA",
+      optionalMetric: "EJE X",
+      breakdown: "GRUPO/COLOR"
+    };
+  }
+  if (ANALYTICS_HORIZONTAL_BAR_TYPES.has(type)) {
     return {
       dimension: "EJE Y",
       metric: "EJE X / VALOR",
@@ -21002,7 +23907,7 @@ function getQuickSightRoleUiLabels(chartType) {
       breakdown: "GRUPO/COLOR"
     };
   }
-  if (BI_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
+  if (ANALYTICS_BAR_FAMILY_TYPES.has(type) || new Set(["line", "timeseries", "area", "combo", "waterfall", "pareto"]).has(type)) {
     return {
       dimension: "EJE X",
       metric: "EJE Y / VALOR",
@@ -21020,7 +23925,8 @@ function getQuickSightRoleUiLabels(chartType) {
 
 function createDefaultQuickSightConfig() {
   return {
-    source: "all",
+    kind: "chart",
+    source: "deliverable",
     groupBy: "disciplina",
     breakdownDimension: "",
     metric: "count",
@@ -21080,57 +23986,62 @@ function normalizeQuickSightDisplaySettings(rawSettings) {
     ? rawSettings
     : {};
   return {
-    showTitle: normalizeBiToggle(source.showTitle, defaults.showTitle),
-    showSubtitle: normalizeBiToggle(source.showSubtitle, defaults.showSubtitle),
+    showTitle: normalizeAnalyticsToggle(source.showTitle, defaults.showTitle),
+    showSubtitle: normalizeAnalyticsToggle(source.showSubtitle, defaults.showSubtitle),
     subtitle: trimOrFallback(source.subtitle || source.subtitulo, defaults.subtitle).slice(0, 140),
     altText: trimOrFallback(source.altText || source.textoAlternativo, defaults.altText).slice(0, 260),
-    titleFontFamily: sanitizeBiFontFamily(source.titleFontFamily || source.fuenteTitulo || "", defaults.titleFontFamily),
-    titleFontSize: sanitizeBiInteger(source.titleFontSize ?? source.tamanoTitulo, defaults.titleFontSize, 10, 24),
-    titleColor: normalizeBiColorHex(source.titleColor || source.colorTitulo, defaults.titleColor),
-    subtitleFontFamily: sanitizeBiFontFamily(source.subtitleFontFamily || source.fuenteSubtitulo || "", defaults.subtitleFontFamily),
-    subtitleFontSize: sanitizeBiInteger(source.subtitleFontSize ?? source.tamanoSubtitulo, defaults.subtitleFontSize, 8, 18),
-    subtitleColor: normalizeBiColorHex(source.subtitleColor || source.colorSubtitulo, defaults.subtitleColor),
-    showBackground: normalizeBiToggle(source.showBackground ?? source.fondo, defaults.showBackground),
-    backgroundColor: normalizeBiColorHex(source.backgroundColor || source.colorFondo, defaults.backgroundColor),
-    backgroundOpacity: sanitizeBiInteger(source.backgroundOpacity ?? source.opacidadFondo, defaults.backgroundOpacity, 0, 100),
-    showBorder: normalizeBiToggle(source.showBorder ?? source.borde, defaults.showBorder),
-    borderColor: normalizeBiColorHex(source.borderColor || source.colorBorde, defaults.borderColor),
-    borderOpacity: sanitizeBiInteger(source.borderOpacity ?? source.opacidadBorde, defaults.borderOpacity, 0, 100),
-    borderWidth: sanitizeBiInteger(source.borderWidth ?? source.grosorBorde, defaults.borderWidth, 0, 6),
-    selectionColor: normalizeBiColorHex(source.selectionColor || source.colorSeleccion, defaults.selectionColor),
-    selectionOpacity: sanitizeBiInteger(source.selectionOpacity ?? source.opacidadSeleccion, defaults.selectionOpacity, 0, 100),
-    loadAnimation: normalizeBiToggle(source.loadAnimation ?? source.animacionCarga, defaults.loadAnimation),
-    padding: sanitizeBiInteger(source.padding ?? source.relleno, defaults.padding, 0, 24)
+    titleFontFamily: sanitizeAnalyticsFontFamily(source.titleFontFamily || source.fuenteTitulo || "", defaults.titleFontFamily),
+    titleFontSize: sanitizeAnalyticsInteger(source.titleFontSize ?? source.tamanoTitulo, defaults.titleFontSize, 10, 24),
+    titleColor: normalizeAnalyticsColorHex(source.titleColor || source.colorTitulo, defaults.titleColor),
+    subtitleFontFamily: sanitizeAnalyticsFontFamily(source.subtitleFontFamily || source.fuenteSubtitulo || "", defaults.subtitleFontFamily),
+    subtitleFontSize: sanitizeAnalyticsInteger(source.subtitleFontSize ?? source.tamanoSubtitulo, defaults.subtitleFontSize, 8, 18),
+    subtitleColor: normalizeAnalyticsColorHex(source.subtitleColor || source.colorSubtitulo, defaults.subtitleColor),
+    showBackground: normalizeAnalyticsToggle(source.showBackground ?? source.fondo, defaults.showBackground),
+    backgroundColor: normalizeAnalyticsColorHex(source.backgroundColor || source.colorFondo, defaults.backgroundColor),
+    backgroundOpacity: sanitizeAnalyticsInteger(source.backgroundOpacity ?? source.opacidadFondo, defaults.backgroundOpacity, 0, 100),
+    showBorder: normalizeAnalyticsToggle(source.showBorder ?? source.borde, defaults.showBorder),
+    borderColor: normalizeAnalyticsColorHex(source.borderColor || source.colorBorde, defaults.borderColor),
+    borderOpacity: sanitizeAnalyticsInteger(source.borderOpacity ?? source.opacidadBorde, defaults.borderOpacity, 0, 100),
+    borderWidth: sanitizeAnalyticsInteger(source.borderWidth ?? source.grosorBorde, defaults.borderWidth, 0, 6),
+    selectionColor: normalizeAnalyticsColorHex(source.selectionColor || source.colorSeleccion, defaults.selectionColor),
+    selectionOpacity: sanitizeAnalyticsInteger(source.selectionOpacity ?? source.opacidadSeleccion, defaults.selectionOpacity, 0, 100),
+    loadAnimation: normalizeAnalyticsToggle(source.loadAnimation ?? source.animacionCarga, defaults.loadAnimation),
+    padding: sanitizeAnalyticsInteger(source.padding ?? source.relleno, defaults.padding, 0, 24)
   };
 }
 
 function normalizeQuickSightConfig(rawConfig) {
   const base = rawConfig || {};
   const defaults = createDefaultQuickSightConfig();
+  const rawTypeToken = normalizeQuickSightVisualTypeToken(base.chartType || base.chart || "");
+  const normalizedSource = normalizeAnalyticsSource(base.source || base.fuente || defaults.source);
   return {
-    source: normalizeBiSource(base.source || base.fuente || defaults.source),
-    groupBy: normalizeBiGroupBy(base.groupBy || base.dimension || defaults.groupBy),
-    breakdownDimension: normalizeBiOptionalGroupBy(base.breakdownDimension || base.grupoColor || base.dimensionColor || defaults.breakdownDimension),
-    metric: normalizeBiMetric(base.metric || base.metrica || defaults.metric),
-    optionalMetric: normalizeBiOptionalMetric(base.optionalMetric || base.metricaOpcional || defaults.optionalMetric),
-    dateDimension: normalizeBiDateRole(base.dateDimension || base.dimensionFecha || defaults.dateDimension),
-    chartType: normalizeBiChartType(base.chartType || base.chart || defaults.chartType),
-    topN: sanitizeBiTopN(base.topN ?? base.top ?? defaults.topN),
-    sortMode: normalizeBiSortMode(base.sortMode || base.orden || defaults.sortMode),
+    kind: normalizeAnalyticsWidgetKind(base.kind || base.tipo || (rawTypeToken === "text" ? "text" : defaults.kind)),
+    source: normalizedSource === "all" ? defaults.source : normalizedSource,
+    groupBy: normalizeAnalyticsGroupBy(base.groupBy || base.dimension || defaults.groupBy),
+    breakdownDimension: normalizeAnalyticsOptionalGroupBy(base.breakdownDimension || base.grupoColor || base.dimensionColor || defaults.breakdownDimension),
+    metric: normalizeAnalyticsMetric(base.metric || base.metrica || defaults.metric),
+    optionalMetric: normalizeAnalyticsOptionalMetric(base.optionalMetric || base.metricaOpcional || defaults.optionalMetric),
+    dateDimension: normalizeAnalyticsDateRole(base.dateDimension || base.dimensionFecha || defaults.dateDimension),
+    chartType: rawTypeToken === "text"
+      ? defaults.chartType
+      : normalizeAnalyticsChartType(base.chartType || base.chart || defaults.chartType),
+    topN: sanitizeAnalyticsTopN(base.topN ?? base.top ?? defaults.topN),
+    sortMode: normalizeAnalyticsSortMode(base.sortMode || base.orden || defaults.sortMode),
     fieldsSearch: trimOrFallback(base.fieldsSearch || base.busquedaCampos || "", "").slice(0, 80),
     interactionFilters: normalizeQuickSightInteractionFilters(base.interactionFilters || base.filtrosInteraccion || []),
     drillThroughSelection: normalizeQuickSightDrillThroughSelection(base.drillThroughSelection || base.detalleDrill || null),
-    canvasWidth: sanitizeBiCanvasDimension(
+    canvasWidth: sanitizeAnalyticsCanvasDimension(
       base.canvasWidth ?? base.anchoPizarra ?? defaults.canvasWidth,
       defaults.canvasWidth,
       QUICKSIGHT_CANVAS_MIN_WIDTH,
-      BI_CANVAS_SURFACE_MAX_EDIT_WIDTH
+      ANALYTICS_CANVAS_SURFACE_MAX_EDIT_WIDTH
     ),
-    canvasHeight: sanitizeBiCanvasDimension(
+    canvasHeight: sanitizeAnalyticsCanvasDimension(
       base.canvasHeight ?? base.altoPizarra ?? defaults.canvasHeight,
       defaults.canvasHeight,
       QUICKSIGHT_CANVAS_MIN_HEIGHT,
-      BI_CANVAS_SURFACE_MAX_EDIT_HEIGHT
+      ANALYTICS_CANVAS_SURFACE_MAX_EDIT_HEIGHT
     ),
     canvasZoom: sanitizeQuickSightCanvasZoom(base.canvasZoom ?? base.zoomPizarra ?? defaults.canvasZoom, defaults.canvasZoom)
   };
@@ -21149,7 +24060,7 @@ function normalizeQuickSightInteractionSettings(rawSettings, visualLike = null) 
     source.filterBy || source.filtrarPor || "",
     defaults.filterBy
   ).toLowerCase();
-  const resolvedBreakdown = normalizeBiOptionalGroupBy(
+  const resolvedBreakdown = normalizeAnalyticsOptionalGroupBy(
     getOwnObjectValue(
       visualLike,
       "breakdownDimension",
@@ -21170,8 +24081,8 @@ function normalizeQuickSightInteractionSettings(rawSettings, visualLike = null) 
         ? "drill_down"
         : (new Set(["drill_through", "drillthrough", "detail"]).has(clickActionToken) ? "drill_through" : "cross_filter")),
     filterBy: safeFilterBy,
-    scope: normalizeBiCrossFilterScope(source.scope || source.alcance || defaults.scope),
-    appendWithModifier: normalizeBiToggle(source.appendWithModifier ?? source.multiSelect ?? defaults.appendWithModifier, defaults.appendWithModifier),
+    scope: normalizeAnalyticsCrossFilterScope(source.scope || source.alcance || defaults.scope),
+    appendWithModifier: normalizeAnalyticsToggle(source.appendWithModifier ?? source.multiSelect ?? defaults.appendWithModifier, defaults.appendWithModifier),
     drillPath
   };
 }
@@ -21180,14 +24091,14 @@ function normalizeQuickSightDrillPath(rawPath, baseGroupBy = "") {
   const source = Array.isArray(rawPath)
     ? rawPath
     : (typeof rawPath === "string" ? rawPath.split(/[>,|]/g) : []);
-  const safeBase = normalizeBiOptionalGroupBy(baseGroupBy);
+  const safeBase = normalizeAnalyticsOptionalGroupBy(baseGroupBy);
   const seen = new Set(safeBase ? [safeBase] : []);
   const result = [];
   source.forEach((item) => {
     if (result.length >= QUICKSIGHT_DRILL_PATH_SLOTS) {
       return;
     }
-    const normalized = normalizeBiOptionalGroupBy(item);
+    const normalized = normalizeAnalyticsOptionalGroupBy(item);
     if (!normalized || seen.has(normalized)) {
       return;
     }
@@ -21207,7 +24118,7 @@ function normalizeQuickSightDrillFilterEntry(rawEntry, fallbackGroupBy = "") {
   const source = rawEntry && typeof rawEntry === "object" && !Array.isArray(rawEntry)
     ? rawEntry
     : {};
-  const groupBy = normalizeBiOptionalGroupBy(
+  const groupBy = normalizeAnalyticsOptionalGroupBy(
     source.groupBy
     || source.dimension
     || source.campo
@@ -21233,7 +24144,7 @@ function normalizeQuickSightDrillFilterEntry(rawEntry, fallbackGroupBy = "") {
 
 function getQuickSightDrillSequence(visualLike) {
   const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
-  const baseGroupBy = normalizeBiGroupBy(
+  const baseGroupBy = normalizeAnalyticsGroupBy(
     safeVisual.groupBy
     || safeVisual.dataRoles?.dimensions?.[0]
     || "disciplina"
@@ -21272,7 +24183,7 @@ function normalizeQuickSightDrillThroughSelection(rawSelection) {
     ? rawSelection
     : {};
   const visualId = trimOrFallback(source.visualId || source.visual || "", "");
-  const groupBy = normalizeBiOptionalGroupBy(source.groupBy || source.dimension || source.campo || "");
+  const groupBy = normalizeAnalyticsOptionalGroupBy(source.groupBy || source.dimension || source.campo || "");
   const label = trimOrFallback(source.label || source.value || source.valor || "", "").slice(0, 120);
   if (!visualId || !groupBy || !label) {
     return null;
@@ -21281,7 +24192,7 @@ function normalizeQuickSightDrillThroughSelection(rawSelection) {
     visualId,
     groupBy,
     label,
-    source: normalizeBiSource(source.source || source.fuente || "all"),
+    source: normalizeAnalyticsSource(source.source || source.fuente || "all"),
     openedAt: trimOrFallback(source.openedAt, new Date().toISOString())
   };
 }
@@ -21315,9 +24226,9 @@ function getQuickSightVisualDrillMeta(visual, project = null) {
     totalLevels: sequence.length,
     canDrillDown: enabled && currentIndex < (sequence.length - 1),
     canDrillUp: enabled && filters.length > 0,
-    sequenceText: sequence.map((groupBy) => getBiGroupLabel(groupBy, project)).join(" > "),
+    sequenceText: sequence.map((groupBy) => getAnalyticsGroupLabel(groupBy, project)).join(" > "),
     breadcrumbText: filters.length > 0
-      ? filters.map((item) => `${getBiGroupLabel(item.groupBy, project)} = ${item.label}`).join(" > ")
+      ? filters.map((item) => `${getAnalyticsGroupLabel(item.groupBy, project)} = ${item.label}`).join(" > ")
       : "Sin drill activo."
   };
 }
@@ -21326,7 +24237,7 @@ function rowMatchesQuickSightDrillFilter(row, filter) {
   if (!row || !filter) {
     return false;
   }
-  const rowValue = getBiRowGroupValue(row, filter.groupBy);
+  const rowValue = getAnalyticsRowGroupValue(row, filter.groupBy);
   return normalizeLookup(rowValue) === normalizeLookup(filter.label);
 }
 
@@ -21349,36 +24260,66 @@ function filterQuickSightRowsByDrillState(rows, visual) {
 
 function buildQuickSightVisualSnapshot(project, visual, rows = null) {
   if (!project || !visual) {
-    return buildBiWidgetSnapshot([], visual || {});
+    return buildAnalyticsWidgetSnapshot([], visual || {});
+  }
+  if (getQuickSightVisualKind(visual, project.quickSightConfig) === "text") {
+    return {
+      source: normalizeAnalyticsSource(visual.source || "all"),
+      groupBy: normalizeAnalyticsGroupBy(visual.groupBy || "disciplina"),
+      metric: normalizeAnalyticsMetric(visual.metric || "count"),
+      chartType: "table",
+      rows: []
+    };
+  }
+  if (getQuickSightResolvedChartType(visual, project.quickSightConfig) === "viewer") {
+    const baseRows = Array.isArray(rows) ? rows : getQuickSightPanelBaseRows(project);
+    const selectedSource = normalizeQuickSightSourceSelection(project, visual.source || project.quickSightConfig.source || "deliverable", baseRows);
+    const scopedRows = baseRows.filter((row) => normalizeAnalyticsSource(row.source || "") === selectedSource);
+    return {
+      source: selectedSource,
+      groupBy: "fuente",
+      metric: "count",
+      chartType: "viewer",
+      rows: scopedRows,
+      model: getAnalyticsModelEntryBySource(project, selectedSource)
+    };
   }
   ensureQuickSightVisualDrillState(visual);
   const baseRows = Array.isArray(rows) ? rows : getQuickSightPanelBaseRows(project);
   const scopedRows = filterQuickSightRowsByDrillState(baseRows, visual);
   const drillMeta = getQuickSightVisualDrillMeta(visual, project);
   const currentGroupBy = drillMeta.currentGroupBy;
-  const metric = normalizeBiMetric(visual.metric || visual.dataRoles?.metrics?.[0] || "count");
-  const breakdownDimension = normalizeBiOptionalGroupBy(
+  const chartType = getQuickSightResolvedChartType(visual, project.quickSightConfig);
+  const metric = normalizeAnalyticsMetric(visual.metric || visual.dataRoles?.metrics?.[0] || "count");
+  const breakdownDimension = normalizeAnalyticsOptionalGroupBy(
     getOwnObjectValue(
       visual,
       "breakdownDimension",
       visual.dataRoles?.breakdownDimension ?? ""
     ) || ""
   );
+  const tableDimensions = chartType === "table"
+    ? getQuickSightTableDimensionRoles(visual, project.quickSightConfig)
+    : [currentGroupBy];
+  const tableMetrics = chartType === "table"
+    ? getQuickSightTableMetricRoles(visual, project.quickSightConfig)
+    : [metric];
   const effectiveVisual = {
     ...visual,
-    groupBy: currentGroupBy,
-    dataRoles: normalizeBiDataRoles({
+    groupBy: chartType === "table" ? (tableDimensions[0] || currentGroupBy) : currentGroupBy,
+    dataRoles: normalizeAnalyticsDataRoles({
       ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
-      dimensions: [currentGroupBy],
-      metrics: [metric],
-      breakdownDimension: breakdownDimension || null
+      dimensions: chartType === "table" ? tableDimensions : [currentGroupBy],
+      metrics: chartType === "table" ? tableMetrics : [metric],
+      optionalMetrics: chartType === "table" ? [] : (visual.dataRoles?.optionalMetrics || []),
+      breakdownDimension: chartType === "table" ? null : (breakdownDimension || null)
     }, {
-      groupBy: currentGroupBy,
+      groupBy: chartType === "table" ? (tableDimensions[0] || currentGroupBy) : currentGroupBy,
       metric,
-      chartType: visual.chartType || "bar"
+      chartType: chartType || "bar"
     })
   };
-  const snapshot = buildBiWidgetSnapshot(scopedRows, effectiveVisual);
+  const snapshot = buildAnalyticsWidgetSnapshot(scopedRows, effectiveVisual);
   snapshot.quickSightDrill = drillMeta;
   return snapshot;
 }
@@ -21407,60 +24348,401 @@ function disposeQuickSightChartsInContainer(container) {
       disposeQuickSightChartSurface(node);
     }
   });
+  container.querySelectorAll("[data-qs-model-viewer-stage]").forEach((node) => {
+    if (node instanceof HTMLElement) {
+      const instance = quickSightApsViewerInstances.get(node);
+      if (instance && typeof instance.finish === "function") {
+        try {
+          instance.finish();
+        } catch {
+          // no-op
+        }
+      }
+      quickSightApsViewerInstances.delete(node);
+      node.classList.remove("has-canvas");
+      node.innerHTML = "";
+    }
+  });
+}
+
+function ensureQuickSightApsViewerStylesheet() {
+  const existing = document.getElementById("apsViewerStylesheet");
+  if (existing instanceof HTMLLinkElement) {
+    return existing;
+  }
+  const link = document.createElement("link");
+  link.id = "apsViewerStylesheet";
+  link.rel = "stylesheet";
+  link.href = `https://developer.api.autodesk.com/modelderivative/v2/viewers/${QUICK_SIGHT_APS_VIEWER_VERSION}/style.css`;
+  document.head.appendChild(link);
+  return link;
+}
+
+function loadQuickSightApsViewerAssets() {
+  if (quickSightApsViewerAssetsPromise) {
+    return quickSightApsViewerAssetsPromise;
+  }
+  quickSightApsViewerAssetsPromise = new Promise((resolve, reject) => {
+    ensureQuickSightApsViewerStylesheet();
+    if (window.Autodesk?.Viewing) {
+      resolve(window.Autodesk.Viewing);
+      return;
+    }
+    const existing = document.getElementById("apsViewerScript");
+    if (existing instanceof HTMLScriptElement) {
+      existing.addEventListener("load", () => resolve(window.Autodesk?.Viewing), { once: true });
+      existing.addEventListener("error", () => reject(new Error("No se pudo cargar Autodesk Viewer.")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "apsViewerScript";
+    script.src = `https://developer.api.autodesk.com/modelderivative/v2/viewers/${QUICK_SIGHT_APS_VIEWER_VERSION}/viewer3D.js`;
+    script.async = true;
+    script.onload = () => resolve(window.Autodesk?.Viewing);
+    script.onerror = () => reject(new Error("No se pudo cargar Autodesk Viewer."));
+    document.head.appendChild(script);
+  });
+  return quickSightApsViewerAssetsPromise;
+}
+
+async function fetchQuickSightApsTokenPayload() {
+  const response = await fetch("/api/aps/auth/token", {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(trimOrFallback(payload?.message, `APS token ${response.status}`));
+  }
+  return payload;
+}
+
+function getQuickSightViewerDocumentUrn(model) {
+  const rawUrn = trimOrFallback(model?.viewerUrn, "");
+  if (!rawUrn) {
+    return "";
+  }
+  return rawUrn.startsWith("urn:") ? rawUrn : `urn:${rawUrn}`;
+}
+
+async function ensureQuickSightApsViewerRuntime() {
+  if (quickSightApsViewerRuntimePromise) {
+    return quickSightApsViewerRuntimePromise;
+  }
+  quickSightApsViewerRuntimePromise = loadQuickSightApsViewerAssets()
+    .then(() => new Promise((resolve, reject) => {
+      const AutodeskViewing = window.Autodesk?.Viewing;
+      if (!AutodeskViewing || typeof AutodeskViewing.Initializer !== "function") {
+        reject(new Error("Autodesk Viewer no esta disponible."));
+        return;
+      }
+      AutodeskViewing.Initializer({
+        env: "AutodeskProduction2",
+        api: "streamingV2",
+        async getAccessToken(callback) {
+          try {
+            const payload = await fetchQuickSightApsTokenPayload();
+            const expiresIn = Number(payload.expires_in || 3600);
+            callback(payload.access_token, expiresIn);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      }, () => resolve(AutodeskViewing));
+    }))
+    .catch((error) => {
+      quickSightApsViewerRuntimePromise = null;
+      throw error;
+    });
+  return quickSightApsViewerRuntimePromise;
+}
+
+async function mountQuickSightModelViewer(stage, model) {
+  if (!(stage instanceof HTMLElement) || !model) {
+    return;
+  }
+  const urn = getQuickSightViewerDocumentUrn(model);
+  if (!urn) {
+    stage.classList.remove("has-canvas");
+    stage.innerHTML = `<div class="qs-model-viewer-placeholder"><strong>Visor pendiente de URN</strong><p class="muted">Completa el Viewer URN del modelo ACC / RVT.</p></div>`;
+    return;
+  }
+  try {
+    await refreshQuickSightApsStatus({ silent: true });
+    if (!quickSightApsStatus.configured || !quickSightApsStatus.authenticated) {
+      stage.classList.remove("has-canvas");
+      stage.innerHTML = `<div class="qs-model-viewer-placeholder"><strong>APS no autenticado</strong><p class="muted">Conecta APS para abrir el Viewer del modelo.</p></div>`;
+      return;
+    }
+    await ensureQuickSightApsViewerRuntime();
+    const AutodeskViewing = window.Autodesk?.Viewing;
+    if (!AutodeskViewing) {
+      throw new Error("Autodesk Viewer no disponible.");
+    }
+    const currentInstance = quickSightApsViewerInstances.get(stage);
+    if (currentInstance && typeof currentInstance.finish === "function") {
+      try {
+        currentInstance.finish();
+      } catch {
+        // no-op
+      }
+    }
+    quickSightApsViewerInstances.delete(stage);
+    stage.innerHTML = "<div class=\"qs-model-viewer-canvas\"></div>";
+    stage.classList.add("has-canvas");
+    const canvas = stage.querySelector(".qs-model-viewer-canvas");
+    if (!(canvas instanceof HTMLElement)) {
+      throw new Error("No se pudo preparar el canvas del visor.");
+    }
+    const requestHeaders = AutodeskViewing.endpoint?.HTTP_REQUEST_HEADERS;
+    if (requestHeaders && typeof requestHeaders === "object") {
+      const nextHeaders = getQuickSightModelApsHeaders(model);
+      Object.keys(requestHeaders).forEach((key) => {
+        if (/^x-ads-acm-/i.test(key)) {
+          delete requestHeaders[key];
+        }
+      });
+      Object.entries(nextHeaders).forEach(([key, value]) => {
+        requestHeaders[key] = value;
+      });
+    }
+    const viewer = new AutodeskViewing.GuiViewer3D(canvas, {
+      extensions: []
+    });
+    const startCode = viewer.start();
+    if (typeof startCode === "number" && startCode > 0) {
+      throw new Error(`Viewer start ${startCode}`);
+    }
+    await new Promise((resolve, reject) => {
+      AutodeskViewing.Document.load(urn, async (doc) => {
+        try {
+          const defaultNode = doc.getRoot().getDefaultGeometry()
+            || doc.getRoot().search({ type: "geometry" })?.[0]
+            || null;
+          if (!defaultNode) {
+            reject(new Error("No se encontro geometria visible en el modelo."));
+            return;
+          }
+          await viewer.loadDocumentNode(doc, defaultNode, { keepCurrentModels: false });
+          if (typeof viewer.setTheme === "function") {
+            viewer.setTheme("light-theme");
+          }
+          quickSightApsViewerInstances.set(stage, viewer);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      }, (code, message, errors) => {
+        reject(new Error(message || String(errors || code || "No se pudo abrir el modelo en Viewer.")));
+      });
+    });
+  } catch (error) {
+    const currentInstance = quickSightApsViewerInstances.get(stage);
+    if (currentInstance && typeof currentInstance.finish === "function") {
+      try {
+        currentInstance.finish();
+      } catch {
+        // no-op
+      }
+    }
+    quickSightApsViewerInstances.delete(stage);
+    stage.classList.remove("has-canvas");
+    stage.innerHTML = `<div class="qs-model-viewer-placeholder"><strong>Viewer no disponible</strong><p class="muted">${escapeHtml(String(error.message || error))}</p></div>`;
+  }
+}
+
+function renderQuickSightTextVisualContent(target, visual) {
+  if (!(target instanceof HTMLElement) || !visual) {
+    return;
+  }
+  const textConfig = normalizeAnalyticsTextConfig(visual.textConfig);
+  const text = normalizeQuickSightTextContent(visual.textContent);
+  const style = [
+    `font-family:${textConfig.fontFamily}`,
+    `font-size:${textConfig.fontSize}px`,
+    `font-weight:${textConfig.fontWeight}`,
+    `font-style:${textConfig.fontStyle}`,
+    `text-align:${textConfig.textAlign}`,
+    `line-height:${textConfig.lineHeight}`,
+    `color:${textConfig.color}`,
+    `padding:${textConfig.padding}px`
+  ].join(";");
+  const body = text
+    ? escapeHtml(text).replace(/\r?\n/g, "<br>")
+    : "<span class=\"muted\">Texto vacio.</span>";
+  target.innerHTML = `<div class="qs-text-visual" style="${escapeAttribute(style)}">${body}</div>`;
+}
+
+function renderQuickSightModelViewerContent(target, project, visual, snapshot) {
+  if (!(target instanceof HTMLElement) || !project || !visual) {
+    return;
+  }
+  const source = normalizeAnalyticsSource(
+    visual.source
+    || snapshot?.source
+    || project.quickSightConfig?.source
+    || ""
+  );
+  const model = getAnalyticsModelEntryBySource(project, source);
+  if (!model) {
+    target.innerHTML = `<div class="qs-model-viewer-empty">
+      <strong>Sin modelo vinculado</strong>
+      <p class="muted">Selecciona un dataset de modelo ACC / RVT o vincula uno nuevo desde el panel Datos.</p>
+    </div>`;
+    return;
+  }
+  const rowsCount = Array.isArray(model.propertyRows) ? model.propertyRows.length : 0;
+  const apsState = getQuickSightApsStatusText();
+  const viewerReady = !!(quickSightApsStatus.configured && quickSightApsStatus.authenticated && trimOrFallback(model.viewerUrn, ""));
+  target.innerHTML = `<div class="qs-model-viewer-shell">
+    <div class="qs-model-viewer-meta">
+      <strong>${escapeHtml(model.name)}</strong>
+      <p class="muted">${escapeHtml(model.type)} | ${rowsCount} fila(s) analiticas | ${escapeHtml(apsState)}</p>
+      <p class="muted">Viewer URN: ${escapeHtml(trimOrFallback(model.viewerUrn, "(pendiente)"))}</p>
+      <p class="muted">Version URN: ${escapeHtml(trimOrFallback(model.versionUrn, "(pendiente)"))}</p>
+    </div>
+    <div class="qs-model-viewer-stage${viewerReady ? " is-ready" : ""}" data-qs-model-viewer-stage="${escapeAttribute(model.id)}">
+      ${viewerReady
+        ? `<div class="qs-model-viewer-placeholder">
+            <strong>Cargando Viewer APS...</strong>
+            <p class="muted">Preparando el visor del modelo ${escapeHtml(model.name)}.</p>
+          </div>`
+        : `<div class="qs-model-viewer-placeholder">
+            <strong>Visor pendiente de credenciales/URN</strong>
+            <p class="muted">Para activar el visor 3D necesitas APS autenticado y un Viewer URN del modelo ACC / RVT.</p>
+          </div>`
+      }
+    </div>
+  </div>`;
+  if (viewerReady) {
+    const stage = target.querySelector("[data-qs-model-viewer-stage]");
+    if (stage instanceof HTMLElement) {
+      void mountQuickSightModelViewer(stage, model);
+    }
+  }
+}
+
+function renderQuickSightCustomVisualContent(target, project, visual, snapshot) {
+  if (!(target instanceof HTMLElement) || !visual) {
+    return false;
+  }
+  const kind = getQuickSightVisualKind(visual, project?.quickSightConfig);
+  if (kind === "text") {
+    renderQuickSightTextVisualContent(target, visual);
+    return true;
+  }
+  const chartType = getQuickSightResolvedChartType(visual, project?.quickSightConfig);
+  if (chartType === "viewer") {
+    renderQuickSightModelViewerContent(target, project, visual, snapshot);
+    return true;
+  }
+  if (chartType === "table" || chartType === "pivot") {
+    renderAnalyticsWidgetCustomContent(target, snapshot, {
+      ...visual,
+      kind: "chart",
+      chartType
+    }, project);
+    return true;
+  }
+  target.innerHTML = "";
+  return false;
 }
 
 function hasCustomQuickSightLabelOffsets(labelOffsets) {
-  const safeOffsets = normalizeBiLabelOffsets(labelOffsets);
+  const safeOffsets = normalizeAnalyticsLabelOffsets(labelOffsets);
   return Object.keys(safeOffsets).length > 0;
 }
 
 function normalizeQuickSightRenderEngine(value) {
-  const token = trimOrFallback(value, "").toLowerCase();
-  if (token === "echarts" || token === "canvas") {
-    return token;
-  }
-  return "auto";
+  void value;
+  return "echarts";
 }
 
 function getQuickSightRenderEngineMeta(visual) {
-  const preference = normalizeQuickSightRenderEngine(visual?.renderEngine);
+  const preference = "echarts";
   const adapter = getQuickSightEChartsAdapter();
-  const chartType = normalizeBiChartType(visual?.chartType || "bar");
+  const kind = getQuickSightVisualKind(visual);
+  const chartType = getQuickSightResolvedChartType(visual);
+  if (kind === "text") {
+    return {
+      preference,
+      resolved: "custom",
+      supportsECharts: false,
+      customLabelOffsets: false,
+      note: "Bloque de texto estructural."
+    };
+  }
+  if (chartType === "table") {
+    return {
+      preference,
+      resolved: "custom",
+      supportsECharts: false,
+      customLabelOffsets: false,
+      note: "Tabla estructural del panel."
+    };
+  }
+  if (chartType === "pivot") {
+    return {
+      preference,
+      resolved: "custom",
+      supportsECharts: false,
+      customLabelOffsets: false,
+      note: "Matriz estructural del panel."
+    };
+  }
+  if (chartType === "viewer") {
+    return {
+      preference,
+      resolved: "custom",
+      supportsECharts: false,
+      customLabelOffsets: false,
+      note: "Visor de modelo ACC / RVT."
+    };
+  }
   const supportsECharts = !!(adapter && typeof adapter.canRenderChartType === "function" && adapter.canRenderChartType(chartType));
   const customLabelOffsets = hasCustomQuickSightLabelOffsets(visual?.labelOffsets);
-  const requiresECharts = QUICKSIGHT_ECHARTS_REQUIRED_TYPES.has(chartType);
-  let resolved = "canvas";
-  let note = "Render clasico canvas.";
-  if (requiresECharts && supportsECharts) {
-    resolved = "echarts";
-    note = "Este tipo requiere ECharts en QuickSight.";
-    return { preference, resolved, supportsECharts, customLabelOffsets, note };
+  if (supportsECharts) {
+    return {
+      preference,
+      resolved: "echarts",
+      supportsECharts,
+      customLabelOffsets,
+      note: "Render unico ECharts activo."
+    };
   }
-  if (preference === "canvas") {
-    return { preference, resolved, supportsECharts, customLabelOffsets, note };
-  }
-  if (supportsECharts && !customLabelOffsets) {
-    resolved = "echarts";
-    note = "Render moderno ECharts activo.";
-    return { preference, resolved, supportsECharts, customLabelOffsets, note };
-  }
-  if (!supportsECharts) {
-    note = "Este tipo aun no usa ECharts en QuickSight; se mantiene canvas.";
-  } else if (customLabelOffsets) {
-    note = "Este visual tiene labels movidos manualmente; se mantiene canvas.";
-  }
-  return { preference, resolved, supportsECharts, customLabelOffsets, note };
+  return {
+    preference,
+    resolved: "canvas",
+    supportsECharts,
+    customLabelOffsets,
+    note: "Tipo legacy fuera del set actual de ECharts."
+  };
 }
 
 function getQuickSightChartCapabilities(visualLike = null, fallbackConfig = null) {
   const safeVisual = visualLike && typeof visualLike === "object" ? visualLike : {};
-  const chartType = normalizeBiChartType(
-    safeVisual.chartType
-    || fallbackConfig?.chartType
-    || "bar"
-  );
-  const base = getBiChartCapabilities(chartType);
+  const kind = getQuickSightVisualKind(safeVisual, fallbackConfig);
+  if (kind === "text") {
+    return {
+      type: "text",
+      usesAxes: false,
+      supportsLegend: false,
+      supportsGrid: false,
+      supportsStack: false,
+      supportsBreakdown: false,
+      supportsOptionalMetric: false,
+      supportsReferenceLine: false,
+      supportsDataLabels: false,
+      supportsSortMode: false,
+      supportsDateDimension: false,
+      requiresDateDimension: false,
+      renderMeta: getQuickSightRenderEngineMeta({ ...safeVisual, kind: "text" })
+    };
+  }
+  const chartType = getQuickSightResolvedChartType(safeVisual, fallbackConfig);
+  const base = getAnalyticsChartCapabilities(chartType);
   const renderMeta = getQuickSightRenderEngineMeta({
+    kind,
     chartType,
     renderEngine: safeVisual.renderEngine ?? fallbackConfig?.renderEngine,
     labelOffsets: safeVisual.labelOffsets
@@ -21489,9 +24771,6 @@ function getQuickSightChartCapabilities(visualLike = null, fallbackConfig = null
 
 function shouldUseQuickSightECharts(visual, snapshot) {
   const renderMeta = getQuickSightRenderEngineMeta(visual);
-  if (renderMeta.preference === "canvas") {
-    return false;
-  }
   if (renderMeta.resolved !== "echarts") {
     return false;
   }
@@ -21524,13 +24803,13 @@ function bindQuickSightEChartsInteractions(surface, chart, project, visual, snap
 }
 
 function normalizeQuickSightInteractionFilterEntry(rawEntry) {
-  const base = normalizeBiCrossFilterEntry(rawEntry);
+  const base = normalizeAnalyticsCrossFilterEntry(rawEntry);
   if (!base) {
     return null;
   }
   return {
     ...base,
-    scope: normalizeBiCrossFilterScope(rawEntry?.scope || rawEntry?.alcance || "all"),
+    scope: normalizeAnalyticsCrossFilterScope(rawEntry?.scope || rawEntry?.alcance || "all"),
     visualId: trimOrFallback(rawEntry?.visualId || "", "")
   };
 }
@@ -21566,25 +24845,29 @@ function syncQuickSightVisualDataRoles(visual, configLike = null) {
     return;
   }
   const fallback = configLike && typeof configLike === "object" ? configLike : {};
-  const groupBy = normalizeBiGroupBy(visual.groupBy || fallback.groupBy || "disciplina");
-  const metric = normalizeBiMetric(visual.metric || fallback.metric || "count");
-  const chartType = normalizeBiChartType(visual.chartType || fallback.chartType || "bar");
-  const capabilities = getBiChartCapabilities(chartType);
-  const breakdownDimension = normalizeBiOptionalGroupBy(
+  if (getQuickSightVisualKind(visual, fallback) === "text") {
+    syncQuickSightVisualKindState(visual, "text", fallback);
+    return;
+  }
+  const groupBy = normalizeAnalyticsGroupBy(visual.groupBy || fallback.groupBy || "disciplina");
+  const metric = normalizeAnalyticsMetric(visual.metric || fallback.metric || "count");
+  const chartType = normalizeAnalyticsChartType(visual.chartType || fallback.chartType || "bar");
+  const capabilities = getAnalyticsChartCapabilities(chartType);
+  const breakdownDimension = normalizeAnalyticsOptionalGroupBy(
     getOwnObjectValue(
       visual,
       "breakdownDimension",
       visual.dataRoles?.breakdownDimension ?? fallback.breakdownDimension ?? ""
     ) || ""
   );
-  const optionalMetric = normalizeBiOptionalMetric(
+  const optionalMetric = normalizeAnalyticsOptionalMetric(
     getOwnObjectValue(
       visual,
       "optionalMetric",
       visual.dataRoles?.optionalMetrics?.[0] ?? fallback.optionalMetric ?? ""
     ) || ""
   );
-  const dateDimension = normalizeBiDateRole(
+  const dateDimension = normalizeAnalyticsDateRole(
     getOwnObjectValue(
       visual,
       "dateDimension",
@@ -21595,13 +24878,46 @@ function syncQuickSightVisualDataRoles(visual, configLike = null) {
   const safeDateDimension = capabilities.supportsDateDimension
     ? (dateDimension || (capabilities.requiresDateDimension ? "startDate" : ""))
     : "";
+  if (chartType === "table") {
+    const rawDimensions = Array.isArray(fallback.dimensions) && fallback.dimensions.length > 0
+      ? fallback.dimensions
+      : getQuickSightTableDimensionRoles(visual, fallback);
+    const rawMetrics = Array.isArray(fallback.metrics) && fallback.metrics.length > 0
+      ? fallback.metrics
+      : getQuickSightTableMetricRoles(visual, fallback);
+    const normalizedRoles = normalizeAnalyticsDataRoles({
+      ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
+      dimensions: rawDimensions,
+      metrics: rawMetrics,
+      optionalMetrics: [],
+      breakdownDimension: null,
+      dateDimension: null
+    }, {
+      groupBy: rawDimensions[0] || groupBy,
+      metric: rawMetrics[0] || metric,
+      chartType
+    });
+    visual.groupBy = normalizedRoles.dimensions[0] || groupBy;
+    visual.metric = normalizedRoles.metrics[0] || metric;
+    visual.chartType = chartType;
+    visual.breakdownDimension = "";
+    visual.optionalMetric = "";
+    visual.dateDimension = "";
+    visual.dataRoles = {
+      ...normalizedRoles,
+      optionalMetrics: [],
+      breakdownDimension: null,
+      dateDimension: null
+    };
+    return;
+  }
   visual.groupBy = groupBy;
   visual.metric = metric;
   visual.chartType = chartType;
   visual.breakdownDimension = capabilities.supportsBreakdown ? breakdownDimension : "";
   visual.optionalMetric = safeOptionalMetric;
   visual.dateDimension = safeDateDimension;
-  visual.dataRoles = normalizeBiDataRoles({
+  visual.dataRoles = normalizeAnalyticsDataRoles({
     ...(visual.dataRoles && typeof visual.dataRoles === "object" ? visual.dataRoles : {}),
     dimensions: [groupBy],
     metrics: [metric],
@@ -21622,10 +24938,14 @@ function syncQuickSightVisualDataRoles(visual, configLike = null) {
 
 function normalizeQuickSightVisual(rawVisual, index = 0) {
   const source = rawVisual || {};
-  const chartType = normalizeBiChartType(source.chartType || source.chart || "bar");
-  const chartTypeConfig = normalizeBiChartTypeConfigMap(source.chartTypeConfig ?? source.configTipoGrafico);
+  const rawTypeToken = normalizeQuickSightVisualTypeToken(source.chartType || source.chart || source.type || "bar");
+  const kind = normalizeAnalyticsWidgetKind(source.kind || source.tipo || (rawTypeToken === "text" ? "text" : "chart"));
+  const chartType = rawTypeToken === "text"
+    ? normalizeAnalyticsChartType(source.previousChartType || "bar")
+    : normalizeAnalyticsChartType(rawTypeToken);
+  const chartTypeConfig = normalizeAnalyticsChartTypeConfigMap(source.chartTypeConfig ?? source.configTipoGrafico);
   if (!chartTypeConfig[chartType]) {
-    chartTypeConfig[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+    chartTypeConfig[chartType] = normalizeAnalyticsChartTypeSpecificConfig({}, chartType);
   }
   const displaySource = {
     showTitle: source.showTitle,
@@ -21656,41 +24976,48 @@ function normalizeQuickSightVisual(rawVisual, index = 0) {
   const normalizedVisual = {
     id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : uid(),
     name: trimOrFallback(source.name, `Visual ${index + 1}`).slice(0, 120),
-    source: normalizeBiSource(source.source || "all"),
-    groupBy: normalizeBiGroupBy(source.groupBy || source.dimension || "disciplina"),
-    breakdownDimension: normalizeBiOptionalGroupBy(source.breakdownDimension || source.grupoColor || source.dimensionColor || source.dataRoles?.breakdownDimension || ""),
-    metric: normalizeBiMetric(source.metric || source.metrica || "count"),
-    optionalMetric: normalizeBiOptionalMetric(source.optionalMetric || source.metricaOpcional || source.dataRoles?.optionalMetrics?.[0] || ""),
-    dateDimension: normalizeBiDateRole(source.dateDimension || source.dimensionFecha || source.dataRoles?.dateDimension || ""),
+    kind,
+    source: (() => {
+      const normalizedSource = normalizeAnalyticsSource(source.source || "deliverable");
+      return normalizedSource === "all" ? "deliverable" : normalizedSource;
+    })(),
+    groupBy: normalizeAnalyticsGroupBy(source.groupBy || source.dimension || "disciplina"),
+    breakdownDimension: normalizeAnalyticsOptionalGroupBy(source.breakdownDimension || source.grupoColor || source.dimensionColor || source.dataRoles?.breakdownDimension || ""),
+    metric: normalizeAnalyticsMetric(source.metric || source.metrica || "count"),
+    optionalMetric: normalizeAnalyticsOptionalMetric(source.optionalMetric || source.metricaOpcional || source.dataRoles?.optionalMetrics?.[0] || ""),
+    dateDimension: normalizeAnalyticsDateRole(source.dateDimension || source.dimensionFecha || source.dataRoles?.dateDimension || ""),
     chartType,
     renderEngine: normalizeQuickSightRenderEngine(source.renderEngine ?? source.motorRender ?? source.engineRender),
-    topN: sanitizeBiTopN(source.topN ?? source.top ?? 12),
-    sortMode: normalizeBiSortMode(source.sortMode || source.orden || "value_desc"),
+    topN: sanitizeAnalyticsTopN(source.topN ?? source.top ?? 12),
+    sortMode: normalizeAnalyticsSortMode(source.sortMode || source.orden || "value_desc"),
     subtitle: normalizedDisplay.subtitle,
     altText: normalizedDisplay.altText,
     display: normalizedDisplay,
-    visualSettings: applyBiChartTypeVisualDefaults(
-      normalizeBiVisualSettings(source.visualSettings ?? source.visual ?? source.estiloVisual),
+    textContent: normalizeQuickSightTextContent(source.textContent ?? source.texto ?? source.content ?? ""),
+    textConfig: normalizeAnalyticsTextConfig(source.textConfig ?? source.configTexto),
+    visualSettings: applyAnalyticsChartTypeVisualDefaults(
+      normalizeAnalyticsVisualSettings(source.visualSettings ?? source.visual ?? source.estiloVisual),
       chartType
     ),
-    chartConfig: normalizeBiChartConfig(source.chartConfig ?? source.configGrafico, chartType),
+    chartConfig: normalizeAnalyticsChartConfig(source.chartConfig ?? source.configGrafico, chartType),
     chartTypeConfig,
     interactions: normalizedInteractions,
     drillState: normalizeQuickSightDrillState(source.drillState ?? source.estadoDrill, {
       ...source,
       interactions: normalizedInteractions
     }),
-    dataRoles: normalizeBiDataRoles(source.dataRoles ?? source.rolesDatos, {
+    dataRoles: normalizeAnalyticsDataRoles(source.dataRoles ?? source.rolesDatos, {
       groupBy: source.groupBy || source.dimension || "disciplina",
       metric: source.metric || source.metrica || "count",
       chartType
     }),
-    labelOffsets: normalizeBiLabelOffsets(source.labelOffsets ?? source.posicionLabels ?? source.desplazamientoLabels),
-    labelLayoutV2: normalizeBiLabelLayoutV2(source.labelLayoutV2 ?? source.layoutLabels),
-    polarLayout: normalizeBiCircularLayout(source.polarLayout ?? source.layoutPolar),
+    labelOffsets: normalizeAnalyticsLabelOffsets(source.labelOffsets ?? source.posicionLabels ?? source.desplazamientoLabels),
+    labelLayoutV2: normalizeAnalyticsLabelLayoutV2(source.labelLayoutV2 ?? source.layoutLabels),
+    polarLayout: normalizeAnalyticsCircularLayout(source.polarLayout ?? source.layoutPolar),
     createdAt: trimOrFallback(source.createdAt, new Date().toISOString()),
     layout: normalizeQuickSightVisualLayout(source.layout ?? source.posicion, index)
   };
+  syncQuickSightVisualKindState(normalizedVisual, kind === "text" ? "text" : chartType);
   syncQuickSightVisualDataRoles(normalizedVisual);
   ensureQuickSightVisualDrillState(normalizedVisual);
   return normalizedVisual;
@@ -21726,16 +25053,24 @@ function createQuickSightVisualFromConfig(config, index = 0) {
   const safe = normalizeQuickSightConfig(config);
   const visual = normalizeQuickSightVisual({
     id: uid(),
-    name: `${getBiGroupLabel(safe.groupBy)} | ${getBiMetricLabel(safe.metric)}`,
+    kind: safe.kind,
+    name: safe.kind === "text"
+      ? "Texto"
+      : safe.chartType === "viewer"
+      ? "Visor de modelo"
+      : `${getAnalyticsGroupLabel(safe.groupBy)} | ${getAnalyticsMetricLabel(safe.metric)}`,
     source: safe.source,
     groupBy: safe.groupBy,
     breakdownDimension: safe.breakdownDimension,
     metric: safe.metric,
     chartType: safe.chartType,
+    textContent: safe.kind === "text" ? "Texto" : "",
     topN: safe.topN,
     sortMode: safe.sortMode
   }, index);
-  syncQuickSightVisualDataRoles(visual, safe);
+  if (safe.kind !== "text") {
+    syncQuickSightVisualDataRoles(visual, safe);
+  }
   return visual;
 }
 
@@ -21746,27 +25081,28 @@ function createQuickSightConfigFromVisual(visual, fallbackConfig = null) {
   }
   return normalizeQuickSightConfig({
     ...fallback,
+    kind: getQuickSightVisualKind(visual, fallback),
     source: visual.source,
     groupBy: visual.groupBy,
     breakdownDimension: visual.breakdownDimension,
     metric: visual.metric,
     optionalMetric: getQuickSightVisualOptionalMetric(visual, fallback),
-    dateDimension: normalizeBiDateRole(visual.dataRoles?.dateDimension || fallback.dateDimension || ""),
+    dateDimension: normalizeAnalyticsDateRole(visual.dataRoles?.dateDimension || fallback.dateDimension || ""),
     chartType: visual.chartType,
     topN: visual.topN,
     sortMode: visual.sortMode
   });
 }
 
-function normalizeBiChartType(value) {
+function normalizeAnalyticsChartType(value) {
   const token = trimOrFallback(value, "").toLowerCase();
-  if (BI_CHART_TYPES.has(token)) {
+  if (ANALYTICS_CHART_TYPES.has(token)) {
     return token;
   }
   return "bar";
 }
 
-function normalizeBiWidgetKind(value) {
+function normalizeAnalyticsWidgetKind(value) {
   const token = trimOrFallback(value, "").toLowerCase();
   if (token === "text" || token === "texto") {
     return "text";
@@ -21777,18 +25113,18 @@ function normalizeBiWidgetKind(value) {
   return "chart";
 }
 
-function getBiWidgetMinSize(kindOrWidget) {
+function getAnalyticsWidgetMinSize(kindOrWidget) {
   const rawKind = typeof kindOrWidget === "string"
     ? kindOrWidget
     : kindOrWidget?.kind;
-  const kind = normalizeBiWidgetKind(rawKind || "chart");
+  const kind = normalizeAnalyticsWidgetKind(rawKind || "chart");
   if (kind === "text") {
     return { width: 120, height: 64 };
   }
   if (kind === "image") {
     return { width: 180, height: 120 };
   }
-  return { width: BI_CANVAS_MIN_WIDTH, height: BI_CANVAS_MIN_HEIGHT };
+  return { width: ANALYTICS_CANVAS_MIN_WIDTH, height: ANALYTICS_CANVAS_MIN_HEIGHT };
 }
 
 function biStableHash(value) {
@@ -21801,17 +25137,17 @@ function biStableHash(value) {
   return Math.abs(hash).toString(36);
 }
 
-function buildBiRowKey(source, groupBy, label) {
+function buildAnalyticsRowKey(source, groupBy, label) {
   const sourceToken = normalizeLookup(source || "all") || "all";
   const groupToken = normalizeLookup(groupBy || "group") || "group";
   const labelToken = normalizeLookup(label || "") || "sin_dato";
   return `${sourceToken}_${groupToken}_${labelToken}_${biStableHash(`${sourceToken}|${groupToken}|${label || ""}`)}`;
 }
 
-function buildBiDefaultDataRoles(widget) {
-  const groupBy = normalizeBiGroupBy(widget?.groupBy || "disciplina");
-  const metric = normalizeBiMetric(widget?.metric || "count");
-  const chartType = normalizeBiChartType(widget?.chartType || "bar");
+function buildAnalyticsDefaultDataRoles(widget) {
+  const groupBy = normalizeAnalyticsGroupBy(widget?.groupBy || "disciplina");
+  const metric = normalizeAnalyticsMetric(widget?.metric || "count");
+  const chartType = normalizeAnalyticsChartType(widget?.chartType || "bar");
   const dateDimension = chartType === "timeseries" || chartType === "timeline"
     ? (groupBy === "mes_fin" ? "endDate" : "startDate")
     : null;
@@ -21824,22 +25160,22 @@ function buildBiDefaultDataRoles(widget) {
   };
 }
 
-function normalizeBiDataRoles(rawRoles, widget) {
-  const defaults = buildBiDefaultDataRoles(widget);
+function normalizeAnalyticsDataRoles(rawRoles, widget) {
+  const defaults = buildAnalyticsDefaultDataRoles(widget);
   const source = rawRoles && typeof rawRoles === "object" && !Array.isArray(rawRoles)
     ? rawRoles
     : {};
   const dimensions = Array.isArray(source.dimensions)
-    ? source.dimensions.map((item) => normalizeBiGroupBy(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    ? source.dimensions.map((item) => normalizeAnalyticsGroupBy(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
     : [];
   const metrics = Array.isArray(source.metrics)
-    ? source.metrics.map((item) => normalizeBiMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    ? source.metrics.map((item) => normalizeAnalyticsMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
     : [];
   const optionalMetrics = Array.isArray(source.optionalMetrics)
-    ? source.optionalMetrics.map((item) => normalizeBiMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
+    ? source.optionalMetrics.map((item) => normalizeAnalyticsMetric(item)).filter((item, index, arr) => !!item && arr.indexOf(item) === index)
     : [];
   const breakdownDimension = trimOrFallback(source.breakdownDimension, "")
-    ? normalizeBiGroupBy(source.breakdownDimension)
+    ? normalizeAnalyticsGroupBy(source.breakdownDimension)
     : defaults.breakdownDimension;
   const dateDimensionToken = trimOrFallback(source.dateDimension, "").toLowerCase();
   const dateDimension = new Set(["startdate", "enddate", "createdat"]).has(dateDimensionToken)
@@ -21854,7 +25190,7 @@ function normalizeBiDataRoles(rawRoles, widget) {
   };
 }
 
-function createDefaultBiTextConfig() {
+function createDefaultAnalyticsTextConfig() {
   return {
     fontFamily: "Segoe UI",
     fontSize: 56,
@@ -21867,28 +25203,28 @@ function createDefaultBiTextConfig() {
   };
 }
 
-function normalizeBiTextConfig(rawConfig) {
-  const defaults = createDefaultBiTextConfig();
+function normalizeAnalyticsTextConfig(rawConfig) {
+  const defaults = createDefaultAnalyticsTextConfig();
   const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
     ? rawConfig
     : {};
   const fontFamily = trimOrFallback(source.fontFamily, defaults.fontFamily);
-  const safeFamily = BI_ALLOWED_FONT_FAMILIES.has(fontFamily) ? fontFamily : defaults.fontFamily;
+  const safeFamily = ANALYTICS_ALLOWED_FONT_FAMILIES.has(fontFamily) ? fontFamily : defaults.fontFamily;
   const styleToken = trimOrFallback(source.fontStyle, "").toLowerCase();
   const alignToken = trimOrFallback(source.textAlign, "").toLowerCase();
   return {
     fontFamily: safeFamily,
-    fontSize: sanitizeBiInteger(source.fontSize, defaults.fontSize, 12, 180),
-    fontWeight: sanitizeBiInteger(source.fontWeight, defaults.fontWeight, 300, 900),
+    fontSize: sanitizeAnalyticsInteger(source.fontSize, defaults.fontSize, 12, 180),
+    fontWeight: sanitizeAnalyticsInteger(source.fontWeight, defaults.fontWeight, 300, 900),
     fontStyle: styleToken === "italic" ? "italic" : "normal",
     textAlign: new Set(["left", "center", "right"]).has(alignToken) ? alignToken : defaults.textAlign,
-    lineHeight: sanitizeBiDecimal(source.lineHeight, defaults.lineHeight, 0.9, 2.4),
-    color: normalizeBiColorHex(source.color, defaults.color),
-    padding: sanitizeBiInteger(source.padding, defaults.padding, 0, 48)
+    lineHeight: sanitizeAnalyticsDecimal(source.lineHeight, defaults.lineHeight, 0.9, 2.4),
+    color: normalizeAnalyticsColorHex(source.color, defaults.color),
+    padding: sanitizeAnalyticsInteger(source.padding, defaults.padding, 0, 48)
   };
 }
 
-function createDefaultBiImageConfig() {
+function createDefaultAnalyticsImageConfig() {
   return {
     fit: "contain",
     opacity: 1,
@@ -21898,23 +25234,23 @@ function createDefaultBiImageConfig() {
   };
 }
 
-function normalizeBiImageConfig(rawConfig) {
-  const defaults = createDefaultBiImageConfig();
+function normalizeAnalyticsImageConfig(rawConfig) {
+  const defaults = createDefaultAnalyticsImageConfig();
   const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
     ? rawConfig
     : {};
   const fitToken = trimOrFallback(source.fit, "").toLowerCase();
   return {
     fit: new Set(["contain", "cover", "fill"]).has(fitToken) ? fitToken : defaults.fit,
-    opacity: sanitizeBiDecimal(source.opacity, defaults.opacity, 0.05, 1),
-    borderRadius: sanitizeBiInteger(source.borderRadius, defaults.borderRadius, 0, 40),
-    frameColor: normalizeBiColorHex(source.frameColor, defaults.frameColor),
-    background: normalizeBiColorHex(source.background, defaults.background)
+    opacity: sanitizeAnalyticsDecimal(source.opacity, defaults.opacity, 0.05, 1),
+    borderRadius: sanitizeAnalyticsInteger(source.borderRadius, defaults.borderRadius, 0, 40),
+    frameColor: normalizeAnalyticsColorHex(source.frameColor, defaults.frameColor),
+    background: normalizeAnalyticsColorHex(source.background, defaults.background)
   };
 }
 
-function getBiChartTypeDefaultSpecificConfig(chartType) {
-  const type = normalizeBiChartType(chartType || "bar");
+function getAnalyticsChartTypeDefaultSpecificConfig(chartType) {
+  const type = normalizeAnalyticsChartType(chartType || "bar");
   if (type === "pie") {
     return { labelMinPercent: 4, startAngle: -90 };
   }
@@ -21931,10 +25267,10 @@ function getBiChartTypeDefaultSpecificConfig(chartType) {
     return { minValue: 0, maxValue: 100, targetValue: 80 };
   }
   if (type === "table") {
-    return { rowLimit: BI_WIDGET_TABLE_LIMIT, showIndex: true, compact: false };
+    return { rowLimit: ANALYTICS_WIDGET_TABLE_LIMIT, showIndex: true, compact: false };
   }
   if (type === "pivot") {
-    return { rowLimit: BI_WIDGET_TABLE_LIMIT, showTotals: true, compact: false };
+    return { rowLimit: ANALYTICS_WIDGET_TABLE_LIMIT, showTotals: true, compact: false };
   }
   if (type === "scorecard") {
     return { showSource: true, showGroups: true, prefix: "", suffix: "" };
@@ -21975,66 +25311,66 @@ function getBiChartTypeDefaultSpecificConfig(chartType) {
   return {};
 }
 
-function normalizeBiChartTypeSpecificConfig(rawConfig, chartType) {
-  const defaults = getBiChartTypeDefaultSpecificConfig(chartType);
+function normalizeAnalyticsChartTypeSpecificConfig(rawConfig, chartType) {
+  const defaults = getAnalyticsChartTypeDefaultSpecificConfig(chartType);
   const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
     ? rawConfig
     : {};
-  const type = normalizeBiChartType(chartType || "bar");
+  const type = normalizeAnalyticsChartType(chartType || "bar");
   const next = { ...defaults };
   if (Object.prototype.hasOwnProperty.call(defaults, "labelMinPercent")) {
-    next.labelMinPercent = sanitizeBiDecimal(source.labelMinPercent, defaults.labelMinPercent, 0, 100);
+    next.labelMinPercent = sanitizeAnalyticsDecimal(source.labelMinPercent, defaults.labelMinPercent, 0, 100);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "startAngle")) {
-    next.startAngle = sanitizeBiDecimal(source.startAngle, defaults.startAngle, -360, 360);
+    next.startAngle = sanitizeAnalyticsDecimal(source.startAngle, defaults.startAngle, -360, 360);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "innerRadiusRatio")) {
-    next.innerRadiusRatio = sanitizeBiDecimal(source.innerRadiusRatio, defaults.innerRadiusRatio, 0.35, 0.8);
+    next.innerRadiusRatio = sanitizeAnalyticsDecimal(source.innerRadiusRatio, defaults.innerRadiusRatio, 0.35, 0.8);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "centerTitle")) {
     next.centerTitle = trimOrFallback(source.centerTitle, defaults.centerTitle).slice(0, 20);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minTilePercent")) {
-    next.minTilePercent = sanitizeBiDecimal(source.minTilePercent, defaults.minTilePercent, 0, 25);
+    next.minTilePercent = sanitizeAnalyticsDecimal(source.minTilePercent, defaults.minTilePercent, 0, 25);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showValueText")) {
-    next.showValueText = normalizeBiToggle(source.showValueText, defaults.showValueText);
+    next.showValueText = normalizeAnalyticsToggle(source.showValueText, defaults.showValueText);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "sortMode")) {
     const token = trimOrFallback(source.sortMode, defaults.sortMode).toLowerCase();
     next.sortMode = token === "asc" ? "asc" : "desc";
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minSegmentPercent")) {
-    next.minSegmentPercent = sanitizeBiDecimal(source.minSegmentPercent, defaults.minSegmentPercent, 0, 60);
+    next.minSegmentPercent = sanitizeAnalyticsDecimal(source.minSegmentPercent, defaults.minSegmentPercent, 0, 60);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minValue")) {
-    next.minValue = sanitizeBiDecimal(source.minValue, defaults.minValue, -1000000, 1000000);
+    next.minValue = sanitizeAnalyticsDecimal(source.minValue, defaults.minValue, -1000000, 1000000);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "maxValue")) {
-    const rawMax = sanitizeBiDecimal(source.maxValue, defaults.maxValue, -1000000, 1000000);
+    const rawMax = sanitizeAnalyticsDecimal(source.maxValue, defaults.maxValue, -1000000, 1000000);
     const minRef = Number(next.minValue || 0);
     next.maxValue = rawMax < minRef ? minRef : rawMax;
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "targetValue")) {
-    next.targetValue = sanitizeBiDecimal(source.targetValue, defaults.targetValue, -1000000, 1000000);
+    next.targetValue = sanitizeAnalyticsDecimal(source.targetValue, defaults.targetValue, -1000000, 1000000);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "rowLimit")) {
-    next.rowLimit = sanitizeBiInteger(source.rowLimit, defaults.rowLimit, 1, 200);
+    next.rowLimit = sanitizeAnalyticsInteger(source.rowLimit, defaults.rowLimit, 1, 200);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showIndex")) {
-    next.showIndex = normalizeBiToggle(source.showIndex, defaults.showIndex);
+    next.showIndex = normalizeAnalyticsToggle(source.showIndex, defaults.showIndex);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "compact")) {
-    next.compact = normalizeBiToggle(source.compact, defaults.compact);
+    next.compact = normalizeAnalyticsToggle(source.compact, defaults.compact);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showTotals")) {
-    next.showTotals = normalizeBiToggle(source.showTotals, defaults.showTotals);
+    next.showTotals = normalizeAnalyticsToggle(source.showTotals, defaults.showTotals);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showSource")) {
-    next.showSource = normalizeBiToggle(source.showSource, defaults.showSource);
+    next.showSource = normalizeAnalyticsToggle(source.showSource, defaults.showSource);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showGroups")) {
-    next.showGroups = normalizeBiToggle(source.showGroups, defaults.showGroups);
+    next.showGroups = normalizeAnalyticsToggle(source.showGroups, defaults.showGroups);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "prefix")) {
     next.prefix = trimOrFallback(source.prefix, defaults.prefix).slice(0, 10);
@@ -22043,110 +25379,110 @@ function normalizeBiChartTypeSpecificConfig(rawConfig, chartType) {
     next.suffix = trimOrFallback(source.suffix, defaults.suffix).slice(0, 10);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showTotalBar")) {
-    next.showTotalBar = normalizeBiToggle(source.showTotalBar, defaults.showTotalBar);
+    next.showTotalBar = normalizeAnalyticsToggle(source.showTotalBar, defaults.showTotalBar);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "totalLabel")) {
     next.totalLabel = trimOrFallback(source.totalLabel, defaults.totalLabel).slice(0, 18);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "pointAlpha")) {
-    next.pointAlpha = sanitizeBiDecimal(source.pointAlpha, defaults.pointAlpha, 0.15, 1);
+    next.pointAlpha = sanitizeAnalyticsDecimal(source.pointAlpha, defaults.pointAlpha, 0.15, 1);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minPointRadius")) {
-    next.minPointRadius = sanitizeBiInteger(source.minPointRadius, defaults.minPointRadius, 3, 40);
+    next.minPointRadius = sanitizeAnalyticsInteger(source.minPointRadius, defaults.minPointRadius, 3, 40);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minBubbleRadius")) {
-    next.minBubbleRadius = sanitizeBiInteger(source.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
+    next.minBubbleRadius = sanitizeAnalyticsInteger(source.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "maxBubbleRadius")) {
-    const minRef = sanitizeBiInteger(next.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
-    next.maxBubbleRadius = sanitizeBiInteger(source.maxBubbleRadius, defaults.maxBubbleRadius, minRef, 80);
+    const minRef = sanitizeAnalyticsInteger(next.minBubbleRadius, defaults.minBubbleRadius, 3, 60);
+    next.maxBubbleRadius = sanitizeAnalyticsInteger(source.maxBubbleRadius, defaults.maxBubbleRadius, minRef, 80);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "lowBand")) {
-    next.lowBand = sanitizeBiDecimal(source.lowBand, defaults.lowBand, 0, 100);
+    next.lowBand = sanitizeAnalyticsDecimal(source.lowBand, defaults.lowBand, 0, 100);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "midBand")) {
     const minBand = Number(next.lowBand || 0);
-    next.midBand = sanitizeBiDecimal(source.midBand, defaults.midBand, minBand, 100);
+    next.midBand = sanitizeAnalyticsDecimal(source.midBand, defaults.midBand, minBand, 100);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showMedianValue")) {
-    next.showMedianValue = normalizeBiToggle(source.showMedianValue, defaults.showMedianValue);
+    next.showMedianValue = normalizeAnalyticsToggle(source.showMedianValue, defaults.showMedianValue);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "whiskerMultiplier")) {
-    next.whiskerMultiplier = sanitizeBiDecimal(source.whiskerMultiplier, defaults.whiskerMultiplier, 0.5, 3.5);
+    next.whiskerMultiplier = sanitizeAnalyticsDecimal(source.whiskerMultiplier, defaults.whiskerMultiplier, 0.5, 3.5);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "upColor")) {
-    next.upColor = normalizeBiColorHex(source.upColor, defaults.upColor);
+    next.upColor = normalizeAnalyticsColorHex(source.upColor, defaults.upColor);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "downColor")) {
-    next.downColor = normalizeBiColorHex(source.downColor, defaults.downColor);
+    next.downColor = normalizeAnalyticsColorHex(source.downColor, defaults.downColor);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "wickWidth")) {
-    next.wickWidth = sanitizeBiInteger(source.wickWidth, defaults.wickWidth, 1, 4);
+    next.wickWidth = sanitizeAnalyticsInteger(source.wickWidth, defaults.wickWidth, 1, 4);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "maxLinks")) {
-    next.maxLinks = sanitizeBiInteger(source.maxLinks, defaults.maxLinks, 1, 200);
+    next.maxLinks = sanitizeAnalyticsInteger(source.maxLinks, defaults.maxLinks, 1, 200);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minLinkPercent")) {
-    next.minLinkPercent = sanitizeBiDecimal(source.minLinkPercent, defaults.minLinkPercent, 0, 50);
+    next.minLinkPercent = sanitizeAnalyticsDecimal(source.minLinkPercent, defaults.minLinkPercent, 0, 50);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showValues")) {
-    next.showValues = normalizeBiToggle(source.showValues, defaults.showValues);
+    next.showValues = normalizeAnalyticsToggle(source.showValues, defaults.showValues);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showDates")) {
-    next.showDates = normalizeBiToggle(source.showDates, defaults.showDates);
+    next.showDates = normalizeAnalyticsToggle(source.showDates, defaults.showDates);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "minBarPercent")) {
-    next.minBarPercent = sanitizeBiDecimal(source.minBarPercent, defaults.minBarPercent, 0.2, 50);
+    next.minBarPercent = sanitizeAnalyticsDecimal(source.minBarPercent, defaults.minBarPercent, 0.2, 50);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "maxScale")) {
-    next.maxScale = sanitizeBiDecimal(source.maxScale, defaults.maxScale, 1, 10000);
+    next.maxScale = sanitizeAnalyticsDecimal(source.maxScale, defaults.maxScale, 1, 10000);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showPointValues")) {
-    next.showPointValues = normalizeBiToggle(source.showPointValues, defaults.showPointValues);
+    next.showPointValues = normalizeAnalyticsToggle(source.showPointValues, defaults.showPointValues);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "targetPercent")) {
-    next.targetPercent = sanitizeBiDecimal(source.targetPercent, defaults.targetPercent, 1, 100);
+    next.targetPercent = sanitizeAnalyticsDecimal(source.targetPercent, defaults.targetPercent, 1, 100);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "showCumulativeLine")) {
-    next.showCumulativeLine = normalizeBiToggle(source.showCumulativeLine, defaults.showCumulativeLine);
+    next.showCumulativeLine = normalizeAnalyticsToggle(source.showCumulativeLine, defaults.showCumulativeLine);
   }
   if (Object.prototype.hasOwnProperty.call(defaults, "labelMinValue")) {
-    next.labelMinValue = sanitizeBiDecimal(source.labelMinValue, defaults.labelMinValue, -1000000, 1000000);
+    next.labelMinValue = sanitizeAnalyticsDecimal(source.labelMinValue, defaults.labelMinValue, -1000000, 1000000);
   }
   return next;
 }
 
-function normalizeBiChartTypeConfigMap(rawMap) {
+function normalizeAnalyticsChartTypeConfigMap(rawMap) {
   const source = rawMap && typeof rawMap === "object" && !Array.isArray(rawMap)
     ? rawMap
     : {};
   const map = {};
-  BI_CHART_TYPES.forEach((type) => {
+  ANALYTICS_CHART_TYPES.forEach((type) => {
     if (source[type] && typeof source[type] === "object" && !Array.isArray(source[type])) {
-      map[type] = normalizeBiChartTypeSpecificConfig(source[type], type);
+      map[type] = normalizeAnalyticsChartTypeSpecificConfig(source[type], type);
     }
   });
   return map;
 }
 
-function getBiSpecificChartConfigForWidget(widget, chartType) {
-  const type = normalizeBiChartType(chartType || widget?.chartType || "bar");
-  const map = normalizeBiChartTypeConfigMap(widget?.chartTypeConfig);
-  return normalizeBiChartTypeSpecificConfig(map[type], type);
+function getAnalyticsSpecificChartConfigForWidget(widget, chartType) {
+  const type = normalizeAnalyticsChartType(chartType || widget?.chartType || "bar");
+  const map = normalizeAnalyticsChartTypeConfigMap(widget?.chartTypeConfig);
+  return normalizeAnalyticsChartTypeSpecificConfig(map[type], type);
 }
 
-function setBiSpecificChartConfigForWidget(widget, chartType, nextConfig) {
+function setAnalyticsSpecificChartConfigForWidget(widget, chartType, nextConfig) {
   if (!widget) {
     return;
   }
-  const type = normalizeBiChartType(chartType || widget.chartType || "bar");
-  const map = normalizeBiChartTypeConfigMap(widget.chartTypeConfig);
-  map[type] = normalizeBiChartTypeSpecificConfig(nextConfig, type);
+  const type = normalizeAnalyticsChartType(chartType || widget.chartType || "bar");
+  const map = normalizeAnalyticsChartTypeConfigMap(widget.chartTypeConfig);
+  map[type] = normalizeAnalyticsChartTypeSpecificConfig(nextConfig, type);
   widget.chartTypeConfig = map;
 }
 
-function createDefaultBiChartConfig(chartType) {
-  const safeType = normalizeBiChartType(chartType || "bar");
+function createDefaultAnalyticsChartConfig(chartType) {
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
   return {
     common: {
       smooth: false,
@@ -22159,33 +25495,33 @@ function createDefaultBiChartConfig(chartType) {
   };
 }
 
-function normalizeBiChartConfig(rawConfig, chartType) {
-  const defaults = createDefaultBiChartConfig(chartType);
+function normalizeAnalyticsChartConfig(rawConfig, chartType) {
+  const defaults = createDefaultAnalyticsChartConfig(chartType);
   const source = rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig)
     ? rawConfig
     : {};
   const common = source.common && typeof source.common === "object" && !Array.isArray(source.common)
     ? source.common
     : {};
-  const safeType = normalizeBiChartType(chartType || "bar");
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
   const typeConfig = source[safeType] && typeof source[safeType] === "object" && !Array.isArray(source[safeType])
     ? source[safeType]
     : {};
   return {
     common: {
-      smooth: normalizeBiToggle(common.smooth, defaults.common.smooth),
+      smooth: normalizeAnalyticsToggle(common.smooth, defaults.common.smooth),
       stacked: new Set(["none", "normal", "percent"]).has(trimOrFallback(common.stacked, "").toLowerCase())
         ? trimOrFallback(common.stacked, "").toLowerCase()
         : defaults.common.stacked,
-      showMedian: normalizeBiToggle(common.showMedian, defaults.common.showMedian)
+      showMedian: normalizeAnalyticsToggle(common.showMedian, defaults.common.showMedian)
     },
     [safeType]: {
-      markerSize: sanitizeBiInteger(typeConfig.markerSize, defaults[safeType].markerSize, 1, 24)
+      markerSize: sanitizeAnalyticsInteger(typeConfig.markerSize, defaults[safeType].markerSize, 1, 24)
     }
   };
 }
 
-function normalizeBiLabelOffsets(rawOffsets) {
+function normalizeAnalyticsLabelOffsets(rawOffsets) {
   if (!rawOffsets || typeof rawOffsets !== "object" || Array.isArray(rawOffsets)) {
     return {};
   }
@@ -22209,7 +25545,7 @@ function normalizeBiLabelOffsets(rawOffsets) {
   return next;
 }
 
-function normalizeBiLabelLayoutV2(rawLayout) {
+function normalizeAnalyticsLabelLayoutV2(rawLayout) {
   const source = rawLayout && typeof rawLayout === "object" && !Array.isArray(rawLayout)
     ? rawLayout
     : {};
@@ -22247,12 +25583,12 @@ function normalizeBiLabelLayoutV2(rawLayout) {
   };
 }
 
-function buildBiLabelFallbackKey(label) {
+function buildAnalyticsLabelFallbackKey(label) {
   const token = normalizeLookup(label || "");
   return token ? `label_${token}` : "";
 }
 
-function buildBiRowKeyAlias(rowKey) {
+function buildAnalyticsRowKeyAlias(rowKey) {
   const key = trimOrFallback(rowKey, "");
   if (!key) {
     return "";
@@ -22264,14 +25600,14 @@ function buildBiRowKeyAlias(rowKey) {
   return key.slice(0, splitAt);
 }
 
-function getBiLabelPlacementFromLayout(layoutInput, rowKey, rowLabel = "") {
-  const layout = normalizeBiLabelLayoutV2(layoutInput);
+function getAnalyticsLabelPlacementFromLayout(layoutInput, rowKey, rowLabel = "") {
+  const layout = normalizeAnalyticsLabelLayoutV2(layoutInput);
   const key = trimOrFallback(rowKey, "");
   if (key && layout.byKey[key]) {
     return layout.byKey[key];
   }
 
-  const aliasKey = buildBiRowKeyAlias(key);
+  const aliasKey = buildAnalyticsRowKeyAlias(key);
   if (aliasKey && layout.byKey[aliasKey]) {
     return layout.byKey[aliasKey];
   }
@@ -22294,18 +25630,18 @@ function getBiLabelPlacementFromLayout(layoutInput, rowKey, rowLabel = "") {
     }
   }
 
-  const fallbackKey = buildBiLabelFallbackKey(rowLabel);
+  const fallbackKey = buildAnalyticsLabelFallbackKey(rowLabel);
   if (fallbackKey && layout.byKey[fallbackKey]) {
     return layout.byKey[fallbackKey];
   }
   return null;
 }
 
-function getBiLabelPlacement(widget, rowKey, rowLabel = "") {
+function getAnalyticsLabelPlacement(widget, rowKey, rowLabel = "") {
   if (!widget) {
     return null;
   }
-  return getBiLabelPlacementFromLayout(widget.labelLayoutV2, rowKey, rowLabel);
+  return getAnalyticsLabelPlacementFromLayout(widget.labelLayoutV2, rowKey, rowLabel);
 }
 
 function upsertBiLabelPlacement(widget, rowKey, nextPlacement, rowLabel = "") {
@@ -22316,7 +25652,7 @@ function upsertBiLabelPlacement(widget, rowKey, nextPlacement, rowLabel = "") {
   if (!nextPlacement || typeof nextPlacement !== "object") {
     return;
   }
-  const layout = normalizeBiLabelLayoutV2(widget.labelLayoutV2);
+  const layout = normalizeAnalyticsLabelLayoutV2(widget.labelLayoutV2);
   const normalizedPlacement = {
     anchorXPct: Number.isFinite(nextPlacement.anchorXPct) ? Math.max(0, Math.min(1, nextPlacement.anchorXPct)) : 0.5,
     anchorYPct: Number.isFinite(nextPlacement.anchorYPct) ? Math.max(0, Math.min(1, nextPlacement.anchorYPct)) : 0.5,
@@ -22330,14 +25666,14 @@ function upsertBiLabelPlacement(widget, rowKey, nextPlacement, rowLabel = "") {
   if (key) {
     layout.byKey[key] = normalizedPlacement;
   }
-  const aliasKey = buildBiRowKeyAlias(key);
+  const aliasKey = buildAnalyticsRowKeyAlias(key);
   if (aliasKey && aliasKey !== key) {
     layout.byKey[aliasKey] = {
       ...normalizedPlacement,
       scope: "plot"
     };
   }
-  const fallbackKey = buildBiLabelFallbackKey(rowLabel);
+  const fallbackKey = buildAnalyticsLabelFallbackKey(rowLabel);
   if (fallbackKey) {
     layout.byKey[fallbackKey] = {
       ...normalizedPlacement,
@@ -22348,7 +25684,7 @@ function upsertBiLabelPlacement(widget, rowKey, nextPlacement, rowLabel = "") {
   widget.labelLayoutV2 = layout;
 }
 
-function normalizeBiCircularLayout(rawLayout) {
+function normalizeAnalyticsCircularLayout(rawLayout) {
   const layout = rawLayout && typeof rawLayout === "object" && !Array.isArray(rawLayout) ? rawLayout : {};
   const chartSource = layout.chart && typeof layout.chart === "object"
     ? layout.chart
@@ -22378,7 +25714,7 @@ function normalizeBiCircularLayout(rawLayout) {
   };
 }
 
-function normalizeBiToggle(value, fallback = true) {
+function normalizeAnalyticsToggle(value, fallback = true) {
   if (typeof value === "boolean") {
     return value;
   }
@@ -22395,7 +25731,7 @@ function normalizeBiToggle(value, fallback = true) {
   return !!fallback;
 }
 
-function sanitizeBiTopN(value) {
+function sanitizeAnalyticsTopN(value) {
   const parsed = parseInt(String(value ?? "").trim(), 10);
   if (Number.isNaN(parsed)) {
     return 10;
@@ -22403,11 +25739,11 @@ function sanitizeBiTopN(value) {
   return Math.max(1, Math.min(30, parsed));
 }
 
-function normalizeBiCrossFilterEntry(rawEntry) {
+function normalizeAnalyticsCrossFilterEntry(rawEntry) {
   const entry = rawEntry || {};
-  const groupBy = normalizeBiGroupBy(entry.groupBy || entry.dimension || "");
+  const groupBy = normalizeAnalyticsGroupBy(entry.groupBy || entry.dimension || "");
   const label = trimOrFallback(entry.label || entry.value || "", "");
-  const source = normalizeBiSource(entry.source || entry.fuente || "all");
+  const source = normalizeAnalyticsSource(entry.source || entry.fuente || "all");
   if (!groupBy || !label) {
     return null;
   }
@@ -22418,18 +25754,18 @@ function normalizeBiCrossFilterEntry(rawEntry) {
   };
 }
 
-function normalizeBiCrossFilterScope(value) {
+function normalizeAnalyticsCrossFilterScope(value) {
   return trimOrFallback(value, "").toLowerCase() === "same_source" ? "same_source" : "all";
 }
 
-function normalizeBiCrossFilters(rawFilters) {
+function normalizeAnalyticsCrossFilters(rawFilters) {
   const source = Array.isArray(rawFilters)
     ? rawFilters
     : (rawFilters ? [rawFilters] : []);
   const result = [];
   const seen = new Set();
   source.forEach((item) => {
-    const normalized = normalizeBiCrossFilterEntry(item);
+    const normalized = normalizeAnalyticsCrossFilterEntry(item);
     if (!normalized) {
       return;
     }
@@ -22445,7 +25781,7 @@ function normalizeBiCrossFilters(rawFilters) {
 
 function getDefaultBiWidgetLayout(index, kindOrWidget = "chart") {
   const safeIndex = Math.max(0, Number.isInteger(index) ? index : 0);
-  const kind = normalizeBiWidgetKind(
+  const kind = normalizeAnalyticsWidgetKind(
     typeof kindOrWidget === "string"
       ? kindOrWidget
       : kindOrWidget?.kind
@@ -22463,9 +25799,9 @@ function getDefaultBiWidgetLayout(index, kindOrWidget = "chart") {
   };
 }
 
-function normalizeBiWidgetLayout(rawLayout, index, kindOrWidget = "chart") {
+function normalizeAnalyticsWidgetLayout(rawLayout, index, kindOrWidget = "chart") {
   const fallback = getDefaultBiWidgetLayout(index, kindOrWidget);
-  const minSize = getBiWidgetMinSize(kindOrWidget);
+  const minSize = getAnalyticsWidgetMinSize(kindOrWidget);
   const minWidth = Math.max(80, Math.round(minSize.width));
   const minHeight = Math.max(52, Math.round(minSize.height));
   const layout = rawLayout || {};
@@ -22480,7 +25816,7 @@ function normalizeBiWidgetLayout(rawLayout, index, kindOrWidget = "chart") {
   return { x, y, w, h };
 }
 
-function sanitizeBiInteger(value, fallback, min, max) {
+function sanitizeAnalyticsInteger(value, fallback, min, max) {
   const parsed = parseInt(String(value ?? "").trim(), 10);
   if (Number.isNaN(parsed)) {
     return Math.max(min, Math.min(max, fallback));
@@ -22488,7 +25824,7 @@ function sanitizeBiInteger(value, fallback, min, max) {
   return Math.max(min, Math.min(max, parsed));
 }
 
-function sanitizeBiDecimal(value, fallback, min, max) {
+function sanitizeAnalyticsDecimal(value, fallback, min, max) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
     return Math.max(min, Math.min(max, fallback));
@@ -22496,7 +25832,7 @@ function sanitizeBiDecimal(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.round(parsed * 100) / 100));
 }
 
-function sanitizeBiNullableDecimal(value, min, max) {
+function sanitizeAnalyticsNullableDecimal(value, min, max) {
   if (value === null || value === undefined || String(value).trim() === "") {
     return null;
   }
@@ -22507,15 +25843,15 @@ function sanitizeBiNullableDecimal(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(parsed * 100) / 100));
 }
 
-function sanitizeBiFontFamily(value, fallback = "Segoe UI") {
+function sanitizeAnalyticsFontFamily(value, fallback = "Segoe UI") {
   const token = trimOrFallback(value, "");
-  if (BI_ALLOWED_FONT_FAMILIES.has(token)) {
+  if (ANALYTICS_ALLOWED_FONT_FAMILIES.has(token)) {
     return token;
   }
-  return BI_ALLOWED_FONT_FAMILIES.has(fallback) ? fallback : "Segoe UI";
+  return ANALYTICS_ALLOWED_FONT_FAMILIES.has(fallback) ? fallback : "Segoe UI";
 }
 
-function createDefaultBiVisualSettings() {
+function createDefaultAnalyticsVisualSettings() {
   return {
     showLegend: true,
     legendPosition: "right",
@@ -22525,6 +25861,7 @@ function createDefaultBiVisualSettings() {
     showDataLabels: false,
     axisXLabel: "",
     axisYLabel: "",
+    categoryLabelRotation: 0,
     axisScale: "linear",
     axisMin: null,
     axisMax: null,
@@ -22562,8 +25899,8 @@ function createDefaultBiVisualSettings() {
   };
 }
 
-function normalizeBiVisualSettings(rawSettings) {
-  const defaults = createDefaultBiVisualSettings();
+function normalizeAnalyticsVisualSettings(rawSettings) {
+  const defaults = createDefaultAnalyticsVisualSettings();
   const source = rawSettings || {};
   const legendPositionToken = trimOrFallback(source.legendPosition || source.posicionLeyenda || "", "").toLowerCase();
   const legendPosition = new Set(["top", "right", "bottom", "left"]).has(legendPositionToken)
@@ -22599,59 +25936,65 @@ function normalizeBiVisualSettings(rawSettings) {
   return {
     showLegend: source.showLegend !== false,
     legendPosition,
-    legendMaxItems: sanitizeBiInteger(source.legendMaxItems, defaults.legendMaxItems, 3, 20),
+    legendMaxItems: sanitizeAnalyticsInteger(source.legendMaxItems, defaults.legendMaxItems, 3, 20),
     showGrid: source.showGrid !== false,
     showAxisLabels: source.showAxisLabels !== false,
     showDataLabels: !!source.showDataLabels,
     axisXLabel: trimOrFallback(source.axisXLabel || source.ejeX || "", "").slice(0, 40),
     axisYLabel: trimOrFallback(source.axisYLabel || source.ejeY || "", "").slice(0, 40),
+    categoryLabelRotation: sanitizeAnalyticsInteger(
+      source.categoryLabelRotation ?? source.rotacionEtiquetasCategoria ?? source.axisCategoryRotation,
+      defaults.categoryLabelRotation,
+      0,
+      90
+    ),
     axisScale,
-    axisMin: sanitizeBiNullableDecimal(source.axisMin ?? source.minEjeY, -1000000000, 1000000000),
-    axisMax: sanitizeBiNullableDecimal(source.axisMax ?? source.maxEjeY, -1000000000, 1000000000),
-    showTargetLine: normalizeBiToggle(source.showTargetLine ?? source.mostrarLineaObjetivo, defaults.showTargetLine),
-    targetLineValue: sanitizeBiNullableDecimal(source.targetLineValue ?? source.valorLineaObjetivo, -1000000000, 1000000000),
+    axisMin: sanitizeAnalyticsNullableDecimal(source.axisMin ?? source.minEjeY, -1000000000, 1000000000),
+    axisMax: sanitizeAnalyticsNullableDecimal(source.axisMax ?? source.maxEjeY, -1000000000, 1000000000),
+    showTargetLine: normalizeAnalyticsToggle(source.showTargetLine ?? source.mostrarLineaObjetivo, defaults.showTargetLine),
+    targetLineValue: sanitizeAnalyticsNullableDecimal(source.targetLineValue ?? source.valorLineaObjetivo, -1000000000, 1000000000),
     targetLineLabel: trimOrFallback(source.targetLineLabel || source.etiquetaLineaObjetivo || defaults.targetLineLabel, defaults.targetLineLabel).slice(0, 24),
-    targetLineColor: normalizeBiColorHex(source.targetLineColor || source.colorLineaObjetivo || "", defaults.targetLineColor),
-    labelMaxChars: sanitizeBiInteger(source.labelMaxChars, defaults.labelMaxChars, 4, 40),
-    valueDecimals: sanitizeBiInteger(source.valueDecimals, defaults.valueDecimals, 0, 4),
+    targetLineColor: normalizeAnalyticsColorHex(source.targetLineColor || source.colorLineaObjetivo || "", defaults.targetLineColor),
+    labelMaxChars: sanitizeAnalyticsInteger(source.labelMaxChars, defaults.labelMaxChars, 4, 40),
+    valueDecimals: sanitizeAnalyticsInteger(source.valueDecimals, defaults.valueDecimals, 0, 4),
     numberFormat,
     valuePrefix: trimOrFallback(source.valuePrefix || source.prefijoValor || "", "").slice(0, 8),
     valueSuffix: trimOrFallback(source.valueSuffix || source.sufijoValor || "", "").slice(0, 8),
-    fontSize: sanitizeBiInteger(source.fontSize, defaults.fontSize, 9, 18),
-    fontFamilyTitle: sanitizeBiFontFamily(source.fontFamilyTitle || source.fuenteTitulo, defaults.fontFamilyTitle),
-    fontFamilyAxis: sanitizeBiFontFamily(source.fontFamilyAxis || source.fuenteEjes, defaults.fontFamilyAxis),
-    fontFamilyLabel: sanitizeBiFontFamily(source.fontFamilyLabel || source.fuenteLabels, defaults.fontFamilyLabel),
-    fontFamilyTooltip: sanitizeBiFontFamily(source.fontFamilyTooltip || source.fuenteTooltip, defaults.fontFamilyTooltip),
-    fontSizeTitle: sanitizeBiInteger(source.fontSizeTitle, defaults.fontSizeTitle, 10, 32),
-    fontSizeAxis: sanitizeBiInteger(source.fontSizeAxis, defaults.fontSizeAxis, 8, 20),
-    fontSizeLabels: sanitizeBiInteger(source.fontSizeLabels, defaults.fontSizeLabels, 8, 22),
-    fontSizeTooltip: sanitizeBiInteger(source.fontSizeTooltip, defaults.fontSizeTooltip, 8, 20),
+    fontSize: sanitizeAnalyticsInteger(source.fontSize, defaults.fontSize, 9, 18),
+    fontFamilyTitle: sanitizeAnalyticsFontFamily(source.fontFamilyTitle || source.fuenteTitulo, defaults.fontFamilyTitle),
+    fontFamilyAxis: sanitizeAnalyticsFontFamily(source.fontFamilyAxis || source.fuenteEjes, defaults.fontFamilyAxis),
+    fontFamilyLabel: sanitizeAnalyticsFontFamily(source.fontFamilyLabel || source.fuenteLabels, defaults.fontFamilyLabel),
+    fontFamilyTooltip: sanitizeAnalyticsFontFamily(source.fontFamilyTooltip || source.fuenteTooltip, defaults.fontFamilyTooltip),
+    fontSizeTitle: sanitizeAnalyticsInteger(source.fontSizeTitle, defaults.fontSizeTitle, 10, 32),
+    fontSizeAxis: sanitizeAnalyticsInteger(source.fontSizeAxis, defaults.fontSizeAxis, 8, 20),
+    fontSizeLabels: sanitizeAnalyticsInteger(source.fontSizeLabels, defaults.fontSizeLabels, 8, 22),
+    fontSizeTooltip: sanitizeAnalyticsInteger(source.fontSizeTooltip, defaults.fontSizeTooltip, 8, 20),
     labelColorMode,
-    labelColor: normalizeBiColorHex(source.labelColor || source.colorLabels || "", defaults.labelColor),
-    lineWidth: sanitizeBiInteger(source.lineWidth, defaults.lineWidth, 1, 6),
+    labelColor: normalizeAnalyticsColorHex(source.labelColor || source.colorLabels || "", defaults.labelColor),
+    lineWidth: sanitizeAnalyticsInteger(source.lineWidth, defaults.lineWidth, 1, 6),
     seriesLineStyle,
     seriesMarkerStyle,
-    seriesMarkerSize: sanitizeBiInteger(
+    seriesMarkerSize: sanitizeAnalyticsInteger(
       source.seriesMarkerSize ?? source.markerSize ?? source.tamanoMarcadorSerie,
       defaults.seriesMarkerSize,
       0,
       16
     ),
-    areaOpacity: sanitizeBiDecimal(source.areaOpacity, defaults.areaOpacity, 0.05, 0.8),
+    areaOpacity: sanitizeAnalyticsDecimal(source.areaOpacity, defaults.areaOpacity, 0.05, 0.8),
     smoothLines: !!source.smoothLines,
-    barWidthRatio: sanitizeBiDecimal(source.barWidthRatio, defaults.barWidthRatio, 0.2, 0.9),
-    gridOpacity: sanitizeBiDecimal(source.gridOpacity, defaults.gridOpacity, 0.1, 1),
-    gridDash: sanitizeBiInteger(source.gridDash, defaults.gridDash, 0, 12),
+    barWidthRatio: sanitizeAnalyticsDecimal(source.barWidthRatio, defaults.barWidthRatio, 0.2, 0.9),
+    gridOpacity: sanitizeAnalyticsDecimal(source.gridOpacity, defaults.gridOpacity, 0.1, 1),
+    gridDash: sanitizeAnalyticsInteger(source.gridDash, defaults.gridDash, 0, 12),
     stackMode,
     tooltipMode
   };
 }
 
-function applyBiChartTypeVisualDefaults(settings, chartType) {
-  const safeType = normalizeBiChartType(chartType || "bar");
-  const visual = normalizeBiVisualSettings(settings || {});
-  if (BI_STACKED_BAR_TYPES.has(safeType) && visual.stackMode === "none") {
-    return normalizeBiVisualSettings({
+function applyAnalyticsChartTypeVisualDefaults(settings, chartType) {
+  const safeType = normalizeAnalyticsChartType(chartType || "bar");
+  const visual = normalizeAnalyticsVisualSettings(settings || {});
+  if (ANALYTICS_STACKED_BAR_TYPES.has(safeType) && visual.stackMode === "none") {
+    return normalizeAnalyticsVisualSettings({
       ...visual,
       stackMode: "normal"
     });
@@ -22659,7 +26002,7 @@ function applyBiChartTypeVisualDefaults(settings, chartType) {
   return visual;
 }
 
-function normalizeBiVisualPresets(rawPresets) {
+function normalizeAnalyticsVisualPresets(rawPresets) {
   if (!rawPresets || typeof rawPresets !== "object" || Array.isArray(rawPresets)) {
     return {};
   }
@@ -22673,13 +26016,13 @@ function normalizeBiVisualPresets(rawPresets) {
     const name = trimOrFallback(preset.name || preset.nombre || id, id).slice(0, 30);
     next[id] = {
       name,
-      settings: normalizeBiVisualSettings(preset.settings || preset.visual || preset)
+      settings: normalizeAnalyticsVisualSettings(preset.settings || preset.visual || preset)
     };
   });
   return next;
 }
 
-function createDefaultBiConfig() {
+function createDefaultAnalyticsConfig() {
   return {
     startDate: "",
     endDate: "",
@@ -22687,9 +26030,9 @@ function createDefaultBiConfig() {
     source: "all",
     invalidOnly: false,
     uiMode: "basic",
-    canvasWidth: BI_CANVAS_SURFACE_MIN_WIDTH,
-    canvasHeight: BI_CANVAS_SURFACE_HEIGHT,
-    canvasZoom: BI_CANVAS_ZOOM_DEFAULT,
+    canvasWidth: ANALYTICS_CANVAS_SURFACE_MIN_WIDTH,
+    canvasHeight: ANALYTICS_CANVAS_SURFACE_HEIGHT,
+    canvasZoom: ANALYTICS_CANVAS_ZOOM_DEFAULT,
     showCanvasGrid: false,
     snapToGrid: true,
     gridSnapSize: 12,
@@ -22699,41 +26042,41 @@ function createDefaultBiConfig() {
     colorMap: {},
     crossFilterScope: "all",
     crossFilters: [],
-    visual: createDefaultBiVisualSettings(),
+    visual: createDefaultAnalyticsVisualSettings(),
     visualPresets: {},
     activeVisualPreset: "corporativo"
   };
 }
 
-function normalizeBiConfig(rawConfig) {
+function normalizeAnalyticsConfig(rawConfig) {
   const base = rawConfig || {};
-  const canvasSize = getBiCanvasSizeFromConfig(base);
+  const canvasSize = getAnalyticsCanvasSizeFromConfig(base);
   return {
     startDate: sanitizeDateInput(base.startDate || base.fechaInicio || ""),
     endDate: sanitizeDateInput(base.endDate || base.fechaFin || ""),
     textFilter: trimOrFallback(base.textFilter || base.filtroTexto || "", "").slice(0, 120),
-    source: normalizeBiSource(base.source || base.fuente || "all"),
+    source: normalizeAnalyticsSource(base.source || base.fuente || "all"),
     invalidOnly: !!(base.invalidOnly || base.soloFechasInvertidas),
-    uiMode: normalizeBiUiMode(base.uiMode || base.modoInterfaz || "basic"),
+    uiMode: normalizeAnalyticsUiMode(base.uiMode || base.modoInterfaz || "basic"),
     canvasWidth: canvasSize.width,
     canvasHeight: canvasSize.height,
-    canvasZoom: sanitizeBiCanvasZoom(base.canvasZoom ?? base.zoomPizarra ?? base.boardZoom, BI_CANVAS_ZOOM_DEFAULT),
-    showCanvasGrid: normalizeBiToggle(base.showCanvasGrid ?? base.mostrarRejillaPizarra, false),
-    snapToGrid: normalizeBiToggle(base.snapToGrid ?? base.ajustarARejilla, true),
-    gridSnapSize: sanitizeBiInteger(base.gridSnapSize ?? base.pasoRejilla, 12, 4, 120),
-    performanceMode: normalizeBiPerformanceMode(base.performanceMode || base.modoRendimiento || "balanced"),
-    colorSource: normalizeBiSource(base.colorSource || base.fuenteColor || "all"),
-    colorGroupBy: normalizeBiGroupBy(base.colorGroupBy || base.dimensionColor || "disciplina"),
-    colorMap: normalizeBiColorMap(base.colorMap || base.mapaColor),
-    crossFilterScope: normalizeBiCrossFilterScope(base.crossFilterScope || base.alcanceFiltroCruzado || "all"),
-    crossFilters: normalizeBiCrossFilters(base.crossFilters || base.filtrosCruzados),
-    visual: normalizeBiVisualSettings(base.visual || base.configuracionVisual || base.estiloGrafico),
-    visualPresets: normalizeBiVisualPresets(base.visualPresets || base.presetsVisuales),
+    canvasZoom: sanitizeAnalyticsCanvasZoom(base.canvasZoom ?? base.zoomPizarra ?? base.boardZoom, ANALYTICS_CANVAS_ZOOM_DEFAULT),
+    showCanvasGrid: normalizeAnalyticsToggle(base.showCanvasGrid ?? base.mostrarRejillaPizarra, false),
+    snapToGrid: normalizeAnalyticsToggle(base.snapToGrid ?? base.ajustarARejilla, true),
+    gridSnapSize: sanitizeAnalyticsInteger(base.gridSnapSize ?? base.pasoRejilla, 12, 4, 120),
+    performanceMode: normalizeAnalyticsPerformanceMode(base.performanceMode || base.modoRendimiento || "balanced"),
+    colorSource: normalizeAnalyticsSource(base.colorSource || base.fuenteColor || "all"),
+    colorGroupBy: normalizeAnalyticsGroupBy(base.colorGroupBy || base.dimensionColor || "disciplina"),
+    colorMap: normalizeAnalyticsColorMap(base.colorMap || base.mapaColor),
+    crossFilterScope: normalizeAnalyticsCrossFilterScope(base.crossFilterScope || base.alcanceFiltroCruzado || "all"),
+    crossFilters: normalizeAnalyticsCrossFilters(base.crossFilters || base.filtrosCruzados),
+    visual: normalizeAnalyticsVisualSettings(base.visual || base.configuracionVisual || base.estiloGrafico),
+    visualPresets: normalizeAnalyticsVisualPresets(base.visualPresets || base.presetsVisuales),
     activeVisualPreset: trimOrFallback(base.activeVisualPreset || base.presetVisualActivo || "corporativo", "corporativo")
   };
 }
 
-function createDefaultBiWidgets() {
+function createDefaultAnalyticsWidgets() {
   return [
     {
       id: uid(),
@@ -22752,16 +26095,16 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: "disciplina", metric: "weightedreal", chartType: "bar" }),
-      chartConfig: createDefaultBiChartConfig("bar"),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: "disciplina", metric: "weightedreal", chartType: "bar" }),
+      chartConfig: createDefaultAnalyticsChartConfig("bar"),
       chartTypeConfig: {
-        bar: normalizeBiChartTypeSpecificConfig({}, "bar")
+        bar: normalizeAnalyticsChartTypeSpecificConfig({}, "bar")
       },
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       visualOverride: null
     },
     {
@@ -22781,16 +26124,16 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: "sistema", metric: "baseunits", chartType: "donut" }),
-      chartConfig: createDefaultBiChartConfig("donut"),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: "sistema", metric: "baseunits", chartType: "donut" }),
+      chartConfig: createDefaultAnalyticsChartConfig("donut"),
       chartTypeConfig: {
-        donut: normalizeBiChartTypeSpecificConfig({}, "donut")
+        donut: normalizeAnalyticsChartTypeSpecificConfig({}, "donut")
       },
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       visualOverride: null
     },
     {
@@ -22810,34 +26153,34 @@ function createDefaultBiWidgets() {
       showBorder: true,
       showBackground: true,
       locked: false,
-      dataRoles: buildBiDefaultDataRoles({ groupBy: "mes_inicio", metric: "programmedavg", chartType: "line" }),
-      chartConfig: createDefaultBiChartConfig("line"),
+      dataRoles: buildAnalyticsDefaultDataRoles({ groupBy: "mes_inicio", metric: "programmedavg", chartType: "line" }),
+      chartConfig: createDefaultAnalyticsChartConfig("line"),
       chartTypeConfig: {
-        line: normalizeBiChartTypeSpecificConfig({}, "line")
+        line: normalizeAnalyticsChartTypeSpecificConfig({}, "line")
       },
-      textConfig: createDefaultBiTextConfig(),
-      imageConfig: createDefaultBiImageConfig(),
+      textConfig: createDefaultAnalyticsTextConfig(),
+      imageConfig: createDefaultAnalyticsImageConfig(),
       labelOffsets: {},
-      labelLayoutV2: normalizeBiLabelLayoutV2({}),
-      polarLayout: normalizeBiCircularLayout({}),
+      labelLayoutV2: normalizeAnalyticsLabelLayoutV2({}),
+      polarLayout: normalizeAnalyticsCircularLayout({}),
       visualOverride: null
     }
   ];
 }
 
-function normalizeBiWidget(rawWidget, index) {
+function normalizeAnalyticsWidget(rawWidget, index) {
   const widget = rawWidget || {};
-  const kind = normalizeBiWidgetKind(widget.kind || widget.tipoWidget || widget.tipo || "chart");
+  const kind = normalizeAnalyticsWidgetKind(widget.kind || widget.tipoWidget || widget.tipo || "chart");
   const textContent = trimOrFallback(widget.textContent ?? widget.texto ?? widget.contenidoTexto ?? "", "").slice(0, 4000);
   const imageSrc = trimOrFallback(widget.imageSrc ?? widget.imagenSrc ?? widget.imagen ?? widget.image ?? widget.urlImagen ?? "", "").slice(0, 2000000);
   const imageAlt = trimOrFallback(widget.imageAlt ?? widget.imagenAlt ?? widget.altImagen ?? "", "").slice(0, 120);
-  const labelOffsets = normalizeBiLabelOffsets(widget.labelOffsets ?? widget.posicionLabels ?? widget.desplazamientoLabels);
-  const labelLayoutV2 = normalizeBiLabelLayoutV2(
+  const labelOffsets = normalizeAnalyticsLabelOffsets(widget.labelOffsets ?? widget.posicionLabels ?? widget.desplazamientoLabels);
+  const labelLayoutV2 = normalizeAnalyticsLabelLayoutV2(
     widget.labelLayoutV2
     ?? widget.labelLayout
     ?? widget.etiquetasLayout
   );
-  const polarLayout = normalizeBiCircularLayout(
+  const polarLayout = normalizeAnalyticsCircularLayout(
     widget.polarLayout
     ?? widget.circularLayout
     ?? widget.layoutCircular
@@ -22846,35 +26189,35 @@ function normalizeBiWidget(rawWidget, index) {
   const defaultShowTitle = kind === "text" ? false : true;
   const defaultShowBorder = kind === "text" ? false : true;
   const defaultShowBackground = kind === "text" ? false : true;
-  const showTitle = normalizeBiToggle(
+  const showTitle = normalizeAnalyticsToggle(
     widget.showTitle ?? widget.mostrarTitulo ?? (widget.hideTitle === true ? false : undefined),
     defaultShowTitle
   );
-  const showBorder = normalizeBiToggle(
+  const showBorder = normalizeAnalyticsToggle(
     widget.showBorder ?? widget.mostrarBorde ?? (widget.hideBorder === true ? false : undefined),
     defaultShowBorder
   );
-  const showBackground = normalizeBiToggle(
+  const showBackground = normalizeAnalyticsToggle(
     widget.showBackground ?? widget.mostrarFondo ?? (widget.hideBackground === true ? false : undefined),
     defaultShowBackground
   );
-  const locked = normalizeBiToggle(
+  const locked = normalizeAnalyticsToggle(
     widget.locked ?? widget.bloqueado ?? widget.widgetLocked,
     false
   );
-  const source = normalizeBiSource(widget.source || widget.fuente || "all");
-  const groupByInput = normalizeBiGroupBy(widget.groupBy || widget.agruparPor || "disciplina");
-  const metricInput = normalizeBiMetric(widget.metric || widget.metrica || "baseunits");
-  const chartType = normalizeBiChartType(widget.chartType || widget.tipoGrafico || "bar");
+  const source = normalizeAnalyticsSource(widget.source || widget.fuente || "all");
+  const groupByInput = normalizeAnalyticsGroupBy(widget.groupBy || widget.agruparPor || "disciplina");
+  const metricInput = normalizeAnalyticsMetric(widget.metric || widget.metrica || "baseunits");
+  const chartType = normalizeAnalyticsChartType(widget.chartType || widget.tipoGrafico || "bar");
   const baseForRoles = { source, groupBy: groupByInput, metric: metricInput, chartType };
-  const dataRoles = normalizeBiDataRoles(widget.dataRoles ?? widget.rolesDatos, baseForRoles);
-  const groupBy = normalizeBiGroupBy(dataRoles.dimensions?.[0] || groupByInput);
-  const metric = normalizeBiMetric(dataRoles.metrics?.[0] || metricInput);
-  const textConfig = normalizeBiTextConfig(widget.textConfig ?? widget.configTexto);
-  const imageConfig = normalizeBiImageConfig(widget.imageConfig ?? widget.configImagen);
-  const chartTypeConfig = normalizeBiChartTypeConfigMap(widget.chartTypeConfig ?? widget.configTipoGrafico);
+  const dataRoles = normalizeAnalyticsDataRoles(widget.dataRoles ?? widget.rolesDatos, baseForRoles);
+  const groupBy = normalizeAnalyticsGroupBy(dataRoles.dimensions?.[0] || groupByInput);
+  const metric = normalizeAnalyticsMetric(dataRoles.metrics?.[0] || metricInput);
+  const textConfig = normalizeAnalyticsTextConfig(widget.textConfig ?? widget.configTexto);
+  const imageConfig = normalizeAnalyticsImageConfig(widget.imageConfig ?? widget.configImagen);
+  const chartTypeConfig = normalizeAnalyticsChartTypeConfigMap(widget.chartTypeConfig ?? widget.configTipoGrafico);
   if (!chartTypeConfig[chartType]) {
-    chartTypeConfig[chartType] = normalizeBiChartTypeSpecificConfig({}, chartType);
+    chartTypeConfig[chartType] = normalizeAnalyticsChartTypeSpecificConfig({}, chartType);
   }
   return {
     id: typeof widget.id === "string" && widget.id.trim() ? widget.id.trim() : uid(),
@@ -22884,8 +26227,8 @@ function normalizeBiWidget(rawWidget, index) {
     groupBy,
     metric,
     chartType,
-    sortMode: normalizeBiSortMode(widget.sortMode || widget.orden || widget.sort || "value_desc"),
-    topN: sanitizeBiTopN(widget.topN),
+    sortMode: normalizeAnalyticsSortMode(widget.sortMode || widget.orden || widget.sort || "value_desc"),
+    topN: sanitizeAnalyticsTopN(widget.topN),
     textContent,
     imageSrc,
     imageAlt,
@@ -22894,34 +26237,34 @@ function normalizeBiWidget(rawWidget, index) {
     showBackground,
     locked,
     dataRoles,
-    chartConfig: normalizeBiChartConfig(widget.chartConfig ?? widget.configGrafico, chartType),
+    chartConfig: normalizeAnalyticsChartConfig(widget.chartConfig ?? widget.configGrafico, chartType),
     chartTypeConfig,
     textConfig,
     imageConfig,
     labelOffsets,
     labelLayoutV2,
     polarLayout,
-    layout: normalizeBiWidgetLayout(widget.layout ?? widget.posicion, index, kind),
-    visualOverride: widget.visualOverride ? normalizeBiVisualSettings(widget.visualOverride) : null
+    layout: normalizeAnalyticsWidgetLayout(widget.layout ?? widget.posicion, index, kind),
+    visualOverride: widget.visualOverride ? normalizeAnalyticsVisualSettings(widget.visualOverride) : null
   };
 }
 
-function normalizeBiWidgets(rawWidgets) {
+function normalizeAnalyticsWidgets(rawWidgets) {
   if (!Array.isArray(rawWidgets) || rawWidgets.length === 0) {
-    return createDefaultBiWidgets();
+    return createDefaultAnalyticsWidgets();
   }
 
   const unique = [];
   const seen = new Set();
   rawWidgets.forEach((item, index) => {
-    const normalized = normalizeBiWidget(item, index);
+    const normalized = normalizeAnalyticsWidget(item, index);
     if (seen.has(normalized.id)) {
       return;
     }
     seen.add(normalized.id);
     unique.push(normalized);
   });
-  return unique.length > 0 ? unique : createDefaultBiWidgets();
+  return unique.length > 0 ? unique : createDefaultAnalyticsWidgets();
 }
 
 function normalizeRealAdvances(rawEntries) {
@@ -23157,8 +26500,9 @@ function createDefaultProject(id, name) {
     reviewMilestones: [],
     reviewControls: [],
     packageControls: [],
-    biConfig: createDefaultBiConfig(),
-    biWidgets: createDefaultBiWidgets(),
+    accModels: [],
+    biConfig: createDefaultAnalyticsConfig(),
+    biWidgets: createDefaultAnalyticsWidgets(),
     quickSightConfig: createDefaultQuickSightConfig(),
     quickSightVisuals: [],
     demoSeeded: false,

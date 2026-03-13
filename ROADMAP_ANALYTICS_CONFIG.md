@@ -1,4 +1,4 @@
-# Dechini BI - Roadmap de Configuracion (persistente)
+# Roadmap de Configuracion Legacy (persistente)
 
 Nota:
 - El blueprint maestro del nuevo BI Studio y la ruta a Cloud Run + Cloud SQL estan documentados en `ROADMAP_SUPER_BI.md`.

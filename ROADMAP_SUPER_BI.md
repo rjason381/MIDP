@@ -21,11 +21,11 @@ Estado actual del trabajo ya aplicado en este repositorio:
 - [x] Autosave real con debounce y persistencia efectiva
 - [x] Fix de referencia de visual para drag de labels en QuickSight
 - [x] Busqueda global coherente en render QuickSight
-- [x] Introduccion de `bi-core.js` como base para query contracts y local adapter
+- [x] Introduccion de `analytics-core.js` como base para query contracts y local adapter
 - [x] Introduccion de `midp-storage.js` para desacoplar persistencia local de `localStorage`
 - [x] Base hibrida `localStorage + IndexedDB` con hidratacion inicial del estado
-- [x] Introduccion de `bi-local-data.js` para armado y filtrado local del dataset BI
-- [x] Introduccion de `bi-project-query.js` para catalogo BI y query service por proyecto
+- [x] Introduccion de `analytics-local-data.js` para armado y filtrado local del dataset BI
+- [x] Introduccion de `analytics-project-query.js` para catalogo BI y query service por proyecto
 - [x] Centralizacion de consultas BI repetidas hacia `queryBiProjectRows(...)`
 - [x] Primer refresh visual de BI Studio y QuickSight sobre la shell actual
 - [x] Interacciones QuickSight reales con filtro cruzado por click sobre datos
@@ -61,6 +61,8 @@ MIDP debe evolucionar hacia un BI Studio propio con estas capacidades:
 - tablas, pivot y scorecards de nivel enterprise
 - versionado, vistas guardadas y plantillas
 - modo presentacion y exportaciones
+- integracion con modelos ACC/RVT y dashboards sobre propiedades BIM
+- visor de modelo embebido con seleccion sincronizada contra visuales
 
 La experiencia debe sentirse como un producto BI serio, no como una suma de widgets.
 
@@ -94,6 +96,25 @@ La experiencia debe sentirse como un producto BI serio, no como una suma de widg
 - Base de datos: Cloud SQL MySQL
 - Secretos: Secret Manager
 - Observabilidad: Cloud Logging + metricas de aplicacion
+
+## Integracion ACC / RVT
+
+Objetivo:
+
+- vincular modelos RVT publicados en ACC
+- extraer propiedades del modelo via APS Model Properties
+- registrar cada modelo como fuente independiente dentro de QuickSight
+- mostrar el nombre real del modelo en `Conjunto de datos`
+- permitir dashboards por modelo sin mezclar todo en una sola vista global
+- incorporar un visor embebido para navegar el modelo y cruzarlo con filtros BI
+
+Lineamientos:
+
+- no exponer una vista compuesta tipo `TODAS LAS VISTAS` para modelos BIM
+- cada modelo debe entrar como dataset/fuente propia
+- los filtros globales pueden cruzar multiples fuentes, pero la seleccion de dataset debe seguir siendo limpia y explicita
+- el visor debe poder seleccionar elementos y reflejar esa seleccion en tablas y graficos
+- los graficos deben poder disparar aislamiento, enfoque o seleccion en el visor
 
 ## Capas del sistema
 
